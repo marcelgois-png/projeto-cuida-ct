@@ -1,0 +1,51 @@
+{% load tracker_tags %}
+{% for req in reqs_finalizadas %}
+<tr id="req-finalizada-{{ req.pk }}">
+  <td class="ps-3">
+    <input type="checkbox" name="requisicao_ids" value="{{ req.pk }}" class="form-check-input orcamento-requisicao-checkbox">
+  </td>
+  <td>
+    <div class="table-main-value table-main-value-code">{{ req.codigo }}</div>
+    <span class="table-main-meta">{{ req.data_cadastro|date:"d/m/Y" }}</span>
+  </td>
+  <td>
+    <div class="table-main-value">{{ req.assunto|default:"-" }}</div>
+    <span class="table-main-meta">{{ req.local_servico|default:"-" }}</span>
+  </td>
+  <td class="fw-semibold">
+    {% if req.orcamento_valor %}R$ {{ req.orcamento_valor|brl }}{% else %}-{% endif %}
+  </td>
+  <td>{{ req.tipo_servico|default:"-" }}</td>
+  <td>{{ req.servico|default:"-" }}</td>
+  <td>{{ req.empresa|default:"-" }}</td>
+  <td class="text-center">
+    <div class="d-inline-flex gap-1 align-items-center">
+      <a
+        class="btn btn-outline-secondary table-icon-action action-view"
+        href="{% url 'internal-requisicao-detail' req.pk %}?next={{ request.get_full_path|urlencode }}"
+        hx-boost="false"
+        title="Ver detalhes da requisição {{ req.codigo }}"
+        aria-label="Ver detalhes da requisição {{ req.codigo }}"
+      >
+        <i class="bi bi-eye"></i>
+      </a>
+      <a
+        class="btn btn-outline-primary table-icon-action action-edit"
+        href="{% url 'requisicao-update' req.pk %}"
+        hx-boost="false"
+        title="Editar requisição {{ req.codigo }}"
+        aria-label="Editar requisição {{ req.codigo }}"
+      >
+        <i class="bi bi-pencil-square"></i>
+      </a>
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="8" class="text-center text-muted py-4">
+    <i class="bi bi-inbox d-block mb-2 fs-4 opacity-50"></i>
+    Nenhuma requisição finalizada com orçamento.
+  </td>
+</tr>
+{% endfor %}

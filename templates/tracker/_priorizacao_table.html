@@ -1,0 +1,107 @@
+﻿<div class="table-responsive requisicoes-table-wrap" style="max-height:50vh;">
+  <table class="table table-hover align-middle requisicoes-table">
+    <colgroup>
+      <col style="width: 3%;">
+      <col style="width: 10%;">
+      <col style="width: 27%;">
+      <col style="width: 5%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+      <col style="width: 5%;">
+      <col style="width: 17%;">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="ps-3">
+          <input type="checkbox" class="form-check-input" onclick="toggleAllRequests(this)">
+        </th>
+        <th class="col-codigo">
+          <a class="table-sort-link {% if sort_links.codigo.active %}active{% endif %}"
+             href="?{{ sort_links.codigo.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.codigo.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>N&ordm;</span>
+            <i class="bi {% if sort_links.codigo.direction == 'asc' %}bi-arrow-up{% elif sort_links.codigo.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <!-- ... other headers ... -->
+        <th class="col-assunto">
+          <a class="table-sort-link {% if sort_links.assunto.active %}active{% endif %}"
+             href="?{{ sort_links.assunto.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.assunto.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Assunto</span>
+            <i class="bi {% if sort_links.assunto.direction == 'asc' %}bi-arrow-up{% elif sort_links.assunto.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th class="col-dias">
+          <a class="table-sort-link {% if sort_links.dias_abertura.active %}active{% endif %}"
+             href="?{{ sort_links.dias_abertura.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.dias_abertura.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Espera</span>
+            <i class="bi {% if sort_links.dias_abertura.direction == 'asc' %}bi-arrow-up{% elif sort_links.dias_abertura.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th>
+          <a class="table-sort-link {% if sort_links.gravidade.active %}active{% endif %}"
+             href="?{{ sort_links.gravidade.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.gravidade.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Gravidade</span>
+            <i class="bi {% if sort_links.gravidade.direction == 'asc' %}bi-arrow-up{% elif sort_links.gravidade.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th>
+          <a class="table-sort-link {% if sort_links.urgencia.active %}active{% endif %}"
+             href="?{{ sort_links.urgencia.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.urgencia.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Urg&ecirc;ncia</span>
+            <i class="bi {% if sort_links.urgencia.direction == 'asc' %}bi-arrow-up{% elif sort_links.urgencia.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th>
+          <a class="table-sort-link {% if sort_links.tendencia.active %}active{% endif %}"
+             href="?{{ sort_links.tendencia.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.tendencia.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Tend&ecirc;ncia</span>
+            <i class="bi {% if sort_links.tendencia.direction == 'asc' %}bi-arrow-up{% elif sort_links.tendencia.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th>
+          <a class="table-sort-link {% if sort_links.gut.active %}active{% endif %}"
+             href="?{{ sort_links.gut.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.gut.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>GUT</span>
+            <i class="bi {% if sort_links.gut.direction == 'asc' %}bi-arrow-up{% elif sort_links.gut.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th>
+          <a class="table-sort-link {% if sort_links.empresa.active %}active{% endif %}"
+             href="?{{ sort_links.empresa.querystring }}"
+             hx-get="{% url 'internal-priorizacao-table' %}?{{ sort_links.empresa.querystring }}"
+             hx-target="#priorizacao-results">
+            <span>Empresa</span>
+            <i class="bi {% if sort_links.empresa.direction == 'asc' %}bi-arrow-up{% elif sort_links.empresa.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_obj.object_list %}
+        {% include "tracker/_priorizacao_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">
+            Nenhuma requisi&ccedil;&atilde;o ativa encontrada com os filtros atuais.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+

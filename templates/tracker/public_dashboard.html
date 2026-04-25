@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Painel P&uacute;blico | CT -&gt; SINFRA{% endblock %}
+
+{% block topbar_meta %}
+  <span class="topbar-badge">Atualizado em {{ today|date:"d/m/Y" }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-globe-americas page-icon"></i>
+    <div>
+      <span class="page-kicker">Painel p&uacute;blico</span>
+      <h1 class="page-title">Acompanhamento de Requisi&ccedil;&otilde;es de Manuten&ccedil;&atilde;o</h1>
+      <div class="page-subtitle">
+        Consulta p&uacute;blica das requisi&ccedil;&otilde;es de manuten&ccedil;&atilde;o encaminhadas pelo CT &agrave; SINFRA, com indicadores e lista detalhada para acompanhamento.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="public-overview-stack">
+  <section class="public-panel public-panel-shortcuts">
+    <div class="public-panel-header">
+      <div class="public-panel-heading">
+        <span class="public-panel-kicker">Acesso r&aacute;pido</span>
+        <h2 class="public-panel-title">Atalhos do painel</h2>
+      </div>
+      <div class="public-toolbar-actions public-toolbar-actions-inline">
+        <a class="public-toolbar-action public-toolbar-action-primary" href="#public-details">
+          <i class="bi bi-arrow-down-circle"></i>
+          <span>Ver requisi&ccedil;&otilde;es</span>
+        </a>
+        <a class="public-toolbar-action public-toolbar-action-primary" href="https://atendimento.ct.ufpb.br/index.php?category=9&amp;a=add" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-box-arrow-up-right"></i>
+          <span>Abrir Requisi&ccedil;&atilde;o</span>
+        </a>
+        <a class="public-toolbar-action public-toolbar-action-primary" href="/painel-controle/">
+          <i class="bi bi-bar-chart-line"></i>
+          <span>Painel de controle</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="public-panel public-summary mb-4">
+    <div class="public-panel-header">
+      <div>
+        <span class="public-panel-kicker">Vis&atilde;o geral</span>
+        <h2 class="public-panel-title">Panorama das requisi&ccedil;&otilde;es</h2>
+      </div>
+    </div>
+    <div class="public-summary-grid">
+      <div class="metric-card metric-primary public-summary-tile">
+        <div class="metric-label">Requisi&ccedil;&otilde;es enviadas</div>
+        <div class="metric-value">{{ metrics.total|intdot }}</div>
+      </div>
+      <div class="metric-card metric-inactive public-summary-tile">
+        <div class="metric-label">Requisi&ccedil;&otilde;es inativas</div>
+        <div class="metric-value">{{ metrics.inativas|intdot }}</div>
+      </div>
+      <div class="metric-card metric-executed public-summary-tile">
+        <div class="metric-label">Requisi&ccedil;&otilde;es executadas</div>
+        <div class="metric-value">{{ metrics.executadas|intdot }}</div>
+      </div>
+      <div class="metric-card metric-active public-summary-tile">
+        <div class="metric-label">Requisi&ccedil;&otilde;es ativas</div>
+        <div class="metric-value">{{ metrics.abertas|intdot }}</div>
+      </div>
+        <div class="metric-card metric-info public-summary-tile">
+          <div class="metric-label">Investidos em climatiza&ccedil;&atilde;o</div>
+        <div class="metric-value public-summary-currency">R$ {{ metrics.investimento_climatizacao|brl }}</div>
+        </div>
+      </div>
+  </section>
+</div>
+
+{% include "tracker/_public_dashboard_panel.html" %}
+
+<script>
+  function clearPublicFilters() {
+    const form = document.getElementById('public-filters');
+    if (!form) {
+      return;
+    }
+    form.querySelectorAll('input[type="search"], input[type="number"], input[type="hidden"]').forEach(function (field) {
+      field.value = '';
+    });
+    form.querySelectorAll('select').forEach(function (field) {
+      field.selectedIndex = 0;
+    });
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+      return;
+    }
+    htmx.trigger(form, 'submit');
+  }
+</script>
+{% endblock %}

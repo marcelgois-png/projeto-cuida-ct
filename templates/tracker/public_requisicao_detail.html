@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Requisição {{ object.codigo }} | CT -> SINFRA{% endblock %}
+
+{% block topbar_meta %}
+  <span class="topbar-badge">Consulta pública</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-eye page-icon"></i>
+    <div>
+      <span class="page-kicker">Painel público</span>
+      <h1 class="page-title">Detalhes da requisição {{ object.codigo }}</h1>
+      <div class="page-subtitle">Visualização completa da requisição em modo somente leitura.</div>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'public-dashboard' %}">Voltar</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="section-title"><i class="bi bi-file-earmark-text"></i>Consulta da requisição</h3>
+  </div>
+  <div class="card-body">
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>DADOS GERAIS</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Nº Requisição</span>
+          <div class="detail-value">{{ object.codigo }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Data de cadastro</span>
+          <div class="detail-value">{{ object.data_cadastro|date:"d/m/Y"|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Data de execução</span>
+          <div class="detail-value">{{ object.data_execucao|date:"d/m/Y"|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Dias p/ Exec</span>
+          <div class="detail-value">{{ dias_para_execucao|default_if_none:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Dias desde abertura</span>
+          <div class="detail-value">{{ object.dias_desde_abertura|default_if_none:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-full">
+          <span class="detail-label">Assunto</span>
+          <div class="detail-value">{{ object.assunto|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Orçamento</span>
+          <div class="detail-value">{{ object.orcamento|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>ATENDIMENTO</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Status SIPAC</span>
+          <div class="detail-value">{{ status_sipac_exibicao|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Situação</span>
+          <div class="detail-value">
+            {% if object.situacao_requisicao|lower == 'ativa' %}
+              <span class="badge badge-success-soft">{{ object.situacao_requisicao }}</span>
+            {% elif object.situacao_requisicao|lower == 'inativa' %}
+              <span class="badge badge-neutral">{{ object.situacao_requisicao }}</span>
+            {% else %}
+              {{ object.situacao_requisicao|default:"-" }}
+            {% endif %}
+          </div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Divisão</span>
+          <div class="detail-value">{{ object.divisao|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Tipo de serviço</span>
+          <div class="detail-value">{{ object.tipo_servico|default:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Serviço</span>
+          <div class="detail-value">{{ object.servico|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>LOCAL</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Prédio</span>
+          <div class="detail-value">{{ object.predio.nome|default:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-full">
+          <span class="detail-label">Local do serviço</span>
+          <div class="detail-value">{{ object.local_servico|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>SOLICITANTE</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Requisitante</span>
+          <div class="detail-value">{{ object.nome_requisitante_publico|default:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Unidade/Setor</span>
+          <div class="detail-value">{{ object.unidade_setor_snapshot|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>ACOMPANHAMENTO DA REQUISIÇÃO</h4>
+      </div>
+      {% if acompanhamentos %}
+        <div class="table-responsive acompanhamento-table-wrap">
+          <table class="table acompanhamento-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 180px;">Data</th>
+                <th>Atualização da Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for acompanhamento in acompanhamentos %}
+                <tr>
+                  <td>{{ acompanhamento.data|date:"d/m/Y" }}</td>
+                  <td>{{ acompanhamento.atualizacao_situacao|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="detail-empty-state">Nenhum acompanhamento público cadastrado para esta requisição.</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

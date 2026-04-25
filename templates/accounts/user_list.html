@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Usuários | CT -> SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-people page-icon"></i>
+    <div>
+      <span class="page-kicker">Administração do Sistema</span>
+      <h1 class="page-title">Usuários</h1>
+      <div class="page-subtitle">Gerencie os acessos, perfis e contas da plataforma.</div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'user-create' %}">
+      <i class="bi bi-plus-lg me-1"></i>Novo Usuário
+    </a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body p-0">
+    <div class="table-responsive requisicoes-table-wrap">
+      <table class="table table-hover align-middle requisicoes-table mb-0">
+        <colgroup>
+          <col style="width: 35%;">
+          <col style="width: 20%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Login</th>
+            <th>Perfil</th>
+            <th>Status</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr {% if not user.is_active %}class="text-muted opacity-75"{% endif %}>
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  {% if user.foto %}
+                    <img src="{{ user.foto.url }}" alt="Foto" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
+                  {% else %}
+                    <span class="usr-avatar d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--ct-primary-subtle); color: var(--ct-primary); font-weight: bold; font-size: 1rem;">
+                      {{ user.nome_completo|default:user.username|slice:":1"|upper }}
+                    </span>
+                  {% endif %}
+                  <div>
+                    <div class="table-main-value">{{ user.nome_completo|default:user.username }}</div>
+                    <span class="table-main-meta">{{ user.email|default:"Sem e-mail" }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="table-main-value font-monospace small">{{ user.username }}</div>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border">{{ user.get_role_display }}</span>
+              </td>
+              <td>
+                {% if user.is_active %}
+                  <span class="badge badge-success-soft"><i class="bi bi-check-circle me-1"></i>Ativo</span>
+                {% else %}
+                  <span class="badge badge-neutral"><i class="bi bi-dash-circle me-1"></i>Inativo</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <div class="d-inline-flex gap-1 align-items-center">
+                  <a class="btn btn-outline-primary table-icon-action action-edit"
+                     href="{% url 'user-update' user.pk %}"
+                     title="Editar Usuário">
+                    <i class="bi bi-pencil-square"></i>
+                  </a>
+
+                  {% if user != request.user %}
+                    <form method="post" action="{% url 'user-toggle-active' user.pk %}" class="d-inline m-0 p-0">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-secondary table-icon-action action-view" 
+                              title="{% if user.is_active %}Inativar{% else %}Ativar{% endif %}">
+                        {% if user.is_active %}
+                          <i class="bi bi-person-dash"></i>
+                        {% else %}
+                          <i class="bi bi-person-check text-success"></i>
+                        {% endif %}
+                      </button>
+                    </form>
+
+                    <form method="post" action="{% url 'user-delete' user.pk %}" class="d-inline m-0 p-0" onsubmit="return confirm('Deseja realmente excluir permanentemente este usuário? Esta ação não pode ser desfeita.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-danger table-icon-action" title="Excluir Usuário">
+                        <i class="bi bi-trash3"></i>
+                      </button>
+                    </form>
+                  {% else %}
+                    <!-- Disable toggle/delete for self -->
+                     <button class="btn btn-outline-secondary table-icon-action" disabled title="Não pode inativar a si mesmo">
+                        <i class="bi bi-person-dash text-muted opacity-50"></i>
+                     </button>
+                     <button class="btn btn-outline-danger table-icon-action" disabled title="Não pode excluir a si mesmo">
+                        <i class="bi bi-trash3 text-muted opacity-50"></i>
+                     </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                Nenhum usuário cadastrado.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

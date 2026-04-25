@@ -1,0 +1,104 @@
+<div class="modal fade show d-block director-forward-modal" tabindex="-1" style="background:rgba(0,0,0,.45);" id="decisoes-encaminhamento-modal">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">
+            <i class="bi bi-folder2-open me-2 text-primary"></i>{{ decision_definition.title }}
+          </h5>
+          <div class="text-muted small">Registre as orientações consolidadas do diretor para o Operador.</div>
+        </div>
+        <button type="button" class="btn-close" onclick="fecharModalEncaminhamento()"></button>
+      </div>
+
+      <form hx-post="{% url 'decisoes-bulk-decide' %}"
+            hx-target="#decisoes-modal-container"
+            hx-swap="innerHTML">
+        {% csrf_token %}
+        {% for requisicao in selected_requisicoes %}
+          <input type="hidden" name="requisicao_ids" value="{{ requisicao.pk }}">
+        {% endfor %}
+        <input type="hidden" name="decisao" value="{{ decisao }}">
+
+        <div class="modal-body">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <span class="badge {{ decision_definition.badge_class }}">{{ decision_definition.label }}</span>
+            <span class="text-muted small">{{ selected_requisicoes|length }} requisição(ões) selecionada(s)</span>
+            <span class="text-muted small">{{ today|date:"d/m/Y" }}</span>
+          </div>
+
+          {% if form_error %}
+            <div class="alert alert-danger py-2 small mb-3">{{ form_error }}</div>
+          {% endif %}
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold small">Orientações ao Operador <span class="text-danger">*</span></label>
+            <textarea name="orientacoes" rows="4" class="form-control{% if form_error %} is-invalid{% endif %}" placeholder="Explique o encaminhamento, os cuidados e a providência esperada do Operador." autofocus>{{ orientacoes }}</textarea>
+            <div class="form-text">Esse texto será guardado no bloco de encaminhamento e no acompanhamento das requisições.</div>
+          </div>
+
+          <div class="border rounded-3 overflow-hidden">
+            <div class="px-3 py-2 bg-light border-bottom">
+              <div class="fw-semibold small text-uppercase text-muted">Requisições incluídas neste encaminhamento</div>
+            </div>
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Nº</th>
+                    <th>Assunto</th>
+                    <th>Requisitante</th>
+                    <th>Prédio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for requisicao in selected_requisicoes %}
+                    <tr>
+                      <td>
+                        <div class="table-main-value table-main-value-code">{{ requisicao.codigo }}</div>
+                        <span class="table-main-meta">{{ requisicao.data_cadastro|date:"d/m/Y"|default:"-" }}</span>
+                      </td>
+                      <td>
+                        <div class="table-main-value">{{ requisicao.assunto|default:"-" }}</div>
+                        <span class="table-main-meta">{{ requisicao.local_servico|default:"-" }}</span>
+                      </td>
+                      <td>
+                        <div class="table-main-value">{{ requisicao.nome_requisitante_publico|default:"-" }}</div>
+                        <span class="table-main-meta">{{ requisicao.unidade_setor_snapshot|default:"-" }}</span>
+                      </td>
+                      <td>{{ requisicao.predio.nome|default:"-" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" onclick="fecharModalEncaminhamento()">Cancelar</button>
+          <button type="submit" class="btn {{ decision_definition.button_class }}">
+            <i class="bi {{ decision_definition.button_icon }} me-1"></i>{{ decision_definition.button_label }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.body.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
+  document.body.style.paddingRight = '0';
+
+  const decisionTextarea = document.querySelector('#decisoes-encaminhamento-modal textarea[name="orientacoes"]');
+  if (decisionTextarea) {
+    decisionTextarea.focus();
+    decisionTextarea.setSelectionRange(decisionTextarea.value.length, decisionTextarea.value.length);
+  }
+
+  document.getElementById('decisoes-encaminhamento-modal').addEventListener('click', function(event) {
+    if (event.target === this) {
+      fecharModalEncaminhamento();
+    }
+  });
+</script>

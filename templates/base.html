@@ -1,0 +1,383 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CT → SINFRA{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'img/favicon-ct.png' %}?v=2">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── TOPBAR ──────────────────────────────────────────────────────── -->
+<header id="topbar">
+  {% if request.user.is_authenticated %}
+    <button id="btn-hamburger" aria-label="Alternar menu lateral">
+      <i class="bi bi-list"></i>
+    </button>
+  {% endif %}
+
+  <div class="tb-brand">
+    <a href="https://www.ct.ufpb.br/" class="tb-logo-link" target="_blank" rel="noopener noreferrer" aria-label="Ir para o site do CT">
+      <img src="{% static 'img/ct-logo.png' %}" alt="Logo CT" class="tb-logo">
+    </a>
+    <a href="{% url 'public-dashboard' %}" class="tb-title-link text-decoration-none" aria-label="Ir para a home do aplicativo">
+      <span class="tb-title">Sistema de Acompanhamento das Requisições de Manutenção&thinsp;|&thinsp;CT/UFPB</span>
+    </a>
+  </div>
+
+  <div id="user-area">
+    {% block topbar_meta %}{% endblock %}
+    {% if request.user.is_authenticated %}
+      <div class="dropdown">
+        <button class="usr-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left:0; border:none; background:transparent; display:flex; align-items:center; gap:0.5rem; color:var(--ct-primary-subtle);">
+          {% if request.user.foto %}
+            <img src="{{ request.user.foto.url }}" alt="Foto" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; border: 2px solid var(--ct-primary-subtle);">
+          {% else %}
+            <span class="usr-avatar">
+              {{ request.user.nome_completo|default:request.user.username|slice:":1"|upper }}
+            </span>
+          {% endif %}
+          <span class="d-none d-md-inline" style="font-weight: 600;">
+            {{ request.user.nome_completo|default:request.user.username|truncatechars:15 }}
+          </span>
+          <i class="bi bi-chevron-down" style="font-size:.6rem;opacity:.7"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm mt-1" style="min-width:200px;font-family:'Open Sans',sans-serif;font-size:1rem; padding: 0.5rem 0;">
+          <li>
+            <div class="dropdown-header text-muted py-2" style="font-size: 1.1rem; color: #555 !important;">
+              {% if request.user.matricula %}Mat. {{ request.user.matricula }}{% else %}Mat. não informada{% endif %}
+            </div>
+          </li>
+          <li>
+            <a class="dropdown-item py-2" href="#">
+              <i class="bi bi-person-gear me-2"></i>Meu Perfil
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item py-2" href="#">
+              <i class="bi bi-key me-2"></i>Alterar Senha
+            </a>
+          </li>
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item text-danger py-2">
+                <i class="bi bi-box-arrow-right me-2"></i>Sair
+              </button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    {% else %}
+      <a href="{% url 'login' %}" class="btn btn-topbar">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Entrar
+      </a>
+    {% endif %}
+  </div>
+</header>
+
+<!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
+{% if request.user.is_authenticated %}
+<nav id="sidebar">
+  <div class="sb-nav">
+
+    {% if request.user.is_operator %}
+      <div class="sb-section">Gestão de requisições</div>
+
+    <a href="{% url 'internal-cadastro' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'internal-cadastro' or request.resolver_match.url_name == 'importacao-upload' %}active{% endif %}"
+       data-sb-label="Cadastro">
+      <i class="bi bi-plus-square"></i>
+      <span class="sb-txt">Cadastro</span>
+    </a>
+
+    <a href="{% url 'internal-lista' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'internal-lista' or request.resolver_match.url_name == 'internal-requisicoes-table' or request.resolver_match.url_name == 'requisicao-create' or request.resolver_match.url_name == 'requisicao-update' %}active{% endif %}"
+       data-sb-label="Requisições">
+      <i class="bi bi-clipboard2-check"></i>
+      <span class="sb-txt">Requisições</span>
+    </a>
+
+    <a href="{% url 'internal-priorizacao' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'internal-priorizacao' %}active{% endif %}"
+       data-sb-label="Priorização">
+      <i class="bi bi-sort-numeric-down"></i>
+      <span class="sb-txt">Priorização</span>
+    </a>
+
+    <a href="{% url 'internal-visitas' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'internal-visitas' %}active{% endif %}"
+       data-sb-label="Visitas Programadas">
+      <i class="bi bi-calendar-week"></i>
+      <span class="sb-txt">Visitas Programadas</span>
+    </a>
+
+    <a href="{% url 'internal-orcamento' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'internal-orcamento' %}active{% endif %}"
+       data-sb-label="Orçamento">
+      <i class="bi bi-cash-stack"></i>
+      <span class="sb-txt">Orçamento</span>
+    </a>
+    {% endif %}
+
+    {% if request.user.is_director %}
+      <div class="sb-section">Direção</div>
+
+      <a href="{% url 'internal-decisoes' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'internal-decisoes' %}active{% endif %}"
+         data-sb-label="Decisões de Processo">
+        <i class="bi bi-briefcase"></i>
+        <span class="sb-txt">Decisões de Processo</span>
+      </a>
+
+      <a href="{% url 'internal-encaminhamentos' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'internal-encaminhamentos' %}active{% endif %}"
+         data-sb-label="Encaminhamentos">
+        <i class="bi bi-power"></i>
+        <span class="sb-txt">Encaminhamentos</span>
+      </a>
+    {% endif %}
+
+    <div class="sb-section">Acompanhamento</div>
+
+    <a href="{% url 'public-dashboard' %}"
+       class="sb-link {% if request.resolver_match.url_name == 'public-dashboard' or request.resolver_match.url_name == 'public-requisicoes-table' or request.resolver_match.url_name == 'public-control-panel' or request.resolver_match.url_name == 'public-control-panel-content' %}active{% endif %}"
+       data-sb-label="Painel público">
+      <i class="bi bi-globe-americas"></i>
+      <span class="sb-txt">Painel público</span>
+    </a>
+
+    {% if request.user.is_admin %}
+      <div class="sb-section">Administração do Sistema</div>
+
+      <a href="{% url 'user-list' %}" class="sb-link {% if request.resolver_match.url_name == 'user-list' or request.resolver_match.url_name == 'user-create' or request.resolver_match.url_name == 'user-update' %}active{% endif %}" data-sb-label="Usuários">
+        <i class="bi bi-people"></i>
+        <span class="sb-txt">Usuários</span>
+      </a>
+
+      <a href="{% url 'internal-gestao-listas' %}" class="sb-link {% if request.resolver_match.url_name == 'internal-gestao-listas' %}active{% endif %}" data-sb-label="Gestão de Listas">
+        <i class="bi bi-list-check"></i>
+        <span class="sb-txt">Gestão de Listas</span>
+      </a>
+
+      <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
+        <i class="bi bi-shield-lock"></i>
+        <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
+      </a>
+    {% endif %}
+
+  </div>
+</nav>
+{% endif %}
+
+<!-- ── MAIN WRAPPER ────────────────────────────────────────────────── -->
+<div id="main-wrapper" {% if not request.user.is_authenticated %}class="mw-no-sb"{% endif %}>
+
+  {% if messages %}
+    <div class="px-4 pt-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-2 py-2 small shadow-sm" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center text-muted small py-3 border-top bg-white">
+    Centro de Tecnologia / UFPB &nbsp;·&nbsp; Sistema de acompanhamento das requisições de manutenção
+  </footer>
+</div>
+
+<!-- ── SCRIPTS ─────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  /* HTMX CSRF */
+  document.addEventListener('htmx:configRequest', function (evt) {
+    const token = document.cookie.split('; ')
+      .find(function (r) { return r.startsWith('csrftoken='); });
+    if (token) evt.detail.headers['X-CSRFToken'] = token.split('=')[1];
+  });
+
+  /* ── Sidebar (padrão IRP) ── */
+  const sidebar   = document.getElementById('sidebar');
+  const mainWrap  = document.getElementById('main-wrapper');
+  const hamburger = document.getElementById('btn-hamburger');
+  const isMobile  = function () { return window.innerWidth < 992; };
+  let sbTooltips  = [];
+
+  function disposeTooltips() {
+    sbTooltips.forEach(function (t) { try { t.dispose(); } catch (e) {} });
+    sbTooltips = [];
+  }
+
+  function initTooltips() {
+    if (!sidebar) return;
+    sidebar.querySelectorAll('.sb-link[data-sb-label]').forEach(function (el) {
+      sbTooltips.push(new bootstrap.Tooltip(el, {
+        title: el.dataset.sbLabel,
+        placement: 'right',
+        trigger: 'hover',
+        boundary: 'window'
+      }));
+    });
+  }
+
+  function setSidebar(collapsed) {
+    disposeTooltips();
+    if (collapsed) {
+      sidebar && sidebar.classList.add('sb-col');
+      mainWrap && mainWrap.classList.add('mw-exp');
+      initTooltips();
+    } else {
+      sidebar && sidebar.classList.remove('sb-col');
+      mainWrap && mainWrap.classList.remove('mw-exp');
+    }
+    try { localStorage.setItem('ct-sb-col', collapsed ? '1' : '0'); } catch (e) {}
+  }
+
+  /* Restaurar estado desktop */
+  if (sidebar && !isMobile()) {
+    try {
+      if (localStorage.getItem('ct-sb-col') === '1') setSidebar(true);
+    } catch (e) {}
+  }
+
+  if (hamburger) {
+    hamburger.addEventListener('click', function () {
+      if (isMobile()) {
+        sidebar && sidebar.classList.toggle('sb-mobile-open');
+      } else {
+        setSidebar(!sidebar.classList.contains('sb-col'));
+      }
+    });
+  }
+
+  /* Fechar sidebar mobile ao clicar fora */
+  document.addEventListener('click', function (e) {
+    if (isMobile() && sidebar && sidebar.classList.contains('sb-mobile-open')) {
+      if (!sidebar.contains(e.target) && e.target !== hamburger) {
+        sidebar.classList.remove('sb-mobile-open');
+      }
+    }
+  });
+</script>
+{% block extra_scripts %}
+<script>
+  /* ── Vinculação Status SIPAC ↔ Ativa/Inativa ─────────────────────────
+     Implementa a lógica equivalente à fórmula Excel:
+     =SE(OU(status IN {01,02,03,04,05,10}); "Ativa"; "Inativa")
+     Funciona nos dois sentidos:
+       • Ativa/Inativa → desabilita opções incompatíveis no Status SIPAC
+       • Status SIPAC  → atualiza automaticamente o campo Ativa/Inativa
+  ────────────────────────────────────────────────────────────────────── */
+  (function () {
+    var ACTIVE_STATUS_CODES = [
+      "01 CADASTRADA",
+      "02 ENVIADA",
+      "03 AGUARDANDO OS",
+      "04 OS EMITIDA",
+      "05 AGUARDANDO AVALIACAO REQUISITANTE",
+      "10 PENDENTE DE AUTORIZACAO CHEFE UNIDADE"
+    ];
+
+    function normalizeStr(str) {
+      if (!str) return '';
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+    }
+
+    var activeNorm = ACTIVE_STATUS_CODES.map(normalizeStr);
+
+    function isActive(statusValue) {
+      return activeNorm.indexOf(normalizeStr(statusValue)) !== -1;
+    }
+
+    /* Aplica as restrições de opções no select de Status SIPAC
+       com base no valor atual de Ativa/Inativa. */
+    function applyStatusConstraints(situacaoSel, statusSel) {
+      var sit = situacaoSel.value;
+      Array.from(statusSel.options).forEach(function (opt) {
+        if (!opt.value) { opt.disabled = false; return; }
+        var opActive = isActive(opt.value);
+        if (sit === 'Ativa') {
+          opt.disabled = !opActive;
+          if (statusSel.value && !isActive(statusSel.value)) statusSel.value = '';
+        } else if (sit === 'Inativa') {
+          opt.disabled = opActive;
+          if (statusSel.value && isActive(statusSel.value)) statusSel.value = '';
+        } else {
+          opt.disabled = false;
+        }
+      });
+    }
+
+    var _syncing = false;   /* mutex para evitar loop recursivo */
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+      /* Inicialização: aplica restrições com base no valor já selecionado
+         (útil quando a página é carregada com filtros pré-preenchidos via URL) */
+      document.querySelectorAll('select[name="situacao_requisicao"]').forEach(function (sit) {
+        var form = sit.closest('form');
+        if (!form) return;
+        var stat = form.querySelector('select[name="status_sipac"]');
+        if (stat) applyStatusConstraints(sit, stat);
+      });
+
+      /* Handler de mudanças em qualquer formulário da página */
+      document.body.addEventListener('change', function (e) {
+        if (_syncing) return;
+        var target = e.target;
+
+        /* ── Usuário mudou o filtro Ativa/Inativa ─────────────────── */
+        if (target.matches && target.matches('select[name="situacao_requisicao"]')) {
+          var form = target.closest('form');
+          if (!form) return;
+          var statusSel = form.querySelector('select[name="status_sipac"]');
+          if (!statusSel) return;
+          _syncing = true;
+          applyStatusConstraints(target, statusSel);
+          _syncing = false;
+        }
+
+        /* ── Usuário mudou o filtro Status SIPAC ──────────────────── */
+        else if (target.matches && target.matches('select[name="status_sipac"]')) {
+          var form = target.closest('form');
+          if (!form) return;
+          var sitSel = form.querySelector('select[name="situacao_requisicao"]');
+          if (!sitSel) return;
+          var val = target.value;
+          if (!val) return;   /* opção "Todos" selecionada: sem alteração */
+          var expected = isActive(val) ? 'Ativa' : 'Inativa';
+          if (sitSel.value !== expected) {
+            _syncing = true;
+            sitSel.value = expected;
+            applyStatusConstraints(sitSel, target);
+            /* Notifica o HTMX para re-filtrar caso o formulário use hx-trigger="change" */
+            sitSel.dispatchEvent(new Event('change', { bubbles: true }));
+            _syncing = false;
+          }
+        }
+      });
+    });
+  }());
+</script>
+{% endblock %}
+</html>

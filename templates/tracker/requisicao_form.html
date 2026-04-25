@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+
+{% block title %}Requisição | CT -> SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-pencil-square page-icon"></i>
+    <div>
+      <span class="page-kicker">Cadastro operacional</span>
+      <h1 class="page-title">{% if object %}Editar requisição {{ object.codigo }}{% else %}Nova requisição{% endif %}</h1>
+      <div class="page-subtitle">Preencha os dados da requisição conforme o fluxo operacional do CT.</div>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'internal-lista' %}">Voltar</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="section-title"><i class="bi bi-card-checklist"></i>Cadastro da requisição</h3>
+  </div>
+  <div class="card-body">
+    <form method="post" class="requisicao-form">
+      {% csrf_token %}
+      {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+
+      {% if form.non_field_errors %}
+        <div class="mb-3">
+          {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mb-2">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>DADOS GERAIS</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label for="{{ form.codigo.id_for_label }}" class="form-label fw-semibold">{{ form.codigo.label }}</label>
+            {{ form.codigo }}
+            {% for error in form.codigo.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            <label for="{{ form.data_cadastro.id_for_label }}" class="form-label fw-semibold">{{ form.data_cadastro.label }}</label>
+            {{ form.data_cadastro }}
+            {% for error in form.data_cadastro.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            <label for="{{ form.data_execucao.id_for_label }}" class="form-label fw-semibold">{{ form.data_execucao.label }}</label>
+            {{ form.data_execucao }}
+            {% if form.data_execucao.help_text %}<div class="form-text">{{ form.data_execucao.help_text }}</div>{% endif %}
+            {% for error in form.data_execucao.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            <label for="{{ form.orcamento_valor.id_for_label }}" class="form-label fw-semibold">{{ form.orcamento_valor.label }}</label>
+            <div class="input-group">
+              <span class="input-group-text">R$</span>
+              {{ form.orcamento_valor }}
+            </div>
+            <div class="form-text">Use vírgula como separador decimal. Ex: 1500,00</div>
+            {% for error in form.orcamento_valor.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-12">
+            <label for="{{ form.assunto.id_for_label }}" class="form-label fw-semibold">{{ form.assunto.label }}</label>
+            {{ form.assunto }}
+            {% for error in form.assunto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>SINFRA</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="{{ form.divisao.id_for_label }}" class="form-label fw-semibold">{{ form.divisao.label }}</label>
+            {{ form.divisao }}
+            {% for error in form.divisao.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label for="{{ form.tipo_servico.id_for_label }}" class="form-label fw-semibold">{{ form.tipo_servico.label }}</label>
+            {{ form.tipo_servico }}
+            {% for error in form.tipo_servico.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label for="{{ form.servico.id_for_label }}" class="form-label fw-semibold">{{ form.servico.label }}</label>
+            {{ form.servico }}
+            {% for error in form.servico.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>ATENDIMENTO</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="{{ form.status_sipac.id_for_label }}" class="form-label fw-semibold">{{ form.status_sipac.label }}</label>
+            {{ form.status_sipac }}
+            {% for error in form.status_sipac.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            <label for="{{ form.situacao_requisicao.id_for_label }}" class="form-label fw-semibold">{{ form.situacao_requisicao.label }}</label>
+            {{ form.situacao_requisicao }}
+            {% if form.situacao_requisicao.help_text %}<div class="form-text">{{ form.situacao_requisicao.help_text }}</div>{% endif %}
+            {% for error in form.situacao_requisicao.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>LOCAL</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label for="{{ form.predio.id_for_label }}" class="form-label fw-semibold">{{ form.predio.label }}</label>
+            {{ form.predio }}
+            {% for error in form.predio.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-7">
+            <label for="{{ form.local_servico.id_for_label }}" class="form-label fw-semibold">{{ form.local_servico.label }}</label>
+            {{ form.local_servico }}
+            {% for error in form.local_servico.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>SOLICITANTE</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="{{ form.nome_requisitante_snapshot.id_for_label }}" class="form-label fw-semibold">{{ form.nome_requisitante_snapshot.label }}</label>
+            {{ form.nome_requisitante_snapshot }}
+            {% for error in form.nome_requisitante_snapshot.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label for="{{ form.unidade_setor_snapshot.id_for_label }}" class="form-label fw-semibold">{{ form.unidade_setor_snapshot.label }}</label>
+            {{ form.unidade_setor_snapshot }}
+            {% for error in form.unidade_setor_snapshot.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            <label for="{{ form.contato_direto_url.id_for_label }}" class="form-label fw-semibold">{{ form.contato_direto_url.label }}</label>
+            {{ form.contato_direto_url }}
+            {% for error in form.contato_direto_url.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section-header">
+          <h4>ACESSOS</h4>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="{{ form.link_atendimento.id_for_label }}" class="form-label fw-semibold">{{ form.link_atendimento.label }}</label>
+            {{ form.link_atendimento }}
+            {% for error in form.link_atendimento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            <label for="{{ form.link_sipac.id_for_label }}" class="form-label fw-semibold">{{ form.link_sipac.label }}</label>
+            {{ form.link_sipac }}
+            {% for error in form.link_sipac.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+      </section>
+
+      {% if object %}
+        <section class="form-section form-section-highlight" id="acompanhamento-section">
+          <div class="form-section-header form-section-header-split">
+            <div>
+              <h4>ACOMPANHAMENTO DA REQUISIÇÃO</h4>
+              <div class="form-section-caption">Registre observações sucessivas sobre a evolução do atendimento.</div>
+            </div>
+            <button class="btn btn-light btn-sm acompanhamento-action-btn" type="button" id="add-acompanhamento-row">
+              <i class="bi bi-chat-left-text me-1"></i>Cadastrar situação
+            </button>
+          </div>
+
+          {{ acompanhamento_formset.management_form }}
+
+          {% if acompanhamento_formset.non_form_errors %}
+            <div class="mb-3">
+              {% for error in acompanhamento_formset.non_form_errors %}<div class="alert alert-danger py-2 mb-2">{{ error }}</div>{% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="table-responsive acompanhamento-table-wrap">
+            <table class="table acompanhamento-table acompanhamento-edit-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 180px;">Data</th>
+                  <th>Atualização da Situação</th>
+                  <th style="width: 220px;" class="text-center">Usuário</th>
+                  <th style="width: 220px;" class="text-center">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="acompanhamento-rows">
+                {% for acompanhamento_form in acompanhamento_formset %}
+                  <tr
+                    class="acompanhamento-row {% if not acompanhamento_form.instance.pk or acompanhamento_form.errors %}is-editing{% endif %}"
+                    data-acompanhamento-row="true"
+                    data-form-index="{{ forloop.counter0 }}"
+                    {% if acompanhamento_form.instance.pk %}
+                      data-original-date="{{ acompanhamento_form.instance.data|date:'Y-m-d' }}"
+                      data-original-text="{{ acompanhamento_form.instance.atualizacao_situacao|escapejs }}"
+                    {% endif %}
+                  >
+                    <td>
+                      {% for hidden in acompanhamento_form.hidden_fields %}{{ hidden }}{% endfor %}
+                      <div class="acompanhamento-cell-display" {% if not acompanhamento_form.instance.pk or acompanhamento_form.errors %}hidden{% endif %} data-display="true">
+                        <div class="acompanhamento-display-text">{{ acompanhamento_form.instance.data|date:"d/m/Y"|default:"-" }}</div>
+                      </div>
+                      <div class="acompanhamento-cell-editor" {% if acompanhamento_form.instance.pk and not acompanhamento_form.errors %}hidden{% endif %} data-editor="true">
+                        {{ acompanhamento_form.data }}
+                        {% for error in acompanhamento_form.data.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                      </div>
+                    </td>
+                    <td>
+                      <div class="acompanhamento-cell-display" {% if not acompanhamento_form.instance.pk or acompanhamento_form.errors %}hidden{% endif %} data-display="true">
+                        <div class="acompanhamento-display-text">{{ acompanhamento_form.instance.atualizacao_situacao|default:"-" }}</div>
+                      </div>
+                      <div class="acompanhamento-cell-editor" {% if acompanhamento_form.instance.pk and not acompanhamento_form.errors %}hidden{% endif %} data-editor="true">
+                        {{ acompanhamento_form.atualizacao_situacao }}
+                        {% for error in acompanhamento_form.atualizacao_situacao.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      <div class="acompanhamento-row-status-wrap">
+                        <div class="acompanhamento-meta acompanhamento-meta-inline acompanhamento-user-cell">
+                          <i class="bi bi-person-circle"></i>
+                          <span>
+                            {% if acompanhamento_form.instance.pk %}
+                              {% if acompanhamento_form.instance.usuario_nome %}
+                                {{ acompanhamento_form.instance.usuario_nome }}
+                              {% else %}
+                                Sistema
+                              {% endif %}
+                            {% else %}
+                              Será preenchido ao salvar
+                            {% endif %}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-center">
+                      {% if acompanhamento_form.instance.pk %}
+                        <div class="acompanhamento-row-status-wrap" data-actions-default="true" {% if acompanhamento_form.errors %}hidden{% endif %}>
+                          <button class="btn btn-outline-secondary btn-sm acompanhamento-inline-submit" type="button" data-edit-row="true">
+                            <i class="bi bi-pencil-square me-1"></i>Editar
+                          </button>
+                        </div>
+                        <div class="acompanhamento-row-status-wrap" data-actions-edit="true" {% if not acompanhamento_form.errors %}hidden{% endif %}>
+                          <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="{{ forloop.counter0 }}">
+                            <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-cancel-edit="true">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Cancelar
+                          </button>
+                        </div>
+                      {% else %}
+                        <div class="acompanhamento-row-status-wrap" data-actions-edit="true">
+                          <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="{{ forloop.counter0 }}">
+                            <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-remove-row="true" aria-label="Remover linha">
+                            <i class="bi bi-x-lg me-1"></i>Remover
+                          </button>
+                        </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                <tr {% if acompanhamento_formset.forms %}hidden{% endif %} data-empty-state="true">
+                  <td colspan="4" class="text-center text-muted py-3">Nenhuma observação cadastrada até o momento.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <template id="acompanhamento-empty-form-template">
+            <tr class="acompanhamento-row is-editing" data-acompanhamento-row="true" data-form-index="__prefix__">
+              <td>
+                {% for hidden in acompanhamento_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                <div class="acompanhamento-cell-display" hidden data-display="true"></div>
+                <div class="acompanhamento-cell-editor" data-editor="true">
+                  {{ acompanhamento_formset.empty_form.data }}
+                </div>
+              </td>
+              <td>
+                <div class="acompanhamento-cell-display" hidden data-display="true"></div>
+                <div class="acompanhamento-cell-editor" data-editor="true">
+                  {{ acompanhamento_formset.empty_form.atualizacao_situacao }}
+                </div>
+              </td>
+              <td class="text-center">
+                <div class="acompanhamento-row-status-wrap">
+                  <div class="acompanhamento-meta acompanhamento-meta-inline acompanhamento-user-cell">
+                    <i class="bi bi-person-circle"></i>
+                    <span>Será preenchido ao salvar</span>
+                  </div>
+                </div>
+              </td>
+              <td class="text-center">
+                <div class="acompanhamento-row-status-wrap" data-actions-edit="true">
+                  <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="__prefix__">
+                    <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-remove-row="true" aria-label="Remover linha">
+                    <i class="bi bi-x-lg me-1"></i>Remover
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </section>
+      {% endif %}
+
+      <div class="col-12 d-flex gap-2 flex-wrap pt-2">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-check2-circle me-1"></i>Salvar
+        </button>
+        <a class="btn btn-outline-secondary" href="{% url 'internal-lista' %}">Cancelar</a>
+        {% if object %}
+          <button
+            class="btn btn-outline-danger ms-auto"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#requisicaoDeleteModal"
+            data-codigo="{{ object.codigo }}"
+            data-delete-url="{% url 'requisicao-delete' object.pk %}"
+            title="Apagar esta requisi&ccedil;&atilde;o"
+          >
+            <i class="bi bi-trash3 me-1"></i>Apagar
+          </button>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if object %}
+      <div class="border-top mt-4 pt-3 text-end">
+        {% if object.status_processo_diretor == 'nao_indicado' %}
+          <form method="post" action="{% url 'indicar-processo' object.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-warning" type="submit" onclick="return confirm('Deseja indicar esta requisição para abertura de processo pelo Diretor de Centro?');">
+              <i class="bi bi-exclamation-triangle"></i> Indicar Abertura de Processo
+            </button>
+          </form>
+        {% else %}
+          <div class="text-muted d-flex align-items-center justify-content-end gap-2">
+            <strong>Status de Processo no Diretor:</strong>
+            <span class="badge 
+              {% if object.status_processo_diretor == 'aguardando_decisao' %}bg-warning text-dark
+              {% elif object.status_processo_diretor == 'autorizado' %}bg-success
+              {% elif object.status_processo_diretor == 'negado' %}bg-danger
+              {% elif object.status_processo_diretor == 'inspecao_in_loco' %}bg-primary
+              {% else %}bg-secondary{% endif %}">
+              {{ object.get_status_processo_diretor_display }}
+            </span>
+          </div>
+          {% if object.observacao_diretor %}
+            <div class="text-muted small mt-1">
+              <strong>Motivo/Obs:</strong> {{ object.observacao_diretor }}
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if object %}
+  {% include "tracker/_requisicao_delete_modal.html" %}
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ form.taxonomy_options|json_script:"taxonomy-options-data" }}
+  <script>
+    (function () {
+      const taxonomyDataElement = document.getElementById("taxonomy-options-data");
+      const divisaoSelect = document.getElementById("{{ form.divisao.id_for_label }}");
+      const tipoSelect = document.getElementById("{{ form.tipo_servico.id_for_label }}");
+      const servicoSelect = document.getElementById("{{ form.servico.id_for_label }}");
+      const statusSelect = document.getElementById("{{ form.status_sipac.id_for_label }}");
+      const situacaoField = document.getElementById("{{ form.situacao_requisicao.id_for_label }}");
+
+      const activeStatuses = new Set([
+        "01 CADASTRADA",
+        "10 PENDENTE DE AUTORIZAÇÃO CHEFE UNIDADE",
+        "02 ENVIADA",
+        "03 AGUARDANDO OS",
+        "04 OS EMITIDA",
+        "05 AGUARDANDO AVALIAÇÃO REQUISITANTE"
+      ]);
+
+      const normalizeStatus = function (value) {
+        return (value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toUpperCase();
+      };
+
+      const syncSituacao = function () {
+        if (!statusSelect || !situacaoField) {
+          return;
+        }
+        const normalized = normalizeStatus(statusSelect.value);
+        situacaoField.value = normalized ? (activeStatuses.has(normalized) ? "Ativa" : "Inativa") : "";
+      };
+
+      if (statusSelect) {
+        statusSelect.addEventListener("change", syncSituacao);
+        syncSituacao();
+      }
+
+      if (!taxonomyDataElement || !divisaoSelect || !tipoSelect || !servicoSelect) {
+        return;
+      }
+
+      const taxonomyOptions = JSON.parse(taxonomyDataElement.textContent);
+
+      const uniqueValues = function (rows, key) {
+        return Array.from(
+          new Set(
+            rows
+              .map(function (row) { return row[key]; })
+              .filter(function (value) { return Boolean(value); })
+          )
+        );
+      };
+
+      const fillOptions = function (select, values, currentValue) {
+        const preservedValue = currentValue && !values.includes(currentValue) ? currentValue : "";
+        const effectiveValues = preservedValue ? values.concat([preservedValue]) : values;
+        select.innerHTML = "";
+
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "---------";
+        select.appendChild(emptyOption);
+
+        effectiveValues.forEach(function (value) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+
+        select.value = values.includes(currentValue) || preservedValue ? currentValue : "";
+      };
+
+      const refreshTaxonomyFilters = function () {
+        const currentDivisao = divisaoSelect.value;
+        const currentTipo = tipoSelect.value;
+        const currentServico = servicoSelect.value;
+
+        const divisaoValues = uniqueValues(
+          taxonomyOptions.filter(function (row) {
+            return (!currentTipo || row.tipo_servico === currentTipo) && (!currentServico || row.servico === currentServico);
+          }),
+          "divisao"
+        );
+        const tipoValues = uniqueValues(
+          taxonomyOptions.filter(function (row) {
+            return (!currentDivisao || row.divisao === currentDivisao) && (!currentServico || row.servico === currentServico);
+          }),
+          "tipo_servico"
+        );
+        const servicoValues = uniqueValues(
+          taxonomyOptions.filter(function (row) {
+            return (!currentDivisao || row.divisao === currentDivisao) && (!currentTipo || row.tipo_servico === currentTipo);
+          }),
+          "servico"
+        );
+
+        fillOptions(divisaoSelect, divisaoValues, currentDivisao);
+        fillOptions(tipoSelect, tipoValues, currentTipo);
+        fillOptions(servicoSelect, servicoValues, currentServico);
+      };
+
+      [divisaoSelect, tipoSelect, servicoSelect].forEach(function (select) {
+        select.addEventListener("change", refreshTaxonomyFilters);
+      });
+
+      refreshTaxonomyFilters();
+    })();
+  </script>
+  {% if object %}
+    <script>
+      (function () {
+        const addRowButton = document.getElementById("add-acompanhamento-row");
+        const rowsContainer = document.getElementById("acompanhamento-rows");
+        const totalFormsInput = document.getElementById("id_{{ acompanhamento_formset.prefix }}-TOTAL_FORMS");
+        const emptyTemplate = document.getElementById("acompanhamento-empty-form-template");
+
+        if (!addRowButton || !rowsContainer || !totalFormsInput || !emptyTemplate) {
+          return;
+        }
+
+        const todayInputValue = function () {
+          const currentDate = new Date();
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+          const day = String(currentDate.getDate()).padStart(2, "0");
+          return [year, month, day].join("-");
+        };
+
+        const syncEmptyState = function () {
+          const emptyStateRow = rowsContainer.querySelector("[data-empty-state='true']");
+          const hasRows = rowsContainer.querySelector("[data-acompanhamento-row='true']");
+          if (emptyStateRow) {
+            emptyStateRow.hidden = Boolean(hasRows);
+          }
+        };
+
+        const bindRemoveButton = function (button) {
+          if (!button || button.dataset.bound === "true") {
+            return;
+          }
+          button.dataset.bound = "true";
+          button.addEventListener("click", function () {
+            const row = button.closest("[data-acompanhamento-row='true']");
+            if (!row) {
+              return;
+            }
+            row.remove();
+            syncEmptyState();
+          });
+        };
+
+        const setRowEditing = function (row, editing) {
+          if (!row) {
+            return;
+          }
+          row.classList.toggle("is-editing", editing);
+          row.querySelectorAll("[data-display='true']").forEach(function (element) {
+            element.hidden = editing;
+          });
+          row.querySelectorAll("[data-editor='true']").forEach(function (element) {
+            element.hidden = !editing;
+          });
+          row.querySelectorAll("[data-actions-default='true']").forEach(function (element) {
+            element.hidden = editing;
+          });
+          row.querySelectorAll("[data-actions-edit='true']").forEach(function (element) {
+            element.hidden = !editing;
+          });
+        };
+
+        const bindEditButton = function (button) {
+          if (!button || button.dataset.bound === "true") {
+            return;
+          }
+          button.dataset.bound = "true";
+          button.addEventListener("click", function () {
+            const row = button.closest("[data-acompanhamento-row='true']");
+            setRowEditing(row, true);
+            const updateField = row ? row.querySelector("textarea") : null;
+            if (updateField) {
+              updateField.focus();
+            }
+          });
+        };
+
+        const bindCancelButton = function (button) {
+          if (!button || button.dataset.bound === "true") {
+            return;
+          }
+          button.dataset.bound = "true";
+          button.addEventListener("click", function () {
+            const row = button.closest("[data-acompanhamento-row='true']");
+            if (!row) {
+              return;
+            }
+            const dateField = row.querySelector('input[type="date"]');
+            const updateField = row.querySelector("textarea");
+            if (dateField && row.dataset.originalDate) {
+              dateField.value = row.dataset.originalDate;
+            }
+            if (updateField && row.dataset.originalText !== undefined) {
+              updateField.value = row.dataset.originalText;
+            }
+            setRowEditing(row, false);
+          });
+        };
+
+        rowsContainer.querySelectorAll("[data-remove-row='true']").forEach(bindRemoveButton);
+        rowsContainer.querySelectorAll("[data-edit-row='true']").forEach(bindEditButton);
+        rowsContainer.querySelectorAll("[data-cancel-edit='true']").forEach(bindCancelButton);
+
+        addRowButton.addEventListener("click", function () {
+          const nextIndex = Number(totalFormsInput.value);
+          const nextMarkup = emptyTemplate.innerHTML.replace(/__prefix__/g, String(nextIndex));
+          rowsContainer.insertAdjacentHTML("beforeend", nextMarkup);
+          totalFormsInput.value = String(nextIndex + 1);
+
+          const newRow = rowsContainer.querySelector('[data-form-index="' + nextIndex + '"]');
+          if (!newRow) {
+            syncEmptyState();
+            return;
+          }
+
+          const dateField = newRow.querySelector('input[type="date"]');
+          if (dateField && !dateField.value) {
+            dateField.value = todayInputValue();
+          }
+
+          bindRemoveButton(newRow.querySelector("[data-remove-row='true']"));
+          bindEditButton(newRow.querySelector("[data-edit-row='true']"));
+          bindCancelButton(newRow.querySelector("[data-cancel-edit='true']"));
+          setRowEditing(newRow, true);
+
+          const updateField = newRow.querySelector("textarea");
+          if (updateField) {
+            updateField.focus();
+          }
+
+          syncEmptyState();
+        });
+
+        syncEmptyState();
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

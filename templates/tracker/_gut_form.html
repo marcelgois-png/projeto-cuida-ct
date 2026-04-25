@@ -1,0 +1,36 @@
+<div class="p-3 border rounded bg-light">
+  <h6>{% if instance %}Editar Parâmetro GUT{% else %}Novo Parâmetro GUT{% endif %}</h6>
+  <form hx-post="{% if instance %}{% url 'gut-parametro-edit' instance.pk %}{% else %}{% url 'gut-parametro-add' %}{% endif %}" 
+        hx-target="#gut-list-body" 
+        hx-swap="innerHTML"
+        hx-on::after-request="this.closest('#gut-form-container').innerHTML = ''">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-3">
+        <select name="tipo" class="form-select" required>
+          <option value="" disabled {% if not instance %}selected{% endif %}>Selecione o Tipo</option>
+          <option value="GRAVIDADE" {% if instance.tipo == "GRAVIDADE" %}selected{% endif %}>Gravidade</option>
+          <option value="URGENCIA" {% if instance.tipo == "URGENCIA" %}selected{% endif %}>Urgência</option>
+          <option value="TENDENCIA" {% if instance.tipo == "TENDENCIA" %}selected{% endif %}>Tendência</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="valor" class="form-select" required>
+          <option value="" disabled {% if not instance %}selected{% endif %}>Valor</option>
+          <option value="5" {% if instance.valor == 5 %}selected{% endif %}>5 (Pior)</option>
+          <option value="4" {% if instance.valor == 4 %}selected{% endif %}>4</option>
+          <option value="3" {% if instance.valor == 3 %}selected{% endif %}>3</option>
+          <option value="2" {% if instance.valor == 2 %}selected{% endif %}>2</option>
+          <option value="1" {% if instance.valor == 1 %}selected{% endif %}>1 (Melhor)</option>
+        </select>
+      </div>
+      <div class="col-md-7">
+        <input type="text" name="descricao" class="form-control" placeholder="Descrição explicativa do nível" value="{{ instance.descricao|default:'' }}" required>
+      </div>
+      <div class="col-12 mt-2">
+        <button type="submit" class="btn btn-sm btn-success">Salvar</button>
+        <button type="button" class="btn btn-sm btn-neutral ms-1" onclick="this.closest('#gut-form-container').innerHTML = ''">Cancelar</button>
+      </div>
+    </div>
+  </form>
+</div>

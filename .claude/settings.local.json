@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -d /c/Users/MarcelGois/Documents/*/)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python manage.py shell -c ':*)",
+      "Bash(python manage.py shell -c \"from apps.accounts.models import User; u, _ = User.objects.get_or_create\\(username='preview'\\); u.set_password\\('preview123'\\); u.is_staff=True; u.is_superuser=True; u.save\\(\\); print\\('OK'\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(python manage.py check)",
+      "Bash(python manage.py shell)",
+      "Bash(python manage.py shell -c \"from apps.tracker.models import Requisicao; print\\('total:', Requisicao.objects.count\\(\\)\\); print\\('ativas:', Requisicao.objects.filter\\(situacao_requisicao='Ativa'\\).count\\(\\)\\)\")",
+      "Bash(python manage.py check --deploy)",
+      "Bash(python -c \"import django; django.setup\\(\\); print\\('OK'\\)\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Read(//tmp/**)",
+      "Bash(cmd /c \"cd /d \\\\\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\\" && python manage.py check 2>&1\")",
+      "Bash(cmd /c \"cd /d \\\\\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisicoes de Manutencao - CT\\\\\" && python --version\")",
+      "Bash(grep -E \"\\\\.\\(html|txt\\)$\")",
+      "Bash(python manage.py makemigrations tracker --name orcamento_nota_empenho)",
+      "Bash(python manage.py makemigrations)",
+      "Bash(python \"C:/Users/MarcelGois/Documents/Projeto - Acompanhamento Requisições de Manutenção - CT/manage.py\" makemigrations)",
+      "Bash(cmd /c \"cd /d \\\\\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\\" && python manage.py makemigrations 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\\" && python manage.py makemigrations 2>&1 && echo SUCCESS || echo FAIL\")",
+      "Bash(cmd.exe /c \"cd /d \\\\\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\\" && python manage.py migrate 2>&1 && echo MIGRATED_OK\")",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(powershell -Command \"cd 'C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT'; python manage.py migrate 2>&1\")",
+      "Bash(powershell -Command \"python --version\")",
+      "Bash(python \"C:/Users/MarcelGois/Documents/Projeto - Acompanhamento Requisições de Manutenção - CT/run_migrate.py\")",
+      "Bash(tee /tmp/migrate_out.txt)",
+      "Bash(del \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\run_migrate.py\")",
+      "Bash(dir \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(echo \"EXIT=$?\")"
+    ]
+  }
+}

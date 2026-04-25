@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Requisi&ccedil;&otilde;es | CT -&gt; SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-clipboard2-check page-icon"></i>
+    <div>
+      <span class="page-kicker">&Aacute;rea interna</span>
+      <h1 class="page-title">Lista de Requisi&ccedil;&otilde;es</h1>
+      <div class="page-subtitle">Acompanhe as requisi&ccedil;&otilde;es ativas e inativas processadas no sistema.</div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'requisicao-create' %}">
+      <i class="bi bi-plus-lg me-1"></i>Nova requisi&ccedil;&atilde;o
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'api-internal-requisicoes' %}?format=csv">
+      <i class="bi bi-download me-1"></i>Exportar CSV
+    </a>
+  </div>
+</div>
+
+<script>
+function toggleAllRequests(master) {
+  document.querySelectorAll('.requisicao-checkbox').forEach(cb => {
+    cb.checked = master.checked;
+  });
+}
+
+function clearInternalFilters() {
+  const form = document.getElementById('internal-filters');
+  if (!form) {
+    return;
+  }
+  form.querySelectorAll('input[type="search"], input[type="text"], input[type="number"]').forEach(field => {
+    field.value = '';
+  });
+  form.querySelectorAll('select').forEach(field => {
+    field.selectedIndex = 0;
+  });
+  if (typeof form.requestSubmit === 'function') {
+    form.requestSubmit();
+    return;
+  }
+  htmx.trigger(form, 'submit');
+}
+
+function applyBulkDecisions() {
+  const selectedCheckboxes = document.querySelectorAll('.requisicao-checkbox:checked');
+  if (selectedCheckboxes.length === 0) {
+    alert("Selecione ao menos uma requisi\u00e7\u00e3o.");
+    return;
+  }
+
+  const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+
+  htmx.ajax('POST', '{% url "lista-bulk-decisions-preview" %}', {
+    values: {
+      'requisicao_ids': selectedIds
+    },
+    target: '#bulk-decisions-modal-container'
+  });
+}
+
+function fecharModalBulkDecisions() {
+  const el = document.getElementById('bulk-decisions-modal-container');
+  if (el) el.innerHTML = '';
+  const backdrop = document.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.remove();
+  document.body.classList.remove('modal-open');
+  document.body.style.overflow = '';
+  document.body.style.paddingRight = '';
+}
+</script>
+
+{% include "tracker/_internal_lista_panel.html" %}
+
+<div id="bulk-decisions-modal-container"></div>
+{% include "tracker/_requisicao_delete_modal.html" %}
+{% endblock %}

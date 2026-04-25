@@ -1,0 +1,43 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB:-ct_sinfra}
+      MYSQL_USER: ${MYSQL_USER:-ct_sinfra}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ct_sinfra}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  web:
+    build:
+      context: .
+    command: sh -c "python manage.py collectstatic --noinput && gunicorn ct_sinfra.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-seu-dominio.com,www.seu-dominio.com}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://seu-dominio.com,https://www.seu-dominio.com}
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-True}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-True}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-31536000}
+      SECURE_HSTS_INCLUDE_SUBDOMAINS: ${SECURE_HSTS_INCLUDE_SUBDOMAINS:-True}
+      SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-True}
+      USE_X_FORWARDED_PROTO: ${USE_X_FORWARDED_PROTO:-True}
+      MYSQL_DB: ${MYSQL_DB:-ct_sinfra}
+      MYSQL_USER: ${MYSQL_USER:-ct_sinfra}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ct_sinfra}
+      MYSQL_HOST: db
+      MYSQL_PORT: 3306
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+volumes:
+  mysql_data:

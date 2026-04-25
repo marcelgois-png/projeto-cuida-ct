@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro e Importa&ccedil;&atilde;o de Requisi&ccedil;&otilde;es | CT -&gt; SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-plus-square page-icon"></i>
+    <div>
+      <span class="page-kicker">&Aacute;rea interna</span>
+      <h1 class="page-title">Cadastro e Importa&ccedil;&atilde;o de Requisi&ccedil;&otilde;es</h1>
+      <div class="page-subtitle">
+        Cadastre novas requisi&ccedil;&otilde;es, exporte a base atual e processe importa&ccedil;&otilde;es da planilha institucional.
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'requisicao-create' %}">
+      <i class="bi bi-plus-lg me-1"></i>Nova requisi&ccedil;&atilde;o
+    </a>
+    <a class="btn btn-outline-primary" href="{% url 'api-internal-requisicoes' %}?format=csv">
+      <i class="bi bi-download me-1"></i>Exportar CSV
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 metrics-row">
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-primary">
+      <div class="metric-label">Requisi&ccedil;&otilde;es enviadas</div>
+      <div class="metric-value">{{ metrics.total }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-inactive">
+      <div class="metric-label">Requisi&ccedil;&otilde;es inativas</div>
+      <div class="metric-value">{{ metrics.inativas }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-executed">
+      <div class="metric-label">Requisi&ccedil;&otilde;es executadas</div>
+      <div class="metric-value">{{ metrics.executadas }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-active">
+      <div class="metric-label">Requisi&ccedil;&otilde;es ativas</div>
+      <div class="metric-value">{{ metrics.abertas }}</div>
+    </div>
+  </div>
+</div>
+
+{% if request.user.is_admin %}
+  <div class="row g-3">
+    <div class="col-xl-7">
+      <div class="card h-100">
+        <div class="card-header">
+          <h3 class="section-title"><i class="bi bi-upload"></i>Importa&ccedil;&atilde;o de base</h3>
+        </div>
+        <div class="card-body">
+          <p class="section-subtitle mb-3">
+            Use arquivos XLSM, XLSX ou CSV para migrar hist&oacute;rico ou reprocessar dados.
+            O importador l&ecirc; a base principal, os cadastros auxiliares e as regras de prioridade.
+          </p>
+          <form method="post" action="{% url 'importacao-upload' %}" enctype="multipart/form-data" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-8">
+              <label class="form-label">Arquivo de importa&ccedil;&atilde;o</label>
+              {{ import_form.arquivo }}
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-primary w-100" type="submit">
+                <i class="bi bi-cloud-upload me-1"></i>Importar arquivo
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-5">
+      <div class="card h-100">
+        <div class="card-header">
+          <h3 class="section-title"><i class="bi bi-clock-history"></i>&Uacute;ltimas importa&ccedil;&otilde;es</h3>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            {% for item in last_imports %}
+              <div class="list-group-item px-0">
+                <div class="fw-semibold">{{ item.nome_arquivo }}</div>
+                <div class="small text-muted">
+                  {{ item.get_status_display }}{% if item.processado_em %} em {{ item.processado_em|date:"d/m/Y H:i" }}{% endif %}
+                </div>
+              </div>
+            {% empty %}
+              <div class="text-muted small">Nenhuma importa&ccedil;&atilde;o executada ainda.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

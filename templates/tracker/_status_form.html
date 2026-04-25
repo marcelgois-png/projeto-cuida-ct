@@ -1,0 +1,24 @@
+<div class="p-3 border rounded bg-light">
+  <h6>{% if instance %}Editar Status{% else %}Novo Status{% endif %}</h6>
+  <form hx-post="{% if instance %}{% url 'status-sipac-edit' instance.pk %}{% else %}{% url 'status-sipac-add' %}{% endif %}" 
+        hx-target="#status-list-body" 
+        hx-swap="innerHTML"
+        hx-on::after-request="this.closest('#status-form-container').innerHTML = ''">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-8">
+        <input type="text" name="descricao" class="form-control" placeholder="Nome do Status" value="{{ instance.descricao|default:'' }}" required>
+      </div>
+      <div class="col-4 d-flex align-items-center">
+        <div class="form-check form-switch ms-2">
+          <input class="form-check-input" type="checkbox" name="ativa" id="statusActive" {% if instance and not instance.ativa %} {% else %} checked {% endif %}>
+          <label class="form-check-label" for="statusActive">Ativa</label>
+        </div>
+      </div>
+      <div class="col-12 mt-2">
+        <button type="submit" class="btn btn-sm btn-success">Salvar</button>
+        <button type="button" class="btn btn-sm btn-neutral ms-1" onclick="this.closest('#status-form-container').innerHTML = ''">Cancelar</button>
+      </div>
+    </div>
+  </form>
+</div>

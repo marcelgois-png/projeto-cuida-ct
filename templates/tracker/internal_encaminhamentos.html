@@ -1,0 +1,110 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Encaminhamentos | CT | SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-power page-icon"></i>
+    <div>
+      <span class="page-kicker">Dire&ccedil;&atilde;o de Centro</span>
+      <h1 class="page-title">Encaminhamentos</h1>
+      <div class="page-subtitle">Consulte as orienta&ccedil;&otilde;es agrupadas do diretor e as requisi&ccedil;&otilde;es vinculadas a cada decis&atilde;o.</div>
+    </div>
+  </div>
+</div>
+
+{% if encaminhamentos %}
+  {% for encaminhamento in encaminhamentos %}
+    <div class="card mb-4 shadow-sm">
+      <div class="card-header">
+        <h3 class="section-title mb-0">
+          <i class="bi bi-folder2-open"></i>
+          Encaminhamento #{{ encaminhamento.numero|stringformat:"03d" }}
+        </h3>
+      </div>
+
+      <div class="card-body">
+        <div class="block-action-row mb-3">
+          <div class="section-subtitle">
+            {{ encaminhamento.data_encaminhamento|date:"d/m/Y" }}
+            {% if encaminhamento.diretor %} &middot; {{ encaminhamento.diretor.nome_completo|default:encaminhamento.diretor.username }}{% endif %}
+          </div>
+          <div class="block-action-controls">
+            <span class="badge {% if encaminhamento.tipo == 'abrir_processo' %}badge-success-soft{% elif encaminhamento.tipo == 'encerrar_requisicao' %}badge-danger-soft{% else %}badge-primary-soft{% endif %}">
+              {{ encaminhamento.get_tipo_display }}
+            </span>
+            <form method="post" action="{% url 'internal-cancel-encaminhamento' encaminhamento.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-danger text-white btn-cancel-encaminhamento" onclick="return confirm('Cancelar o encaminhamento #{{ encaminhamento.numero|stringformat:"03d" }} e devolver as requisições para a lista de decisões?');">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Cancelar encaminhamento
+              </button>
+            </form>
+          </div>
+        </div>
+        <section class="form-section mb-3">
+          <div class="form-section-header">
+            <h4>ORIENTA&Ccedil;&Otilde;ES DO DIRETOR</h4>
+          </div>
+          <div class="detail-value">{{ encaminhamento.orientacoes|default:"-" }}</div>
+        </section>
+
+        <section class="form-section">
+          <div class="form-section-header">
+            <h4>REQUISI&Ccedil;&Otilde;ES RELACIONADAS</h4>
+          </div>
+          <div class="table-responsive acompanhamento-table-wrap">
+            <table class="table acompanhamento-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 180px;">N&ordm; Requisi&ccedil;&atilde;o</th>
+                  <th>Assunto</th>
+                  <th>Requisitante</th>
+                  <th style="width: 90px;" class="text-center">A&ccedil;&atilde;o</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for requisicao in encaminhamento.requisicoes.all %}
+                  <tr>
+                    <td>
+                      <div class="table-main-value table-main-value-code">{{ requisicao.codigo }}</div>
+                      <span class="table-main-meta">{{ requisicao.data_cadastro|date:"d/m/Y"|default:"-" }}</span>
+                    </td>
+                    <td>
+                      <div class="table-main-value">{{ requisicao.assunto|default:"-" }}</div>
+                      <span class="table-main-meta">{{ requisicao.local_servico|default:"-" }}</span>
+                    </td>
+                    <td>
+                      <div class="table-main-value">{{ requisicao.nome_requisitante_publico|default:"-" }}</div>
+                      <span class="table-main-meta">{{ requisicao.unidade_setor_snapshot|default:"-" }}</span>
+                    </td>
+                    <td class="text-center">
+                      <a
+                        class="btn btn-outline-secondary table-icon-action action-view"
+                        href="{% url 'internal-requisicao-detail' requisicao.pk %}?next={{ request.get_full_path|urlencode }}"
+                        hx-boost="false"
+                        title="Ver detalhes da requisi&ccedil;&atilde;o {{ requisicao.codigo }}"
+                        aria-label="Ver detalhes da requisi&ccedil;&atilde;o {{ requisicao.codigo }}"
+                      >
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="detail-empty-state">Nenhum encaminhamento foi registrado at&eacute; o momento.</div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+
+

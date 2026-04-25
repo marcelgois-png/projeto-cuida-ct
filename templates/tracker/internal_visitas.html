@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Visitas Programadas | CT → SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-calendar-week page-icon"></i>
+    <div>
+      <span class="page-kicker">Área interna</span>
+      <h1 class="page-title">Visitas Programadas</h1>
+      <div class="page-subtitle">
+        Visitas organizadas por data e empresa, geradas na tela de Priorização.
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'internal-priorizacao' %}" class="btn btn-outline-primary">
+      <i class="bi bi-sort-numeric-down me-1"></i>Nova visita
+    </a>
+    <button class="btn btn-outline-danger" onclick="limparTodasVisitas()">
+      <i class="bi bi-trash me-1"></i>Limpar todas
+    </button>
+  </div>
+</div>
+
+<div id="visitas-empty" class="text-center text-muted py-5">
+  <i class="bi bi-calendar-x fs-1 d-block mb-3 opacity-30"></i>
+  <p class="mb-1">Nenhuma visita programada.</p>
+  <a href="{% url 'internal-priorizacao' %}" class="btn btn-primary mt-2">
+    <i class="bi bi-plus-lg me-1"></i>Preparar visita
+  </a>
+</div>
+
+<div id="visitas-container"></div>
+
+<!-- Modal de edição de data -->
+<div class="modal fade" id="modalEditarVisita" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title mb-0"><i class="bi bi-pencil me-2"></i>Editar data da visita</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="date" id="edit-visita-data" class="form-control form-control-sm">
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-primary" onclick="salvarEdicaoVisita()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    #sidebar, #topbar, #btn-hamburger, .page-toolbar,
+    .btn, .no-print { display: none !important; }
+    #main-wrapper { margin-left: 0 !important; margin-top: 0 !important; }
+    .visita-card { display: none !important; }
+    .visita-card.printing { display: block !important; page-break-after: always; box-shadow: none !important; border: 1px solid #ccc !important; }
+    .visita-group-header { display: none !important; }
+    .visita-card.printing .visita-print-date { display: block !important; }
+  }
+  .visita-print-date { display: none; font-weight: bold; margin-bottom: 0.5rem; font-size: 0.85rem; color: #555; }
+</style>
+
+<script>
+  var _editingId = null;
+  var _editModal = null;
+
+  function carregarVisitas() {
+    let visitas = [];
+    try { visitas = JSON.parse(localStorage.getItem('ct-visitas') || '[]'); } catch(e) {}
+
+    const empty     = document.getElementById('visitas-empty');
+    const container = document.getElementById('visitas-container');
+
+    if (!visitas.length) {
+      empty.classList.remove('d-none');
+      container.innerHTML = '';
+      return;
+    }
+    empty.classList.add('d-none');
+
+    /* Agrupar por data */
+    const porData = {};
+    visitas.forEach(function(v) {
+      if (!porData[v.data]) porData[v.data] = [];
+      porData[v.data].push(v);
+    });
+
+    const datas = Object.keys(porData).sort();
+
+    container.innerHTML = datas.map(function(data) {
+      const grupo = porData[data];
+      const dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+
+      const cards = grupo.map(function(v) {
+        /* Agrupar requisições por empresa */
+        const porEmpresa = {};
+        v.requisicoes.forEach(function(r) {
+          const emp = r.empresa || '(sem empresa)';
+          if (!porEmpresa[emp]) porEmpresa[emp] = [];
+          porEmpresa[emp].push(r);
+        });
+
+        const empresaSections = Object.keys(porEmpresa).map(function(emp) {
+          const rows = porEmpresa[emp].map(function(r) {
+            return '<tr>' +
+              '<td class="fw-bold small">' + r.numero + '</td>' +
+              '<td class="small">' + r.assunto + '</td>' +
+              '<td class="small">' + r.requisitante + '</td>' +
+              '<td class="small">' + r.predio + '</td>' +
+              '<td class="small">' + r.local + '</td>' +
+            '</tr>';
+          }).join('');
+
+          return '<div class="mb-3">' +
+            '<div class="d-flex align-items-center gap-2 mb-2">' +
+              '<i class="bi bi-building text-muted small"></i>' +
+              '<span class="small fw-bold text-muted text-uppercase" style="letter-spacing:.05em">' + emp + '</span>' +
+              '<span class="badge bg-light text-dark border ms-1">' + porEmpresa[emp].length + ' req.</span>' +
+            '</div>' +
+            '<table class="table table-hover table-sm mb-0">' +
+              '<thead><tr>' +
+                '<th style="width:110px;">Nº Requisição</th>' +
+                '<th>Assunto</th>' +
+                '<th style="width:160px;">Requisitante</th>' +
+                '<th style="width:160px;">Prédio</th>' +
+                '<th style="width:140px;">Local</th>' +
+              '</tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+          '</div>';
+        }).join('');
+
+        return '<div class="card mb-3 visita-card" id="visita-' + v.id + '">' +
+          '<div class="visita-print-date">CT/UFPB — Visita programada: ' + dataFmt + '</div>' +
+          '<div class="card-header d-flex align-items-center justify-content-between">' +
+            '<div class="d-flex align-items-center gap-2">' +
+              '<i class="bi bi-clipboard-check text-primary"></i>' +
+              '<span class="fw-bold small">Visita programada</span>' +
+              '<span class="badge bg-primary-soft text-primary ms-1">' + v.requisicoes.length + ' requisições</span>' +
+            '</div>' +
+            '<div class="d-flex align-items-center gap-1 no-print">' +
+              '<button class="btn btn-sm btn-link text-secondary p-0" onclick="editarVisita(' + v.id + ', \'' + v.data + '\')" title="Editar data">' +
+                '<i class="bi bi-pencil"></i>' +
+              '</button>' +
+              '<button class="btn btn-sm btn-link text-secondary p-0" onclick="imprimirVisita(' + v.id + ')" title="Gerar PDF">' +
+                '<i class="bi bi-file-earmark-pdf"></i>' +
+              '</button>' +
+              '<button class="btn btn-sm btn-link text-danger p-0" onclick="excluirVisita(' + v.id + ')" title="Excluir visita">' +
+                '<i class="bi bi-trash"></i>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-body">' + empresaSections + '</div>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="mb-4">' +
+        '<h6 class="visita-group-header text-uppercase fw-bold mb-3" style="font-size:.72rem;letter-spacing:.08em;color:var(--ct-primary)">' +
+          '<i class="bi bi-calendar3 me-2"></i>' + dataFmt +
+        '</h6>' +
+        cards +
+      '</div>';
+    }).join('');
+  }
+
+  function excluirVisita(id) {
+    if (!confirm('Excluir esta visita?')) return;
+    try {
+      let visitas = JSON.parse(localStorage.getItem('ct-visitas') || '[]');
+      visitas = visitas.filter(function(v) { return v.id !== id; });
+      localStorage.setItem('ct-visitas', JSON.stringify(visitas));
+    } catch(e) {}
+    carregarVisitas();
+  }
+
+  function limparTodasVisitas() {
+    if (!confirm('Excluir todas as visitas programadas?')) return;
+    try { localStorage.removeItem('ct-visitas'); } catch(e) {}
+    carregarVisitas();
+  }
+
+  function editarVisita(id, dataAtual) {
+    _editingId = id;
+    document.getElementById('edit-visita-data').value = dataAtual;
+    if (!_editModal) _editModal = new bootstrap.Modal(document.getElementById('modalEditarVisita'));
+    _editModal.show();
+  }
+
+  function salvarEdicaoVisita() {
+    const novaData = document.getElementById('edit-visita-data').value;
+    if (!novaData) { alert('Informe uma data.'); return; }
+    try {
+      let visitas = JSON.parse(localStorage.getItem('ct-visitas') || '[]');
+      visitas = visitas.map(function(v) {
+        if (v.id === _editingId) v.data = novaData;
+        return v;
+      });
+      localStorage.setItem('ct-visitas', JSON.stringify(visitas));
+    } catch(e) {}
+    if (_editModal) _editModal.hide();
+    carregarVisitas();
+  }
+
+  function imprimirVisita(id) {
+    const card = document.getElementById('visita-' + id);
+    if (!card) return;
+    card.classList.add('printing');
+    window.print();
+    card.classList.remove('printing');
+  }
+
+  carregarVisitas();
+</script>
+{% endblock %}

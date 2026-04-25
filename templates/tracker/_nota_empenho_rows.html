@@ -1,0 +1,119 @@
+{% load tracker_tags %}
+{% for nota in notas %}
+<tr id="nota-row-{{ nota.pk }}">
+  <td>
+    <div class="table-main-value table-main-value-code">{{ nota.nota_empenho }}</div>
+    <span class="table-main-meta">Criada em {{ nota.criado_em|date:"d/m/Y" }}</span>
+  </td>
+  <td class="text-end fw-semibold">
+    R$ {{ nota.valor_total|brl }}
+  </td>
+  <td></td>
+  <td>{{ nota.empresa|default:"-" }}</td>
+  <td class="text-end">
+    {% with saldo=nota.saldo %}
+      <span class="fw-semibold {% if saldo < 0 %}text-danger{% else %}text-success{% endif %}">
+        R$ {{ saldo|brl }}
+      </span>
+    {% endwith %}
+  </td>
+  <td class="text-center">
+    <div class="btn-group btn-group-sm nota-actions-group">
+      <button class="btn btn-outline-primary"
+              hx-get="{% url 'nota-empenho-edit' nota.pk %}"
+              hx-target="#nota-form-container"
+              hx-swap="innerHTML"
+              title="Editar nota de empenho">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <button class="btn btn-outline-danger"
+              hx-post="{% url 'nota-empenho-delete' nota.pk %}"
+              hx-target="#nota-empenho-tbody"
+              hx-swap="innerHTML"
+              hx-confirm="Excluir a nota {{ nota.nota_empenho }}? As requisições vinculadas serão desvinculadas."
+              title="Excluir nota de empenho">
+        <i class="bi bi-trash"></i>
+      </button>
+      <button class="btn btn-outline-secondary"
+              hx-get="{% url 'nota-empenho-reforco' nota.pk %}"
+              hx-target="#reforco-modal-container"
+              hx-swap="innerHTML"
+              title="Adicionar reforço de empenho"
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              data-bs-title="Novo aporte financeiro à nota de empenho">
+        <i class="bi bi-plus-circle"></i>
+      </button>
+    </div>
+  </td>
+</tr>
+<tr class="nota-detail-row">
+  <td class="text-muted ps-4 pt-0 border-top-0">Valor Inicial</td>
+  <td class="text-muted text-end pt-0 border-top-0">R$ {{ nota.valor|brl }}</td>
+  <td class="text-muted pt-0 border-top-0">
+    {% if nota.numero_processo_sipac %}
+      {% if nota.link_processo_sipac %}
+        <a href="{{ nota.link_processo_sipac }}" target="_blank" rel="noopener" class="text-primary text-decoration-none">
+          {{ nota.numero_processo_sipac }} <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.6"></i>
+        </a>
+      {% else %}
+        {{ nota.numero_processo_sipac }}
+      {% endif %}
+    {% else %}
+      <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="pt-0 border-top-0"></td>
+  <td class="pt-0 border-top-0"></td>
+  <td class="text-center pt-0 border-top-0"></td>
+</tr>
+{% for reforco in nota.reforcos.all %}
+<tr class="nota-detail-row">
+  <td class="text-muted ps-4 pt-0 border-top-0">
+    <div>Reforço {{ forloop.counter }}</div>
+    {% if reforco.descricao %}
+      <div class="fst-italic">{{ reforco.descricao }}</div>
+    {% endif %}
+  </td>
+  <td class="text-muted text-end pt-0 border-top-0">R$ {{ reforco.valor|brl }}</td>
+  <td class="text-muted pt-0 border-top-0">
+    {% if reforco.numero_processo_sipac %}
+      {{ reforco.numero_processo_sipac }}
+    {% else %}
+      <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="pt-0 border-top-0"></td>
+  <td class="pt-0 border-top-0"></td>
+  <td class="text-center pt-0 border-top-0">
+    <div class="btn-group btn-group-sm nota-actions-group">
+      <button class="btn btn-outline-primary"
+              hx-get="{% url 'nota-empenho-reforco-edit' nota.pk reforco.pk %}"
+              hx-target="#reforco-modal-container"
+              hx-swap="innerHTML"
+              title="Editar reforço">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <button class="btn btn-outline-danger"
+              hx-post="{% url 'nota-empenho-reforco-delete' nota.pk reforco.pk %}"
+              hx-target="#nota-empenho-tbody"
+              hx-swap="innerHTML"
+              hx-confirm="Excluir o reforço {{ forloop.counter }} da nota {{ nota.nota_empenho }}?"
+              title="Excluir reforço">
+        <i class="bi bi-trash"></i>
+      </button>
+      <span class="btn btn-outline-secondary invisible" aria-hidden="true">
+        <i class="bi bi-plus-circle"></i>
+      </span>
+    </div>
+  </td>
+</tr>
+{% endfor %}
+{% empty %}
+<tr>
+  <td colspan="6" class="text-center text-muted py-4">
+    <i class="bi bi-inbox d-block mb-2 fs-4 opacity-50"></i>
+    Nenhuma nota de empenho cadastrada.
+  </td>
+</tr>
+{% endfor %}

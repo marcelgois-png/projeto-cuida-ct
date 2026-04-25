@@ -1,0 +1,618 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Painel de Controle CT | SINFRA{% endblock %}
+
+{% block topbar_meta %}
+  <span class="topbar-badge">Atualizado em {{ today|date:"d/m/Y" }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-bar-chart-line page-icon"></i>
+    <div>
+      <span class="page-kicker">Painel anal&iacute;tico</span>
+      <h1 class="page-title">Painel de Controle CT | SINFRA</h1>
+      <div class="page-subtitle">
+        Vis&atilde;o executiva das requisi&ccedil;&otilde;es de manuten&ccedil;&atilde;o do CT, com transpar&ecirc;ncia para a comunidade e apoio &agrave; gest&atilde;o interna.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "tracker/_public_control_panel_shell.html" %}
+
+<script>
+  (function () {
+    const charts = {};
+    const chartScaleMax = {};
+    let renderFrame = null;
+    let valueLabelPluginRegistered = false;
+    let preservedScrollY = null;
+    const rootStyle = window.getComputedStyle(document.documentElement);
+    const colorTokens = {
+      active: (rootStyle.getPropertyValue('--ct-status-active') || '').trim() || '#cf5757',
+      inactive: (rootStyle.getPropertyValue('--ct-status-inactive') || '').trim() || '#98a1ac'
+    };
+
+    const stackedValueLabelsPlugin = {
+      id: 'stackedValueLabels',
+      afterDatasetsDraw: function (chart) {
+        const options = chart.options && chart.options.plugins ? chart.options.plugins.stackedValueLabels : null;
+        if (!options || options.enabled === false) {
+          return;
+        }
+        if (chart.config.type !== 'bar' || chart.options.indexAxis !== 'y') {
+          return;
+        }
+
+        const datasets = Array.isArray(chart.data.datasets) ? chart.data.datasets : [];
+        if (!datasets.length) {
+          return;
+        }
+
+        const ctx = chart.ctx;
+        const minSegmentWidth = Number(options.minSegmentWidth || 26);
+        const totalOffset = Number(options.totalOffset || 8);
+        const segmentColor = options.segmentColor || '#ffffff';
+        const totalColor = options.totalColor || '#243243';
+        const totalPrefix = options.totalPrefix || '';
+        const fontSize = Number(options.fontSize || 11);
+        const fontWeight = options.fontWeight || '700';
+        const fontFamily = options.fontFamily || 'Open Sans, sans-serif';
+
+        ctx.save();
+        ctx.font = fontWeight + ' ' + fontSize + 'px ' + fontFamily;
+        ctx.textBaseline = 'middle';
+
+        const labelsLength = Array.isArray(chart.data.labels) ? chart.data.labels.length : 0;
+        for (let dataIndex = 0; dataIndex < labelsLength; dataIndex += 1) {
+          let total = 0;
+          let yPos = null;
+          let endX = null;
+
+          datasets.forEach(function (dataset, datasetIndex) {
+            const value = Number((dataset.data || [])[dataIndex]) || 0;
+            total += value;
+
+            const meta = chart.getDatasetMeta(datasetIndex);
+            const bar = meta && meta.data ? meta.data[dataIndex] : null;
+            if (!bar) {
+              return;
+            }
+
+            const props = bar.getProps(['x', 'y', 'base'], true);
+            const width = Math.abs(props.x - props.base);
+            yPos = props.y;
+            endX = endX === null ? props.x : Math.max(endX, props.x);
+
+            if (value <= 0 || width < minSegmentWidth) {
+              return;
+            }
+
+            ctx.fillStyle = segmentColor;
+            ctx.textAlign = 'center';
+            ctx.fillText(String(value), props.base + ((props.x - props.base) / 2), props.y);
+          });
+
+          if (options.showTotal && yPos !== null && endX !== null && total > 0) {
+            ctx.fillStyle = totalColor;
+            ctx.textAlign = 'left';
+            ctx.fillText(totalPrefix + String(total), endX + totalOffset, yPos);
+          }
+        }
+
+        ctx.restore();
+      }
+    };
+
+    const barValueLabelsPlugin = {
+      id: 'barValueLabels',
+      afterDatasetsDraw: function (chart) {
+        const options = chart.options && chart.options.plugins ? chart.options.plugins.barValueLabels : null;
+        if (!options || options.enabled === false) {
+          return;
+        }
+        if (chart.config.type !== 'bar' || chart.options.indexAxis === 'y') {
+          return;
+        }
+
+        const datasets = Array.isArray(chart.data.datasets) ? chart.data.datasets : [];
+        if (!datasets.length) {
+          return;
+        }
+
+        const chartAreaTop = chart.chartArea ? chart.chartArea.top : 0;
+        const ctx = chart.ctx;
+        const fontSize = Number(options.fontSize || 11);
+        const fontWeight = options.fontWeight || '700';
+        const fontFamily = options.fontFamily || 'Open Sans, sans-serif';
+        const color = options.color || '#243243';
+        const offset = Number(options.offset || 8);
+
+        ctx.save();
+        ctx.font = fontWeight + ' ' + fontSize + 'px ' + fontFamily;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = color;
+
+        datasets.forEach(function (dataset, datasetIndex) {
+          const meta = chart.getDatasetMeta(datasetIndex);
+          if (!meta || meta.hidden) {
+            return;
+          }
+
+          (meta.data || []).forEach(function (bar, dataIndex) {
+            if (!bar) {
+              return;
+            }
+            const value = Number((dataset.data || [])[dataIndex]) || 0;
+            if (value <= 0) {
+              return;
+            }
+
+            const props = bar.getProps(['x', 'y'], true);
+            const labelY = Math.max(chartAreaTop + (fontSize / 2), props.y - offset);
+            ctx.fillText(String(value), props.x, labelY);
+          });
+        });
+
+        ctx.restore();
+      }
+    };
+
+    function maxValue(values) {
+      if (!Array.isArray(values) || !values.length) {
+        return 0;
+      }
+      return Math.max.apply(null, values.map(function (value) {
+        return Number(value) || 0;
+      }));
+    }
+
+    function sumSeries(first, second) {
+      const size = Math.max((first || []).length, (second || []).length);
+      const totals = [];
+      for (let index = 0; index < size; index += 1) {
+        totals.push((Number((first || [])[index]) || 0) + (Number((second || [])[index]) || 0));
+      }
+      return totals;
+    }
+
+    function fixedScaleMax(key, currentMax) {
+      const safeCurrent = Number(currentMax) || 0;
+      const previous = Number(chartScaleMax[key]) || 0;
+      const next = Math.max(previous, safeCurrent);
+      if (next <= 0) {
+        return undefined;
+      }
+      chartScaleMax[key] = next;
+      return Math.ceil(next * 1.05);
+    }
+
+    function readChartData(id) {
+      const element = document.getElementById(id);
+      if (!element) {
+        return null;
+      }
+      try {
+        return JSON.parse(element.textContent);
+      } catch (error) {
+        console.error('Nao foi possivel ler os dados do grafico', id, error);
+        return null;
+      }
+    }
+
+    function destroyCharts() {
+      Object.keys(charts).forEach(function (key) {
+        if (charts[key]) {
+          charts[key].destroy();
+        }
+        delete charts[key];
+      });
+    }
+
+    function setChartHeight(canvas, payload, heightMode) {
+      const wrapper = canvas.parentElement;
+      if (!wrapper) {
+        return;
+      }
+
+      let height = 320;
+      if (heightMode === 'horizontal-bars') {
+        height = Math.min(Math.max((payload.labels.length * 34) + 110, 320), 560);
+      } else if (heightMode === 'horizontal-bars-loose') {
+        height = Math.min(Math.max((payload.labels.length * 46) + 120, 360), 700);
+      } else if (heightMode === 'doughnut') {
+        height = 340;
+      } else if (heightMode === 'compact') {
+        height = 300;
+      } else if (heightMode === 'stacked-area') {
+        height = 320;
+      }
+
+      wrapper.style.height = height + 'px';
+      wrapper.style.maxHeight = height + 'px';
+    }
+
+    function mountChart(canvasId, dataId, configBuilder, heightMode) {
+      const canvas = document.getElementById(canvasId);
+      const payload = readChartData(dataId);
+      const hasLabels = payload && Array.isArray(payload.labels) && payload.labels.length;
+      const hasYears = payload && Array.isArray(payload.years) && payload.years.length;
+      if (!canvas || !payload || (!hasLabels && !hasYears)) {
+        return;
+      }
+      setChartHeight(
+        canvas,
+        hasLabels ? payload : { labels: Array.isArray(payload.rows) ? payload.rows : payload.years },
+        heightMode
+      );
+      charts[canvasId] = new Chart(canvas, configBuilder(payload));
+    }
+
+    function renderCharts() {
+      destroyCharts();
+      if (!valueLabelPluginRegistered && window.Chart && typeof Chart.register === 'function') {
+        Chart.register(stackedValueLabelsPlugin, barValueLabelsPlugin);
+        valueLabelPluginRegistered = true;
+      }
+
+      mountChart('cp-division-status-chart', 'cp-division-status-data', function (payload) {
+        const divisionBaseMax = fixedScaleMax('cp-division-status-chart', maxValue(sumSeries(payload.ativas, payload.inativas)));
+        const divisionMax = divisionBaseMax ? Math.ceil(divisionBaseMax / 150) * 150 : 150;
+        return {
+          type: 'bar',
+          data: {
+            labels: payload.labels,
+            datasets: [
+              {
+                label: 'Ativas',
+                data: payload.ativas,
+                backgroundColor: colorTokens.active,
+                borderRadius: 0,
+                maxBarThickness: 18,
+              },
+              {
+                label: 'Inativas',
+                data: payload.inativas,
+                backgroundColor: colorTokens.inactive,
+                borderRadius: 0,
+                maxBarThickness: 18,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { position: 'bottom' },
+              stackedValueLabels: {
+                enabled: true,
+                showTotal: true,
+                totalPrefix: '',
+              }
+            },
+            layout: {
+              padding: { right: 36 }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                beginAtZero: true,
+                max: divisionMax,
+                ticks: {
+                  stepSize: 150,
+                  precision: 0
+                }
+              },
+              y: {
+                stacked: true
+              }
+            }
+          }
+        };
+      }, 'horizontal-bars');
+
+      mountChart('cp-macrostatus-chart', 'cp-macrostatus-data', function (payload) {
+        const macrostatusMax = fixedScaleMax('cp-macrostatus-chart', maxValue(payload.totals));
+        return {
+          type: 'bar',
+          data: {
+            labels: payload.labels,
+            datasets: [
+              {
+                label: 'Requisicoes',
+                data: payload.totals,
+                backgroundColor: payload.colors,
+                borderRadius: 0,
+                maxBarThickness: 46,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                max: macrostatusMax,
+                ticks: { precision: 0 }
+              },
+              y: {
+                ticks: { precision: 0 }
+              }
+            }
+          }
+        };
+      }, 'horizontal-bars');
+
+      mountChart('cp-division-year-quantity-area', 'cp-quantity-matrix-data', function (payload) {
+        const areaPalette = [
+          { line: '#3d5a80', fill: 'rgba(61, 90, 128, 0.34)' },
+          { line: '#cf5757', fill: 'rgba(207, 87, 87, 0.28)' },
+          { line: '#2f855a', fill: 'rgba(47, 133, 90, 0.28)' },
+          { line: '#2b6cb0', fill: 'rgba(43, 108, 176, 0.26)' },
+          { line: '#b7791f', fill: 'rgba(183, 121, 31, 0.26)' },
+          { line: '#6b46c1', fill: 'rgba(107, 70, 193, 0.24)' },
+          { line: '#00838f', fill: 'rgba(0, 131, 143, 0.24)' },
+          { line: '#6d4c41', fill: 'rgba(109, 76, 65, 0.24)' }
+        ];
+        const years = (payload.years || []).map(function (year) {
+          return String(year);
+        });
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        const rawRows = rows.map(function (row) {
+          return years.map(function (yearLabel) {
+            const yearMap = row.years || {};
+            const yearNumber = Number(yearLabel);
+            return Number(yearMap[yearLabel] || yearMap[yearNumber] || 0);
+          });
+        });
+        const yearTotals = years.map(function (_, yearIndex) {
+          return rawRows.reduce(function (sum, rowValues) {
+            return sum + (Number(rowValues[yearIndex]) || 0);
+          }, 0);
+        });
+
+        const datasets = rows.map(function (row, index) {
+          const palette = areaPalette[index % areaPalette.length];
+          const absoluteValues = rawRows[index] || [];
+          const percentageValues = absoluteValues.map(function (value, yearIndex) {
+            const yearTotal = Number(yearTotals[yearIndex]) || 0;
+            if (yearTotal <= 0) {
+              return 0;
+            }
+            return Number(((Number(value) / yearTotal) * 100).toFixed(2));
+          });
+          return {
+            label: row.divisao || 'Divisao',
+            data: percentageValues,
+            absoluteData: absoluteValues,
+            borderColor: palette.line,
+            backgroundColor: palette.fill,
+            fill: true,
+            stack: 'quantity',
+            borderWidth: 1.2,
+            tension: 0.25,
+            pointRadius: 0,
+            pointHoverRadius: 4
+          };
+        }).filter(function (dataset) {
+          return dataset.data.some(function (value) {
+            return value > 0;
+          });
+        });
+
+        return {
+          type: 'line',
+          data: {
+            labels: years,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                position: 'bottom'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const dataset = context.dataset || {};
+                    const absoluteSeries = dataset.absoluteData || [];
+                    const absoluteValue = Number(absoluteSeries[context.dataIndex] || 0);
+                    const percentageValue = Number(context.parsed.y || 0).toFixed(2).replace('.', ',');
+                    return dataset.label + ': ' + absoluteValue + ' (' + percentageValue + '%)';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                ticks: {
+                  autoSkip: false,
+                  maxRotation: 0
+                }
+              },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                  callback: function (value) {
+                    return value + '%';
+                  }
+                }
+              }
+            }
+          }
+        };
+      }, 'stacked-area');
+
+      mountChart('cp-building-chart', 'cp-building-data', function (payload) {
+        const buildingBaseMax = fixedScaleMax('cp-building-chart', maxValue(sumSeries(payload.ativas, payload.inativas)));
+        const buildingMax = buildingBaseMax ? Math.ceil(buildingBaseMax / 50) * 50 : 50;
+        return {
+          type: 'bar',
+          data: {
+            labels: payload.labels,
+            datasets: [
+              {
+                label: 'Ativas',
+                data: payload.ativas,
+                backgroundColor: colorTokens.active,
+                borderRadius: 0,
+                maxBarThickness: 14,
+              },
+              {
+                label: 'Inativas',
+                data: payload.inativas,
+                backgroundColor: colorTokens.inactive,
+                borderRadius: 0,
+                maxBarThickness: 14,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { position: 'bottom' },
+              stackedValueLabels: {
+                enabled: true,
+                showTotal: true,
+                totalPrefix: '',
+              }
+            },
+            layout: {
+              padding: { right: 36 }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                beginAtZero: true,
+                max: buildingMax,
+                ticks: {
+                  stepSize: 50,
+                  precision: 0
+                }
+              },
+              y: {
+                stacked: true
+              }
+            }
+          }
+        };
+      }, 'horizontal-bars-loose');
+
+      mountChart('cp-wait-buckets-chart', 'cp-wait-buckets-data', function (payload) {
+        const waitBucketsMax = fixedScaleMax('cp-wait-buckets-chart', maxValue(payload.values));
+        return {
+          type: 'bar',
+          data: {
+            labels: payload.labels,
+            datasets: [
+              {
+                label: 'Requisicoes ativas',
+                data: payload.values,
+                backgroundColor: colorTokens.active,
+                borderRadius: 0,
+                maxBarThickness: 46,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              barValueLabels: {
+                enabled: true
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: waitBucketsMax,
+                ticks: { precision: 0 }
+              }
+            }
+          }
+        };
+      }, 'compact');
+    }
+
+    function scheduleRenderCharts() {
+      if (renderFrame) {
+        window.cancelAnimationFrame(renderFrame);
+      }
+      renderFrame = window.requestAnimationFrame(function () {
+        renderFrame = window.requestAnimationFrame(function () {
+          renderCharts();
+        });
+      });
+    }
+
+    function clearFilters() {
+      const form = document.getElementById('control-panel-filters');
+      if (!form) {
+        return;
+      }
+      preservedScrollY = window.scrollY;
+      form.querySelectorAll('input[type="search"], input[type="number"]').forEach(function (field) {
+        field.value = '';
+      });
+      form.querySelectorAll('select').forEach(function (field) {
+        field.value = '';
+      });
+      form.requestSubmit();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      scheduleRenderCharts();
+    });
+
+    document.body.addEventListener('click', function (event) {
+      const clearButton = event.target.closest('#control-panel-clear');
+      if (!clearButton) {
+        return;
+      }
+      event.preventDefault();
+      clearFilters();
+    });
+
+    document.body.addEventListener('htmx:beforeSwap', function (event) {
+      if (event.detail.target && ['control-panel-shell', 'control-panel-content'].includes(event.detail.target.id)) {
+        destroyCharts();
+      }
+    });
+
+    document.body.addEventListener('htmx:afterSettle', function (event) {
+      if (event.detail.target && ['control-panel-shell', 'control-panel-content'].includes(event.detail.target.id)) {
+        scheduleRenderCharts();
+        if (typeof preservedScrollY === 'number') {
+          const scrollTop = preservedScrollY;
+          preservedScrollY = null;
+          window.requestAnimationFrame(function () {
+            window.scrollTo(0, scrollTop);
+          });
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}

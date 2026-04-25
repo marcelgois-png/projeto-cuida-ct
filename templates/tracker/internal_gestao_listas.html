@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Listas | Administração do Sistema{% endblock %}
+
+{% block extra_head %}
+<style>
+  .list-scroll-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--ct-primary-subtle);
+    border-radius: 8px;
+    background: white;
+  }
+  .gestao-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.25rem 0.85rem;
+    min-height: var(--ct-block-title-height);
+    background: var(--ct-block-title-bg);
+    border-bottom: 1px solid var(--ct-block-title-border);
+  }
+  .gestao-card-header .section-title {
+    color: var(--ct-text);
+  }
+  .gestao-card-header .section-title i {
+    color: #6c7f98;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-list-check page-icon"></i>
+    <div>
+      <span class="page-kicker">Administração do Sistema</span>
+      <h1 class="page-title">Gestão de Listas</h1>
+      <div class="page-subtitle">Configure as opções que alimentam os diversos formulários do sistema.</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- GESTÃO DE STATUS -->
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-tag"></i>Status</h3>
+        <div class="d-flex gap-2">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" 
+                    hx-post="{% url 'status-sipac-bulk' %}" 
+                    hx-include="[name='status_ids']" 
+                    hx-target="#status-list-body"
+                    hx-vals='{"action": "ativar"}'>
+              Ativar Selecionados
+            </button>
+            <button class="btn btn-outline-secondary" 
+                    hx-post="{% url 'status-sipac-bulk' %}" 
+                    hx-include="[name='status_ids']" 
+                    hx-target="#status-list-body"
+                    hx-vals='{"action": "inativar"}'>
+              Inativar Selecionados
+            </button>
+          </div>
+          <button class="btn btn-sm btn-primary" 
+                  hx-get="{% url 'status-sipac-add' %}" 
+                  hx-target="#status-form-container">
+            <i class="bi bi-plus-lg me-1"></i>Novo Status
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="status-form-container" class="mb-3">
+          <!-- Form will load here via HTMX -->
+        </div>
+        <div class="list-scroll-container">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="sticky-top bg-light">
+              <tr>
+                <th style="width: 4%;">
+                  <input type="checkbox" class="form-check-input" id="status-select-all" onclick="toggleAllStatus(this)">
+                </th>
+                <th style="width: 10%;">Ativa / Inativa</th>
+                <th style="width: 22%;">Valor armazenado</th>
+                <th style="width: 22%;">Exibição no formulário</th>
+                <th style="width: 12%;">Situação derivada</th>
+                <th style="width: 12%;">Mapeamento</th>
+                <th style="width: 10%;" class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="status-list-body">
+              {% include "tracker/_status_list_rows.html" %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SINFRA E SERVIÇOS -->
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-tools"></i>Sinfra e Serviços</h3>
+        <button class="btn btn-sm btn-primary" 
+                hx-get="{% url 'taxonomia-add' %}" 
+                hx-target="#taxonomia-form-container">
+          <i class="bi bi-plus-lg me-1"></i>Novo Serviço
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="taxonomia-form-container" class="mb-3">
+          <!-- Form will load here via HTMX -->
+        </div>
+        <div class="list-scroll-container">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="sticky-top bg-light">
+              <tr>
+                <th style="width: 30%;">Divisão da Sinfra</th>
+                <th style="width: 30%;">Tipo de Serviço</th>
+                <th style="width: 30%;">Serviço</th>
+                <th style="width: 10%;" class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="taxonomia-list-body">
+              {% include "tracker/_taxonomia_list_rows.html" %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- GESTÃO DE EMPRESAS -->
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-building"></i>Gestão de Empresas</h3>
+        <button class="btn btn-sm btn-primary" 
+                hx-get="{% url 'empresa-add' %}" 
+                hx-target="#empresa-form-container">
+          <i class="bi bi-plus-lg me-1"></i>Nova Empresa
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="empresa-form-container" class="mb-3">
+          <!-- Form will load here via HTMX -->
+        </div>
+        <div class="list-scroll-container">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="sticky-top bg-light">
+              <tr>
+                <th style="width: 20%;">Ativa</th>
+                <th style="width: 65%;">Nome da Empresa</th>
+                <th style="width: 15%;" class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="empresa-list-body">
+              {% include "tracker/_empresa_list_rows.html" %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIORIZAÇÃO GUT -->
+  <div class="col-lg-12">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-bar-chart"></i>PRIORIZAÇÃO GUT</h3>
+        <button class="btn btn-sm btn-primary" 
+                hx-get="{% url 'gut-parametro-add' %}" 
+                hx-target="#gut-form-container">
+          <i class="bi bi-plus-lg me-1"></i>Novo Parâmetro
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="gut-form-container" class="mb-3">
+          <!-- Form will load here via HTMX -->
+        </div>
+        <div class="list-scroll-container">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="sticky-top bg-light">
+              <tr>
+                <th style="width: 20%;">Tipo</th>
+                <th style="width: 15%;">Valor (G/U/T)</th>
+                <th style="width: 50%;">Descrição</th>
+                <th style="width: 15%;" class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="gut-list-body">
+              {% include "tracker/_gut_list_rows.html" %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleAllStatus(master) {
+    const checkboxes = document.querySelectorAll('.status-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = master.checked;
+    });
+  }
+  
+  // Reset master checkbox when rows are updated via HTMX
+  document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'status-list-body') {
+      const master = document.getElementById('status-select-all');
+      if (master) master.checked = false;
+    }
+  });
+</script>
+{% endblock %}

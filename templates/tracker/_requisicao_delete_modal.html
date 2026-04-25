@@ -1,0 +1,74 @@
+<div class="modal fade" id="requisicaoDeleteModal" tabindex="-1" aria-labelledby="requisicaoDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h5 class="modal-title text-danger d-flex align-items-center gap-2" id="requisicaoDeleteModalLabel">
+          <i class="bi bi-trash3-fill"></i>Apagar Requisi&ccedil;&atilde;o
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form id="requisicao-delete-form" method="post" action="">
+        {% csrf_token %}
+        <div class="modal-body pt-3">
+          <div class="alert alert-danger py-2 mb-3 d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+            <span>Esta a&ccedil;&atilde;o &eacute; <strong>irrevers&iacute;vel</strong>. Todos os dados desta requisi&ccedil;&atilde;o ser&atilde;o permanentemente apagados.</span>
+          </div>
+          <p class="mb-2">Para confirmar, digite o n&uacute;mero da requisi&ccedil;&atilde;o:</p>
+          <p class="mb-3">
+            <code class="fs-6 text-danger fw-bold" id="delete-modal-codigo"></code>
+          </p>
+          <input
+            type="text"
+            class="form-control font-monospace"
+            id="delete-modal-input"
+            name="codigo_confirmacao"
+            placeholder="Digite o n&uacute;mero da requisi&ccedil;&atilde;o"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div id="delete-modal-feedback" class="form-text text-danger mt-1" hidden>
+            C&oacute;digo incorreto. Digite exatamente como mostrado acima.
+          </div>
+        </div>
+        <div class="modal-footer border-top-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger" id="delete-modal-confirm-btn" disabled>
+            <i class="bi bi-trash3 me-1"></i>Apagar definitivamente
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var modal = document.getElementById("requisicaoDeleteModal");
+  if (!modal) { return; }
+
+  var form = document.getElementById("requisicao-delete-form");
+  var codigoDisplay = document.getElementById("delete-modal-codigo");
+  var input = document.getElementById("delete-modal-input");
+  var confirmBtn = document.getElementById("delete-modal-confirm-btn");
+  var feedback = document.getElementById("delete-modal-feedback");
+  var expectedCodigo = "";
+
+  modal.addEventListener("show.bs.modal", function (event) {
+    var trigger = event.relatedTarget;
+    expectedCodigo = trigger ? (trigger.dataset.codigo || "") : (modal.dataset.codigo || "");
+    var deleteUrl = trigger ? (trigger.dataset.deleteUrl || "") : (modal.dataset.deleteUrl || "");
+    codigoDisplay.textContent = expectedCodigo;
+    form.action = deleteUrl;
+    input.value = "";
+    confirmBtn.disabled = true;
+    feedback.hidden = true;
+  });
+
+  input.addEventListener("input", function () {
+    var match = input.value.trim() === expectedCodigo;
+    confirmBtn.disabled = !match;
+    feedback.hidden = !input.value || match;
+  });
+})();
+</script>

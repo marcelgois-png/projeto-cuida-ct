@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Or&ccedil;amento | CT &rarr; SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-cash-stack page-icon"></i>
+    <div>
+      <span class="page-kicker">&Aacute;rea interna</span>
+      <h1 class="page-title">Or&ccedil;amento</h1>
+      <div class="page-subtitle">Gerencie as notas de empenho e acompanhe o saldo or&ccedil;ament&aacute;rio das requisi&ccedil;&otilde;es finalizadas.</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4 orcamento-summary-row">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-primary">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-primary bg-opacity-10 text-primary fs-4 orcamento-summary-icon">
+            <i class="bi bi-receipt"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">{{ total_notas }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Notas de Empenho</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-success">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-success bg-opacity-10 text-success fs-4 orcamento-summary-icon">
+            <i class="bi bi-cash-coin"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">R$ {{ valor_total|brl }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Valor Total Empenhado</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card {% if saldo_total >= 0 %}orcamento-summary-card-info{% else %}orcamento-summary-card-danger{% endif %}">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 {% if saldo_total >= 0 %}bg-info bg-opacity-10 text-info{% else %}bg-danger bg-opacity-10 text-danger{% endif %} fs-4 orcamento-summary-icon">
+            <i class="bi bi-wallet2"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value {% if saldo_total < 0 %}text-danger{% endif %}">R$ {{ saldo_total|brl }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Saldo Total</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-secondary">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-secondary bg-opacity-10 text-secondary fs-4 orcamento-summary-icon">
+            <i class="bi bi-check2-circle"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">{{ total_reqs_pagas }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Requisi&ccedil;&otilde;es Finalizadas e Pagas</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <h3 class="section-title mb-0"><i class="bi bi-receipt me-2"></i>Notas de Empenho</h3>
+    <button class="btn btn-sm btn-primary"
+            hx-get="{% url 'nota-empenho-add' %}"
+            hx-target="#nota-form-container"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus-lg me-1"></i>Nova Nota de Empenho
+    </button>
+  </div>
+
+  <div id="nota-form-container" class="px-3 pt-3"></div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive orcamento-table-scroll">
+      <table class="table align-middle requisicoes-table mb-0">
+        <thead>
+          <tr>
+            <th>Nota de Empenho</th>
+            <th class="text-end">Valor (R$)</th>
+            <th>N&ordm; Processo SIPAC</th>
+            <th>Empresa</th>
+            <th class="text-end">Saldo do Empenho</th>
+            <th class="text-center">A&ccedil;&otilde;es</th>
+          </tr>
+        </thead>
+        <tbody id="nota-empenho-tbody">
+          {% include "tracker/_nota_empenho_rows.html" %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% include "tracker/_internal_orcamento_panel.html" %}
+
+<div id="reforco-modal-container"></div>
+
+<script>
+  function fecharFormNota() {
+    const container = document.getElementById('nota-form-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
+
+  function submitBudgetFilters() {
+    const filterForm = document.getElementById('orcamento-filters');
+    if (!filterForm) {
+      return;
+    }
+    if (typeof filterForm.requestSubmit === 'function') {
+      filterForm.requestSubmit();
+      return;
+    }
+    filterForm.submit();
+  }
+
+  function clearBudgetFilters() {
+    document.querySelectorAll('input[form="orcamento-filters"], select[form="orcamento-filters"]').forEach(function (field) {
+      if (field.tagName === 'SELECT') {
+        field.selectedIndex = 0;
+        return;
+      }
+      field.value = '';
+    });
+    submitBudgetFilters();
+  }
+
+  function toggleAllBudgetRequests(source) {
+    document.querySelectorAll('.orcamento-requisicao-checkbox').forEach(function (checkbox) {
+      checkbox.checked = source.checked;
+    });
+  }
+
+  function applyBulkNotaEmpenho(action) {
+    const notaId = document.getElementById('bulk-nota-empenho-select').value;
+    const selectedIds = Array.from(document.querySelectorAll('.orcamento-requisicao-checkbox:checked')).map(function (item) {
+      return item.value;
+    });
+
+    if (selectedIds.length === 0) {
+      alert('Selecione ao menos uma requisicao finalizada.');
+      return;
+    }
+
+    if (action === 'link' && !notaId) {
+      alert('Selecione uma nota de empenho para vincular.');
+      return;
+    }
+
+    const container = document.getElementById('orcamento-bulk-selected');
+    document.getElementById('bulk-action-input').value = action;
+    container.innerHTML = '';
+    selectedIds.forEach(function (id) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'requisicao_ids';
+      input.value = id;
+      container.appendChild(input);
+    });
+
+    document.getElementById('orcamento-bulk-form').submit();
+  }
+
+  function fecharModalReforco() {
+    const container = document.getElementById('reforco-modal-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.remove();
+    }
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+  }
+
+  document.addEventListener('change', function (event) {
+    const target = event.target;
+    if (!target || target.getAttribute('form') !== 'orcamento-filters') {
+      return;
+    }
+    submitBudgetFilters();
+  });
+
+  document.addEventListener('htmx:afterSwap', function (event) {
+    if (event.detail.target && event.detail.target.id === 'nota-empenho-tbody') {
+      window.location.reload();
+    }
+  });
+</script>
+{% endblock %}

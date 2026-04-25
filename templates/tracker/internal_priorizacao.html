@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Prioriza&ccedil;&atilde;o de Requisi&ccedil;&otilde;es | CT -&gt; SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-sort-numeric-down page-icon"></i>
+    <div>
+      <span class="page-kicker">&Aacute;rea interna</span>
+      <h1 class="page-title">Prioriza&ccedil;&atilde;o de requisi&ccedil;&otilde;es</h1>
+      <div class="page-subtitle">
+        Consulte, filtre e priorize as <strong>{{ total_active }} requisi&ccedil;&otilde;es ativas</strong> do CT.
+        Atribua empresas, ajuste pontua&ccedil;&otilde;es GUT e organize inspe&ccedil;&otilde;es in loco na se&ccedil;&atilde;o de Prepara&ccedil;&atilde;o de Visitas.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function clearFilters() {
+    const form = document.getElementById('priorizacao-filters');
+    if (!form) {
+      return;
+    }
+    form.querySelectorAll('input[type="search"], input[type="text"], input[type="number"]').forEach(function (input) {
+      input.value = '';
+    });
+    form.querySelectorAll('select').forEach(function (select) {
+      select.selectedIndex = 0;
+    });
+    htmx.trigger(form, 'submit');
+  }
+
+  function applyBulkEmpresa() {
+    const empresa = document.getElementById('bulk-empresa-select').value;
+    if (empresa === '') {
+      alert('Selecione uma empresa para atribuir.');
+      return;
+    }
+
+    const selectedCheckboxes = document.querySelectorAll('.requisicao-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+      alert('Selecione ao menos uma requisicao.');
+      return;
+    }
+
+    if (!confirm(`Deseja atribuir a empresa "${empresa}" para as ${selectedCheckboxes.length} requisicoes selecionadas?`)) {
+      return;
+    }
+
+    const selectedIds = Array.from(selectedCheckboxes).map(function (checkbox) {
+      return checkbox.value;
+    });
+
+    htmx.ajax('POST', '{% url "priorizacao-bulk-assign" %}', {
+      values: {
+        empresa_nome: empresa,
+        requisicao_ids: selectedIds
+      },
+      target: '#priorizacao-results'
+    });
+  }
+
+  function toggleAllRequests(master) {
+    document.querySelectorAll('.requisicao-checkbox').forEach(function (checkbox) {
+      checkbox.checked = master.checked;
+    });
+  }
+</script>
+
+{% include "tracker/_internal_priorizacao_panel.html" %}
+
+<div class="card mb-4" id="visita-card">
+  <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+    <div class="d-flex align-items-center gap-2 me-auto">
+      <i class="bi bi-calendar-check text-primary"></i>
+      <span class="section-title">Prepara&ccedil;&atilde;o de Visitas</span>
+    </div>
+    <label class="text-muted small fw-bold mb-0 text-nowrap">Data da visita:</label>
+    <input type="date" id="visita-data" class="form-control form-control-sm" style="width:160px;">
+    <button class="btn btn-sm btn-primary text-nowrap" onclick="incluirSelecionadas()">
+      <i class="bi bi-plus-lg me-1"></i>Incluir selecionadas
+    </button>
+    <button class="btn btn-sm btn-outline-secondary text-nowrap" onclick="limparVisita()">
+      <i class="bi bi-trash me-1"></i>Limpar
+    </button>
+    <button class="btn btn-sm btn-success text-nowrap" onclick="fecharVisita()" id="btn-fechar-visita" disabled>
+      <i class="bi bi-check2-circle me-1"></i>Fechar Visita
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div id="visita-empty" class="text-center text-muted py-4 small">
+      <i class="bi bi-inbox fs-4 d-block mb-2 opacity-50"></i>
+      Nenhuma requisi&ccedil;&atilde;o inclu&iacute;da. Selecione requisi&ccedil;&otilde;es na tabela acima e clique em <strong>Incluir selecionadas</strong>.
+    </div>
+    <div id="visita-table-wrap" class="d-none">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width:110px;">N&ordm; Requisi&ccedil;&atilde;o</th>
+            <th>Assunto</th>
+            <th style="width:160px;">Requisitante</th>
+            <th style="width:160px;">Pr&eacute;dio</th>
+            <th style="width:140px;">Local</th>
+            <th style="width:50px;" class="text-center"></th>
+          </tr>
+        </thead>
+        <tbody id="visita-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    #sidebar, #topbar, #btn-hamburger,
+    .page-toolbar, .filter-bar, #priorizacao-results,
+    h6.text-uppercase, .card:not(#visita-card),
+    #visita-card .card-header button,
+    #visita-card .card-header label,
+    #visita-card .card-header input,
+    .no-print { display: none !important; }
+    #visita-card { box-shadow: none !important; border: none !important; }
+    #main-wrapper { margin-left: 0 !important; margin-top: 0 !important; }
+    #visita-print-header { display: block !important; }
+  }
+  #visita-print-header { display: none; }
+</style>
+
+<div id="visita-print-header" class="mb-3">
+  <strong>CT/UFPB &mdash; Prepara&ccedil;&atilde;o de Visita</strong>
+  <div id="visita-print-data" class="text-muted small"></div>
+</div>
+
+<script>
+  const visitaRows = {};
+
+  function incluirSelecionadas() {
+    const checkboxes = document.querySelectorAll('.requisicao-checkbox:checked');
+    if (!checkboxes.length) {
+      alert('Selecione ao menos uma requisicao na tabela acima.');
+      return;
+    }
+    checkboxes.forEach(function (checkbox) {
+      const id = checkbox.value;
+      if (visitaRows[id]) {
+        return;
+      }
+      const tr = checkbox.closest('tr');
+      const cells = tr ? tr.querySelectorAll('td') : [];
+      visitaRows[id] = {
+        numero: cells[1] ? cells[1].innerText.trim() : id,
+        assunto: cells[2] ? cells[2].innerText.trim().split('\n')[0] : '&mdash;',
+        requisitante: tr ? (tr.dataset.requisitante || '&mdash;') : '&mdash;',
+        predio: tr ? (tr.dataset.predio || '&mdash;') : '&mdash;',
+        local: tr ? (tr.dataset.local || '&mdash;') : '&mdash;',
+        empresa: tr ? (tr.dataset.empresa || '') : ''
+      };
+    });
+    renderVisita();
+  }
+
+  function removerDaVisita(id) {
+    delete visitaRows[id];
+    renderVisita();
+  }
+
+  function limparVisita() {
+    if (!Object.keys(visitaRows).length) {
+      return;
+    }
+    if (!confirm('Remover todas as requisicoes da lista de visita?')) {
+      return;
+    }
+    Object.keys(visitaRows).forEach(function (key) {
+      delete visitaRows[key];
+    });
+    renderVisita();
+  }
+
+  function renderVisita() {
+    const ids = Object.keys(visitaRows);
+    const empty = document.getElementById('visita-empty');
+    const wrap = document.getElementById('visita-table-wrap');
+    const tbody = document.getElementById('visita-tbody');
+    const btnFechar = document.getElementById('btn-fechar-visita');
+    const disabled = !ids.length;
+
+    empty.classList.toggle('d-none', !disabled);
+    wrap.classList.toggle('d-none', disabled);
+    btnFechar.disabled = disabled;
+
+    tbody.innerHTML = ids.map(function (id) {
+      const item = visitaRows[id];
+      return '<tr>' +
+        '<td class="fw-bold small">' + item.numero + '</td>' +
+        '<td class="small">' + item.assunto + '</td>' +
+        '<td class="small">' + item.requisitante + '</td>' +
+        '<td class="small">' + item.predio + '</td>' +
+        '<td class="small">' + item.local + '</td>' +
+        '<td class="text-center">' +
+          '<button class="btn btn-sm btn-link text-danger p-0 no-print" onclick="removerDaVisita(\'' + id + '\')" title="Remover">' +
+            '<i class="bi bi-x-lg"></i>' +
+          '</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function fecharVisita() {
+    const data = document.getElementById('visita-data').value;
+    const ids = Object.keys(visitaRows);
+    if (!ids.length) {
+      alert('Nenhuma requisicao incluida.');
+      return;
+    }
+    if (!data) {
+      alert('Informe a data da visita antes de fechar.');
+      return;
+    }
+
+    const visita = {
+      id: Date.now(),
+      data: data,
+      requisicoes: Object.values(visitaRows)
+    };
+
+    try {
+      const visitas = JSON.parse(localStorage.getItem('ct-visitas') || '[]');
+      visitas.push(visita);
+      localStorage.setItem('ct-visitas', JSON.stringify(visitas));
+    } catch (error) {
+      console.error('Nao foi possivel salvar a visita localmente.', error);
+    }
+
+    Object.keys(visitaRows).forEach(function (key) {
+      delete visitaRows[key];
+    });
+    document.getElementById('visita-data').value = '';
+    renderVisita();
+    if (confirm('Visita fechada e salva. Deseja ir para Visitas Programadas?')) {
+      window.location.href = '{% url "internal-visitas" %}';
+    }
+  }
+
+  function gerarPDF() {
+    const data = document.getElementById('visita-data').value;
+    const printData = document.getElementById('visita-print-data');
+    printData.textContent = data
+      ? 'Data da visita: ' + new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+      : 'Data da visita: nao informada';
+    window.print();
+  }
+</script>
+{% endblock %}

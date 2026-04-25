@@ -1,0 +1,24 @@
+<div class="p-3 border rounded bg-light">
+  <h6>{% if instance %}Editar Serviço{% else %}Novo Serviço{% endif %}</h6>
+  <form hx-post="{% if instance %}{% url 'taxonomia-edit' instance.pk %}{% else %}{% url 'taxonomia-add' %}{% endif %}" 
+        hx-target="#taxonomia-list-body" 
+        hx-swap="innerHTML"
+        hx-on::after-request="this.closest('#taxonomia-form-container').innerHTML = ''">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-md-4">
+        <input type="text" name="divisao" class="form-control" placeholder="Divisão da Sinfra" value="{{ instance.divisao|default:'' }}" required>
+      </div>
+      <div class="col-md-4">
+        <input type="text" name="tipo_servico" class="form-control" placeholder="Tipo de Serviço" value="{{ instance.tipo_servico|default:'' }}" required>
+      </div>
+      <div class="col-md-4">
+        <input type="text" name="servico" class="form-control" placeholder="Serviço" value="{{ instance.servico|default:'' }}">
+      </div>
+      <div class="col-12 mt-2">
+        <button type="submit" class="btn btn-sm btn-success">Salvar</button>
+        <button type="button" class="btn btn-sm btn-neutral ms-1" onclick="this.closest('#taxonomia-form-container').innerHTML = ''">Cancelar</button>
+      </div>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,189 @@
+<div id="orcamento-panel-shell">
+  <div class="filter-bar uniform-filter-bar mb-4">
+    <form
+      id="orcamento-filters"
+      method="get"
+      action="{% url 'internal-orcamento-panel' %}"
+      hx-get="{% url 'internal-orcamento-panel' %}"
+      hx-target="#orcamento-panel-shell"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+    ></form>
+
+    <form
+      id="orcamento-bulk-form"
+      method="post"
+      action="{% url 'requisicoes-orcamento-nota-bulk-update' %}"
+      hx-post="{% url 'requisicoes-orcamento-nota-bulk-update' %}"
+      hx-target="#orcamento-panel-shell"
+      hx-select="#orcamento-panel-shell"
+      hx-swap="outerHTML"
+    >
+      {% csrf_token %}
+      <input type="hidden" id="bulk-action-input" name="bulk_action" value="link">
+      <input type="hidden" name="return_query" value="{{ orcamento_querystring }}">
+      <div id="orcamento-bulk-selected"></div>
+    </form>
+
+    <div class="uniform-filter-form">
+      <div class="uniform-filter-heading">
+        <h3 class="section-title mb-0"><i class="bi bi-funnel"></i>FILTROS</h3>
+      </div>
+
+      <div class="uniform-filter-grid">
+        <div class="uniform-filter-field">
+          <label class="form-label">Busca</label>
+          <div class="uniform-filter-search">
+            <i class="bi bi-search filter-bar-icon"></i>
+            <input type="search" name="q" form="orcamento-filters" class="form-control" placeholder="C&oacute;digo ou assunto..." value="{{ request.GET.q }}">
+          </div>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Divis&atilde;o da SINFRA</label>
+          <select class="form-select" name="divisao" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.divisoes %}
+              <option value="{{ item }}" {% if request.GET.divisao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Tipo de Servi&ccedil;o</label>
+          <select class="form-select" name="tipo_servico" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.tipos_servico %}
+              <option value="{{ item }}" {% if request.GET.tipo_servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Servi&ccedil;o</label>
+          <select class="form-select" name="servico" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.servicos %}
+              <option value="{{ item }}" {% if request.GET.servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Pr&eacute;dio</label>
+          <select class="form-select" name="predio" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.predios %}
+              <option value="{{ item }}" {% if request.GET.predio == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Ativa/Inativa</label>
+          <select class="form-select" name="situacao_requisicao" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.situacoes %}
+              <option value="{{ item }}" {% if request.GET.situacao_requisicao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Macrostatus</label>
+          <select class="form-select" name="macrostatus" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.macrostatuses %}
+              <option value="{{ item.key }}" {% if request.GET.macrostatus == item.key %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Status Sipac</label>
+          <select class="form-select" name="status_sipac" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.statuses %}
+              <option value="{{ item.value }}" {% if request.GET.status_sipac == item.value %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Requisitante</label>
+          <select class="form-select" name="requisitante" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.requisitantes %}
+              <option value="{{ item }}" {% if request.GET.requisitante == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Unidade/Setor</label>
+          <select class="form-select" name="unidade_setor" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.unidades_setor %}
+              <option value="{{ item }}" {% if request.GET.unidade_setor == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Ano de Cadastro</label>
+          <select class="form-select" name="ano" form="orcamento-filters">
+            <option value="">Todos</option>
+            {% for item in orcamento_filters.anos %}
+              <option value="{{ item }}" {% if request.GET.ano == item|stringformat:"s" %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Espera M&iacute;nima (dias)</label>
+          <input type="number" name="dias_min" form="orcamento-filters" class="form-control" placeholder="Todos" value="{{ request.GET.dias_min }}">
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Espera M&aacute;xima (dias)</label>
+          <input type="number" name="dias_max" form="orcamento-filters" class="form-control" placeholder="Todos" value="{{ request.GET.dias_max }}">
+        </div>
+
+        <div class="uniform-filter-field uniform-filter-clear-cell">
+          <button type="button" class="btn btn-filter-clear" onclick="clearBudgetFilters()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar filtros
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3 shadow-sm uniform-action-card" hx-disable>
+    <div class="card-header">
+      <h3 class="section-title text-dark mb-0"><i class="bi bi-receipt"></i> Nota de Empenho em Lote</h3>
+    </div>
+    <div class="card-body py-3">
+      <div class="block-action-row">
+        <div class="section-subtitle">Selecione uma nota para vincular (ou remova o v&iacute;nculo) das requisi&ccedil;&otilde;es marcadas.</div>
+        <div class="block-action-controls">
+          <select id="bulk-nota-empenho-select" name="nota_empenho_id" form="orcamento-bulk-form" class="form-select form-select-sm" style="width: 220px;" {% if not notas %}disabled{% endif %}>
+            <option value="">Selecione...</option>
+            {% for nota in notas %}
+              <option value="{{ nota.pk }}">{{ nota.nota_empenho }}</option>
+            {% endfor %}
+          </select>
+          <div class="d-flex gap-1">
+            <button type="button" class="btn btn-sm btn-success px-2" onclick="applyBulkNotaEmpenho('link')" title="Vincular nota de empenho" {% if not notas %}disabled{% endif %}>
+              <i class="bi bi-check-lg"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger px-2" onclick="applyBulkNotaEmpenho('unlink')" title="Desvincular nota de empenho">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "tracker/_internal_orcamento_results.html" %}
+</div>

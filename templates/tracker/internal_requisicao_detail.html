@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Requisição {{ object.codigo }} | CT -> SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-eye page-icon"></i>
+    <div>
+      <span class="page-kicker">Área interna</span>
+      <h1 class="page-title">Detalhes da requisição {{ object.codigo }}</h1>
+      <div class="page-subtitle">Visualização completa da requisição e do histórico operacional.</div>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ next_url }}">Voltar</a>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center gap-2">
+    <h3 class="section-title"><i class="bi bi-file-earmark-text"></i>Consulta da requisição</h3>
+    {% if can_edit_requisicao %}
+      <a class="btn btn-sm btn-primary" href="{% url 'requisicao-update' object.pk %}">
+        <i class="bi bi-pencil-square me-1"></i>Editar
+      </a>
+    {% endif %}
+  </div>
+  <div class="card-body requisicao-sheet">
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>DADOS GERAIS</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Nº Requisição</span>
+          <div class="detail-value">{{ object.codigo }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Data de cadastro</span>
+          <div class="detail-value">{{ object.data_cadastro|date:"d/m/Y"|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Data de execução</span>
+          <div class="detail-value">{{ object.data_execucao|date:"d/m/Y"|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Orçamento</span>
+          <div class="detail-value">{% if object.orcamento_valor %}R$ {{ object.orcamento_valor|brl }}{% else %}-{% endif %}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Dias p/ Exec</span>
+          <div class="detail-value">{{ dias_para_execucao|default_if_none:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Dias desde abertura</span>
+          <div class="detail-value">{{ object.dias_desde_abertura|default_if_none:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-full">
+          <span class="detail-label">Assunto</span>
+          <div class="detail-value">{{ object.assunto|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>SINFRA</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Divisão</span>
+          <div class="detail-value">{{ object.divisao|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Tipo de serviço</span>
+          <div class="detail-value">{{ object.tipo_servico|default:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Serviço</span>
+          <div class="detail-value">{{ object.servico|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>ATENDIMENTO</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Status SIPAC</span>
+          <div class="detail-value">{{ status_sipac_exibicao|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Situação da requisição</span>
+          <div class="detail-value">
+            {% if object.situacao_requisicao|lower == 'ativa' %}
+              <span class="badge badge-success-soft">{{ object.situacao_requisicao }}</span>
+            {% elif object.situacao_requisicao|lower == 'inativa' %}
+              <span class="badge badge-neutral">{{ object.situacao_requisicao }}</span>
+            {% else %}
+              {{ object.situacao_requisicao|default:"-" }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>LOCAL</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Prédio envolvido</span>
+          <div class="detail-value">{{ object.predio.nome|default:"-" }}</div>
+        </div>
+        <div class="detail-item detail-item-full">
+          <span class="detail-label">Local do serviço</span>
+          <div class="detail-value">{{ object.local_servico|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>SOLICITANTE</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Nome do requisitante</span>
+          <div class="detail-value">{{ object.nome_requisitante_publico|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Unidade/Setor</span>
+          <div class="detail-value">{{ object.unidade_setor_snapshot|default:"-" }}</div>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Contato</span>
+          <div class="detail-value">{{ object.contato_direto_url|default:"-" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section-header">
+        <h4>ACESSOS</h4>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Link do Atendimento</span>
+          <div class="detail-value">
+            {% if object.link_atendimento %}
+              <a class="detail-value-link" href="{{ object.link_atendimento }}" target="_blank" rel="noopener noreferrer">{{ object.link_atendimento }}</a>
+            {% else %}
+              -
+            {% endif %}
+          </div>
+        </div>
+        <div class="detail-item detail-item-wide">
+          <span class="detail-label">Link SIPAC</span>
+          <div class="detail-value">
+            {% if object.link_sipac %}
+              <a class="detail-value-link" href="{{ object.link_sipac }}" target="_blank" rel="noopener noreferrer">{{ object.link_sipac }}</a>
+            {% else %}
+              -
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section form-section-highlight" id="acompanhamento-section">
+      <div class="form-section-header">
+        <div>
+          <h4>ACOMPANHAMENTO DA REQUISIÇÃO</h4>
+          <div class="form-section-caption">Mantenha o histórico atualizado com a situação mais recente da requisição.</div>
+        </div>
+      </div>
+      {% if acompanhamentos %}
+        <div class="table-responsive acompanhamento-table-wrap">
+          <table class="table acompanhamento-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 180px;">Data</th>
+                <th>Atualização da Situação</th>
+                <th style="width: 220px;" class="text-center">Usuário</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for acompanhamento in acompanhamentos %}
+                <tr>
+                  <td>{{ acompanhamento.data|date:"d/m/Y" }}</td>
+                  <td><div class="acompanhamento-display-text">{{ acompanhamento.atualizacao_situacao|default:"-" }}</div></td>
+                  <td class="text-center">
+                    <div class="acompanhamento-meta acompanhamento-user-cell">
+                      <i class="bi bi-person-circle"></i>
+                      <span>{{ acompanhamento.usuario_nome|default:"-" }}</span>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="detail-empty-state">Nenhum acompanhamento cadastrado para esta requisição.</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

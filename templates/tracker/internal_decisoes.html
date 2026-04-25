@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Decis&otilde;es de Processo | CT -&gt; SINFRA{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-briefcase page-icon"></i>
+    <div>
+      <span class="page-kicker">Dire&ccedil;&atilde;o de Centro</span>
+      <h1 class="page-title">Decis&otilde;es de Processo</h1>
+      <div class="page-subtitle">Avalie as requisi&ccedil;&otilde;es indicadas pelos gestores e gere encaminhamentos consolidados ao Operador.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function clearFilters() {
+    const form = document.getElementById('decisoes-filters');
+    if (!form) {
+      return;
+    }
+    form.querySelectorAll('input[type="search"], input[type="text"], input[type="number"]').forEach(function (input) {
+      input.value = '';
+    });
+    form.querySelectorAll('select').forEach(function (select) {
+      select.selectedIndex = 0;
+    });
+    htmx.trigger(form, 'submit');
+  }
+
+  function toggleAllRequests(master) {
+    document.querySelectorAll('.requisicao-checkbox').forEach(function (checkbox) {
+      checkbox.checked = master.checked;
+    });
+  }
+
+  function openDirectorForwardModal() {
+    const selected = Array.from(document.querySelectorAll('.requisicao-checkbox:checked')).map(function (checkbox) {
+      return checkbox.value;
+    });
+    const decisionField = document.getElementById('forward-decision-select');
+    const decisao = decisionField ? decisionField.value : '';
+
+    if (selected.length === 0) {
+      alert('Selecione ao menos uma requisicao.');
+      return;
+    }
+    if (!decisao) {
+      alert('Selecione o tipo de encaminhamento.');
+      if (decisionField) {
+        decisionField.focus();
+      }
+      return;
+    }
+
+    htmx.ajax('POST', '{% url "decisoes-encaminhamento-preview" %}', {
+      values: {
+        requisicao_ids: selected,
+        decisao: decisao
+      },
+      target: '#decisoes-modal-container'
+    });
+  }
+
+  function fecharModalEncaminhamento() {
+    const container = document.getElementById('decisoes-modal-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.remove();
+    }
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+  }
+</script>
+
+{% include "tracker/_internal_decisoes_panel.html" %}
+
+<div id="decisoes-modal-container"></div>
+{% endblock %}

@@ -1,0 +1,93 @@
+<tr id="req-row-{{ item.pk }}"
+    data-predio="{{ item.predio.nome|default:'' }}"
+    data-local="{{ item.local_servico|default:'' }}"
+    data-requisitante="{{ item.nome_requisitante_snapshot|default:'' }}"
+    data-empresa="{{ item.empresa|default:'' }}">
+  <td class="ps-3">
+    <input type="checkbox" class="form-check-input requisicao-checkbox" value="{{ item.pk }}">
+  </td>
+  <td>
+    <div class="table-main-value table-main-value-code">{{ item.codigo }}</div>
+  </td>
+  <td>
+    <div class="table-main-value">{{ item.assunto|default:"-" }}</div>
+  </td>
+  <td class="text-center">{{ item.dias_desde_abertura|default_if_none:"-" }}</td>
+  
+  <!-- Gravidade -->
+  <td>
+    <select class="form-select form-select-sm" 
+            name="value"
+            hx-post="{% url 'update-requisicao-gut' item.pk %}"
+            hx-target="#req-row-{{ item.pk }}"
+            hx-swap="outerHTML"
+            hx-vals='{"field": "gravidade"}'>
+      <option value="">-</option>
+      {% for opt in gut_options.gravidade %}
+        <option value="{{ opt.descricao }}" {% if item.gravidade == opt.descricao %}selected{% endif %}>
+          {{ opt.valor }} - {{ opt.descricao }}
+        </option>
+      {% endfor %}
+    </select>
+  </td>
+
+  <!-- Urgência -->
+  <td>
+    <select class="form-select form-select-sm" 
+            name="value"
+            hx-post="{% url 'update-requisicao-gut' item.pk %}"
+            hx-target="#req-row-{{ item.pk }}"
+            hx-swap="outerHTML"
+            hx-vals='{"field": "urgencia"}'>
+      <option value="">-</option>
+      {% for opt in gut_options.urgencia %}
+        <option value="{{ opt.descricao }}" {% if item.urgencia == opt.descricao %}selected{% endif %}>
+          {{ opt.valor }} - {{ opt.descricao }}
+        </option>
+      {% endfor %}
+    </select>
+  </td>
+
+  <!-- Tendência -->
+  <td>
+    <select class="form-select form-select-sm" 
+            name="value"
+            hx-post="{% url 'update-requisicao-gut' item.pk %}"
+            hx-target="#req-row-{{ item.pk }}"
+            hx-swap="outerHTML"
+            hx-vals='{"field": "tendencia"}'>
+      <option value="">-</option>
+      {% for opt in gut_options.tendencia %}
+        <option value="{{ opt.descricao }}" {% if item.tendencia == opt.descricao %}selected{% endif %}>
+          {{ opt.valor }} - {{ opt.descricao }}
+        </option>
+      {% endfor %}
+    </select>
+  </td>
+
+  <td class="text-center">
+    {% if item.gut_score %}
+      <span class="badge {% if item.gut_score >= 100 %}bg-danger{% elif item.gut_score >= 60 %}bg-warning text-dark{% else %}bg-primary-soft text-primary{% endif %}">
+        {{ item.gut_score }}
+      </span>
+    {% else %}
+      -
+    {% endif %}
+  </td>
+  <!-- Empresa -->
+  <td>
+    <select class="form-select form-select-sm" 
+            name="value"
+            hx-post="{% url 'update-requisicao-gut' item.pk %}"
+            hx-target="#req-row-{{ item.pk }}"
+            hx-swap="outerHTML"
+            hx-vals='{"field": "empresa"}'>
+      <option value="">-</option>
+      {% for emp in empresas_list %}
+        <option value="{{ emp.nome }}" {% if item.empresa == emp.nome %}selected{% endif %}>
+          {{ emp.nome }}
+        </option>
+      {% endfor %}
+    </select>
+  </td>
+</tr>

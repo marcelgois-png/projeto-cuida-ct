@@ -1,0 +1,422 @@
+{% load tracker_tags %}
+
+{% if filtered_total == 0 %}
+  <section class="public-panel control-panel-empty-state">
+    <div class="control-panel-empty-icon">
+      <i class="bi bi-funnel"></i>
+    </div>
+    <h2 class="public-panel-title mb-2">Nenhuma requisi&ccedil;&atilde;o encontrada</h2>
+    <p class="section-subtitle mb-0">
+      Ajuste os filtros do painel para visualizar novamente os indicadores, gr&aacute;ficos e tabelas de transpar&ecirc;ncia.
+    </p>
+  </section>
+{% else %}
+  <div class="control-panel-stack">
+    <section class="control-panel-section">
+      <div class="control-panel-section-head">
+        <div>
+          <span class="public-panel-kicker">S&Iacute;NTESE DA SITUA&Ccedil;&Atilde;O</span>
+          <h2 class="public-panel-title">Indicadores Chave de Desempenho</h2>
+          <div class="section-subtitle">
+            {{ filtered_total|intdot }} requisi&ccedil;&otilde;es no recorte atual{% if selected_macrostatus_label %}, com foco em {{ selected_macrostatus_label|lower }}{% endif %}.
+          </div>
+        </div>
+        {% if has_active_filters %}
+          <span class="control-panel-filter-badge">Filtros ativos</span>
+        {% endif %}
+      </div>
+
+      <div class="control-panel-kpi-grid">
+        {% for card in summary_cards %}
+          <article class="metric-card {{ card.tone }} control-panel-kpi-card{% if card.format == 'currency' %} control-panel-kpi-card-currency{% endif %}">
+            <div class="metric-label">{{ card.label }}</div>
+            <div class="metric-value">
+              {% if card.format == "currency" %}
+                <span class="control-panel-kpi-prefix">R$</span>
+                <span class="control-panel-kpi-currency">{{ card.value|brl }}</span>
+              {% elif card.format == "days" %}
+                {% if card.value == None %}
+                  -
+                {% else %}
+                  {{ card.value|intdot }} <span class="control-panel-kpi-suffix">dias</span>
+                {% endif %}
+              {% else %}
+                {{ card.value|intdot }}
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="control-panel-section">
+      <div class="control-panel-section-head">
+        <div>
+          <span class="public-panel-kicker">Setores e servi&ccedil;os</span>
+          <h2 class="public-panel-title">Transpar&ecirc;ncia e gerenciamento</h2>
+          <div class="section-subtitle">
+            Distribui&ccedil;&atilde;o por divis&atilde;o, servi&ccedil;o, status, tempo de atendimento, pr&eacute;dio e hist&oacute;rico anual.
+          </div>
+        </div>
+      </div>
+
+      <div class="control-panel-grid control-panel-grid-2">
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-building-gear"></i>Requisi&ccedil;&otilde;es por setor da SINFRA</h3>
+          </div>
+          <div class="card-body">
+            <div class="section-subtitle mb-3">Barras empilhadas por divis&atilde;o, separando requisi&ccedil;&otilde;es ativas e inativas.</div>
+            {% if chart_data.division_status.labels %}
+              <div class="chart-wrap control-panel-chart-wrap">
+                <canvas id="cp-division-status-chart"></canvas>
+              </div>
+            {% else %}
+              <div class="control-panel-inline-empty">Sem dados suficientes para o gr&aacute;fico.</div>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-tools"></i>Servi&ccedil;o solicitado</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive control-panel-table-wrap control-panel-service-wrap">
+              <table class="table table-sm align-middle mb-0 control-panel-table control-panel-service-table">
+                <thead>
+                  <tr>
+                    <th class="control-panel-service-main-head">
+                      <a
+                        class="table-sort-link control-panel-service-main-sort-link {% if service_sort_links.tipo_servico.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ service_sort_links.tipo_servico.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ service_sort_links.tipo_servico.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Tipo de servi&ccedil;o</span>
+                        <i class="bi {% if service_sort_links.tipo_servico.direction == 'asc' %}bi-arrow-up{% elif service_sort_links.tipo_servico.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-service-metric-head">
+                      <a
+                        class="table-sort-link control-panel-service-sort-link {% if service_sort_links.ativas.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ service_sort_links.ativas.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ service_sort_links.ativas.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Ativas</span>
+                        <i class="bi {% if service_sort_links.ativas.direction == 'asc' %}bi-arrow-up{% elif service_sort_links.ativas.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-service-metric-head">
+                      <a
+                        class="table-sort-link control-panel-service-sort-link {% if service_sort_links.inativas.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ service_sort_links.inativas.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ service_sort_links.inativas.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Inativas</span>
+                        <i class="bi {% if service_sort_links.inativas.direction == 'asc' %}bi-arrow-up{% elif service_sort_links.inativas.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-service-metric-head">
+                      <a
+                        class="table-sort-link control-panel-service-sort-link {% if service_sort_links.total.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ service_sort_links.total.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ service_sort_links.total.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Total</span>
+                        <i class="bi {% if service_sort_links.total.direction == 'asc' %}bi-arrow-up{% elif service_sort_links.total.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for group in service_groups %}
+                    <tr>
+                      <td>
+                        <details class="control-panel-service-details">
+                          <summary class="control-panel-service-main-label">{{ group.tipo_servico }}</summary>
+                          {% if group.servicos %}
+                            <div class="control-panel-service-details-body">
+                              <div class="control-panel-service-caption">{{ group.total_servicos|intdot }} servi&ccedil;os detalhados</div>
+                              <ul class="control-panel-service-list">
+                                {% for item in group.servicos %}
+                                  <li>
+                                    <span>{{ item.servico }}</span>
+                                    <strong>{{ item.quantidade|intdot }}</strong>
+                                  </li>
+                                {% endfor %}
+                              </ul>
+                            </div>
+                          {% endif %}
+                        </details>
+                      </td>
+                      <td class="control-panel-service-metric-cell">{{ group.ativas|intdot }}</td>
+                      <td class="control-panel-service-metric-cell">{{ group.inativas|intdot }}</td>
+                      <td class="control-panel-service-metric-cell">{{ group.quantidade|intdot }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-4">Nenhum servi&ccedil;o encontrado no recorte atual.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card control-panel-status-overview-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-diagram-3"></i>Status das requisi&ccedil;&otilde;es</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="control-panel-status-overview-body">
+              <div class="control-panel-status-overview-subtitle">Leitura principal por macrostatus, com agrupamento do fluxo SIPAC para facilitar a interpreta&ccedil;&atilde;o p&uacute;blica.</div>
+              {% if chart_data.macrostatus.labels %}
+                <div class="chart-wrap control-panel-chart-wrap">
+                  <canvas id="cp-macrostatus-chart"></canvas>
+                </div>
+              {% else %}
+                <div class="control-panel-inline-empty">Sem dados suficientes para o gr&aacute;fico.</div>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-hourglass-split"></i>Requisi&ccedil;&otilde;es ativas por faixa de espera (em dias)</h3>
+          </div>
+          <div class="card-body">
+            {% if chart_data.internal_wait_buckets.labels %}
+              <div class="chart-wrap control-panel-chart-wrap">
+                <canvas id="cp-wait-buckets-chart"></canvas>
+              </div>
+            {% else %}
+              <div class="control-panel-inline-empty">Sem dados de fila ativa no recorte atual.</div>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-calendar3"></i>Hist&oacute;rico anual de requisi&ccedil;&otilde;es atendidas</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive control-panel-table-wrap">
+              <table class="table table-sm align-middle mb-0 control-panel-table control-panel-annual-table">
+                <thead>
+                  <tr>
+                    <th class="control-panel-num-head">
+                      <a
+                        class="table-sort-link control-panel-sort-link-center {% if annual_sort_links.ano.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ annual_sort_links.ano.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ annual_sort_links.ano.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Ano</span>
+                        <i class="bi {% if annual_sort_links.ano.direction == 'asc' %}bi-arrow-up{% elif annual_sort_links.ano.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-num-head">
+                      <a
+                        class="table-sort-link control-panel-sort-link-center {% if annual_sort_links.quantidade.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ annual_sort_links.quantidade.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ annual_sort_links.quantidade.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Qtde</span>
+                        <i class="bi {% if annual_sort_links.quantidade.direction == 'asc' %}bi-arrow-up{% elif annual_sort_links.quantidade.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-num-head">
+                      <a
+                        class="table-sort-link control-panel-sort-link-center {% if annual_sort_links.orcamento_total.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ annual_sort_links.orcamento_total.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ annual_sort_links.orcamento_total.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Or&ccedil;amento *</span>
+                        <i class="bi {% if annual_sort_links.orcamento_total.direction == 'asc' %}bi-arrow-up{% elif annual_sort_links.orcamento_total.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    <th class="control-panel-num-head">
+                      <a
+                        class="table-sort-link control-panel-sort-link-center {% if annual_sort_links.dias_execucao.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ annual_sort_links.dias_execucao.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ annual_sort_links.dias_execucao.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Dias m&eacute;dios</span>
+                        <i class="bi {% if annual_sort_links.dias_execucao.direction == 'asc' %}bi-arrow-up{% elif annual_sort_links.dias_execucao.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in annual_summary %}
+                    <tr>
+                      <td class="control-panel-num-cell control-panel-annual-data">{{ row.ano }}</td>
+                      <td class="control-panel-num-cell control-panel-annual-data">{{ row.quantidade|intdot }}</td>
+                      <td class="control-panel-num-cell control-panel-annual-data">R$ {{ row.orcamento_total|brl }}</td>
+                      <td class="control-panel-num-cell control-panel-annual-data">{% if row.dias_execucao == None %}-{% else %}{{ row.dias_execucao|intdot }}{% endif %}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="control-panel-total-row">
+                    <td class="control-panel-annual-data">Total</td>
+                    <td class="control-panel-num-cell control-panel-annual-data">{{ annual_summary_total.quantidade|intdot }}</td>
+                    <td class="control-panel-num-cell control-panel-annual-data">R$ {{ annual_summary_total.orcamento_total|brl }}</td>
+                    <td class="control-panel-num-cell control-panel-annual-data">{% if annual_summary_total.dias_execucao == None %}-{% else %}{{ annual_summary_total.dias_execucao|intdot }}{% endif %}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer control-panel-footnote">
+            * Valores de or&ccedil;amento referem-se exclusivamente a servi&ccedil;os de ar-condicionado.
+          </div>
+        </article>
+
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-building"></i>Requisi&ccedil;&otilde;es por edifica&ccedil;&atilde;o</h3>
+          </div>
+          <div class="card-body">
+            <div class="section-subtitle mb-3">Ranking dos 10 pr&eacute;dios com maior volume de demandas no recorte atual.</div>
+            {% if chart_data.building_breakdown.labels %}
+              <div class="chart-wrap control-panel-chart-wrap">
+                <canvas id="cp-building-chart"></canvas>
+              </div>
+            {% else %}
+              <div class="control-panel-inline-empty">Sem dados suficientes para o ranking de pr&eacute;dios.</div>
+            {% endif %}
+          </div>
+        </article>
+      </div>
+
+      <div class="control-panel-grid mt-3">
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-table"></i>Quantidade atendida por divis&atilde;o x ano</h3>
+          </div>
+          <div class="card-body">
+            <div class="section-subtitle mb-3">Evolu&ccedil;&atilde;o anual por divis&atilde;o em &aacute;rea empilhada.</div>
+            {% if division_year_quantity_matrix.years and division_year_quantity_matrix.rows %}
+              <div class="chart-wrap control-panel-chart-wrap">
+                <canvas id="cp-division-year-quantity-area"></canvas>
+              </div>
+            {% else %}
+              <div class="control-panel-inline-empty">Sem dados suficientes para o gr&aacute;fico.</div>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card control-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-table"></i>Espera m&eacute;dia em dias por divis&atilde;o x ano *</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive control-panel-table-wrap">
+              <table class="table table-sm align-middle mb-0 control-panel-table control-panel-matrix-table control-panel-wait-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <a
+                        class="table-sort-link {% if wait_matrix_sort_links.divisao.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ wait_matrix_sort_links.divisao.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ wait_matrix_sort_links.divisao.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>Divis&atilde;o</span>
+                        <i class="bi {% if wait_matrix_sort_links.divisao.direction == 'asc' %}bi-arrow-up{% elif wait_matrix_sort_links.divisao.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                    {% for year in division_year_wait_matrix.years %}
+                      {% with link=wait_matrix_sort_links_by_year|get_item:year %}
+                        <th class="control-panel-num-head">
+                          <a
+                            class="table-sort-link control-panel-sort-link-center {% if link.active %}active{% endif %}"
+                            href="{% url 'public-control-panel' %}?{{ link.querystring }}"
+                            hx-get="{{ control_panel_content_url }}?{{ link.querystring }}"
+                            hx-target="#control-panel-content"
+                            hx-swap="innerHTML"
+                          >
+                            <span>{{ year }}</span>
+                            <i class="bi {% if link.direction == 'asc' %}bi-arrow-up{% elif link.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                          </a>
+                        </th>
+                      {% endwith %}
+                    {% endfor %}
+                    <th class="control-panel-num-head">
+                      <a
+                        class="table-sort-link control-panel-sort-link-center {% if wait_matrix_sort_links.media.active %}active{% endif %}"
+                        href="{% url 'public-control-panel' %}?{{ wait_matrix_sort_links.media.querystring }}"
+                        hx-get="{{ control_panel_content_url }}?{{ wait_matrix_sort_links.media.querystring }}"
+                        hx-target="#control-panel-content"
+                        hx-swap="innerHTML"
+                      >
+                        <span>M&eacute;dia</span>
+                        <i class="bi {% if wait_matrix_sort_links.media.direction == 'asc' %}bi-arrow-up{% elif wait_matrix_sort_links.media.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+                      </a>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in division_year_wait_matrix.rows %}
+                    <tr>
+                      <td class="control-panel-wait-data">{{ row.divisao }}</td>
+                      {% for year in division_year_wait_matrix.years %}
+                        <td class="control-panel-num-cell control-panel-wait-data">
+                          {% with value=row.years|get_item:year %}
+                            {% if value == None %}-{% else %}{{ value|intdot }}{% endif %}
+                          {% endwith %}
+                        </td>
+                      {% endfor %}
+                      <td class="control-panel-num-cell control-panel-wait-data">{% if row.media == None %}-{% else %}{{ row.media|intdot }}{% endif %}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="control-panel-total-row">
+                    <td class="control-panel-wait-data">{{ division_year_wait_matrix.total_row.divisao }}</td>
+                    {% for year in division_year_wait_matrix.years %}
+                      <td class="control-panel-num-cell control-panel-wait-data">
+                        {% with value=division_year_wait_matrix.total_row.years|get_item:year %}
+                          {% if value == None %}-{% else %}{{ value|intdot }}{% endif %}
+                        {% endwith %}
+                      </td>
+                    {% endfor %}
+                    <td class="control-panel-num-cell control-panel-wait-data">{% if division_year_wait_matrix.total_row.media == None %}-{% else %}{{ division_year_wait_matrix.total_row.media|intdot }}{% endif %}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer control-panel-footnote">
+            * M&eacute;dia por ano de cadastro, calculada sobre requisi&ccedil;&otilde;es finalizadas: dias entre cadastro e execu&ccedil;&atilde;o, com arredondamento para inteiro.
+          </div>
+        </article>
+      </div>
+    </section>
+
+  </div>
+
+  {{ chart_data.division_status|json_script:"cp-division-status-data" }}
+  {{ chart_data.macrostatus|json_script:"cp-macrostatus-data" }}
+  {{ chart_data.building_breakdown|json_script:"cp-building-data" }}
+  {{ chart_data.internal_wait_buckets|json_script:"cp-wait-buckets-data" }}
+  {{ division_year_quantity_matrix|json_script:"cp-quantity-matrix-data" }}
+{% endif %}
+
+
+

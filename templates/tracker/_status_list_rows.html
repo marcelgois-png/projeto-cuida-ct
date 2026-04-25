@@ -1,0 +1,45 @@
+{% for item in status_list %}
+<tr>
+  <td>
+    <input type="checkbox" name="status_ids" value="{{ item.pk }}" class="form-check-input status-checkbox">
+  </td>
+  <td>
+    {% if item.ativa %}
+      <span class="badge bg-success-soft text-success"><i class="bi bi-check-circle me-1"></i>Ativa</span>
+    {% else %}
+      <span class="badge bg-secondary-soft text-secondary"><i class="bi bi-x-circle me-1"></i>Inativa</span>
+    {% endif %}
+  </td>
+  <td><code class="text-body">{{ item.descricao }}</code></td>
+  <td>{{ item.rotulo_exibicao }}</td>
+  <td>
+    {% if item.situacao_derivada == "Ativa" %}
+      <span class="badge bg-success-soft text-success">Ativa</span>
+    {% else %}
+      <span class="badge bg-secondary-soft text-secondary">Inativa</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if item.mapeado %}
+      <span class="badge bg-success-soft text-success"><i class="bi bi-check-circle me-1"></i>Mapeado</span>
+    {% else %}
+      <span class="badge bg-warning-soft text-warning"><i class="bi bi-exclamation-circle me-1"></i>Personalizado</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    <div class="btn-group">
+      <button class="btn btn-sm btn-outline-primary" 
+              hx-get="{% url 'status-sipac-edit' item.pk %}" 
+              hx-target="#status-form-container">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-danger" 
+              hx-post="{% url 'status-sipac-delete' item.pk %}" 
+              hx-confirm="Excluir este status?"
+              hx-target="#status-list-body">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </td>
+</tr>
+{% endfor %}

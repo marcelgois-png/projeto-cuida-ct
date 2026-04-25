@@ -1,0 +1,69 @@
+<div id="orcamento-finalizadas-card"
+     class="card mb-4 shadow-sm"
+     hx-boost="true"
+     hx-target="#orcamento-finalizadas-card"
+     hx-select="#orcamento-finalizadas-card"
+     hx-swap="outerHTML"
+     hx-push-url="true">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <h3 class="section-title mb-0"><i class="bi bi-check2-all me-2"></i>Requisi&ccedil;&otilde;es Finalizadas com Or&ccedil;amento ({{ orcamento_count_label }})</h3>
+  </div>
+  <div class="card-body p-0">
+    <div class="px-3 pt-3">
+      <div class="alert alert-info mb-3 py-2 small">
+        O saldo total considera apenas as requisi&ccedil;&otilde;es finalizadas com or&ccedil;amento vinculadas a uma nota de empenho cadastrada.
+      </div>
+    </div>
+    <div class="table-responsive orcamento-table-scroll">
+      <table class="table align-middle requisicoes-table mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3" style="width: 40px;">
+              <input type="checkbox" class="form-check-input" onclick="toggleAllBudgetRequests(this)">
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.codigo.active %}active{% endif %}" href="?{{ orcamento_sort_links.codigo.querystring }}">
+                <span>N&ordm;</span>
+                <i class="bi {% if orcamento_sort_links.codigo.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.codigo.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.assunto.active %}active{% endif %}" href="?{{ orcamento_sort_links.assunto.querystring }}">
+                <span>Assunto</span>
+                <i class="bi {% if orcamento_sort_links.assunto.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.assunto.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.orcamento_valor.active %}active{% endif %}" href="?{{ orcamento_sort_links.orcamento_valor.querystring }}">
+                <span>Or&ccedil;amento (R$)</span>
+                <i class="bi {% if orcamento_sort_links.orcamento_valor.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.orcamento_valor.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.tipo_servico.active %}active{% endif %}" href="?{{ orcamento_sort_links.tipo_servico.querystring }}">
+                <span>Tipo de Servi&ccedil;o</span>
+                <i class="bi {% if orcamento_sort_links.tipo_servico.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.tipo_servico.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.servico.active %}active{% endif %}" href="?{{ orcamento_sort_links.servico.querystring }}">
+                <span>Servi&ccedil;o</span>
+                <i class="bi {% if orcamento_sort_links.servico.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.servico.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-start">
+              <a class="table-sort-link {% if orcamento_sort_links.empresa.active %}active{% endif %}" href="?{{ orcamento_sort_links.empresa.querystring }}">
+                <span>Empresa</span>
+                <i class="bi {% if orcamento_sort_links.empresa.direction == 'asc' %}bi-arrow-up{% elif orcamento_sort_links.empresa.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+              </a>
+            </th>
+            <th class="text-center" style="width: 84px;">A&ccedil;&otilde;es</th>
+          </tr>
+        </thead>
+        <tbody id="reqs-finalizadas-tbody">
+          {% include "tracker/_orcamento_reqs_rows.html" %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

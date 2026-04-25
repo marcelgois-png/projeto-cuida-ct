@@ -1,0 +1,283 @@
+<div class="table-responsive requisicoes-table-wrap {% if public_mode %}requisicoes-table-wrap-public{% endif %}">
+  <table class="table table-hover align-middle requisicoes-table {% if public_mode %}requisicoes-table-public{% endif %}">
+    <colgroup>
+      {% if public_mode %}
+        <col style="width: 14%;">
+        <col style="width: 24%;">
+        <col style="width: 18%;">
+        <col style="width: 18%;">
+        <col style="width: 10%;">
+        <col style="width: 16%;">
+      {% else %}
+        <col style="width: 3%;">
+        <col style="width: 10%;">
+        <col style="width: 22%;">
+        <col style="width: 16%;">
+        <col style="width: 13%;">
+        <col style="width: 10%;">
+        <col style="width: 9%;">
+        <col style="width: 17%;">
+      {% endif %}
+    </colgroup>
+    <thead>
+      <tr>
+        {% if not public_mode %}
+          <th class="text-center">
+            <input type="checkbox" class="form-check-input" onclick="toggleAllRequests(this)">
+          </th>
+        {% endif %}
+        <th class="col-codigo">
+          <a
+            class="table-sort-link {% if sort_links.codigo.active %}active{% endif %}"
+            href="?{{ sort_links.codigo.querystring }}"
+            hx-get="{{ table_url }}?{{ sort_links.codigo.querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            <span>N&ordm; Requisi&ccedil;&atilde;o</span>
+            <i class="bi {% if sort_links.codigo.direction == 'asc' %}bi-arrow-up{% elif sort_links.codigo.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th class="col-assunto">
+          <a
+            class="table-sort-link {% if sort_links.assunto.active %}active{% endif %}"
+            href="?{{ sort_links.assunto.querystring }}"
+            hx-get="{{ table_url }}?{{ sort_links.assunto.querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            <span>Assunto</span>
+            <i class="bi {% if sort_links.assunto.direction == 'asc' %}bi-arrow-up{% elif sort_links.assunto.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th class="col-requisitante">
+          <a
+            class="table-sort-link {% if sort_links.requisitante.active %}active{% endif %}"
+            href="?{{ sort_links.requisitante.querystring }}"
+            hx-get="{{ table_url }}?{{ sort_links.requisitante.querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            <span>Requisitante</span>
+            <i class="bi {% if sort_links.requisitante.direction == 'asc' %}bi-arrow-up{% elif sort_links.requisitante.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th class="col-status-sipac">
+          <a
+            class="table-sort-link {% if sort_links.status_sipac.active %}active{% endif %}"
+            href="?{{ sort_links.status_sipac.querystring }}"
+            hx-get="{{ table_url }}?{{ sort_links.status_sipac.querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            <span>Status SIPAC</span>
+            <i class="bi {% if sort_links.status_sipac.direction == 'asc' %}bi-arrow-up{% elif sort_links.status_sipac.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        <th class="col-dias">
+          <a
+            class="table-sort-link {% if sort_links.dias_abertura.active %}active{% endif %}"
+            href="?{{ sort_links.dias_abertura.querystring }}"
+            hx-get="{{ table_url }}?{{ sort_links.dias_abertura.querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            <span>Espera (dias)</span>
+            <i class="bi {% if sort_links.dias_abertura.direction == 'asc' %}bi-arrow-up{% elif sort_links.dias_abertura.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+          </a>
+        </th>
+        {% if public_mode %}
+          <th class="col-acoes" style="white-space: nowrap;">Ver detalhes</th>
+        {% else %}
+          <th class="col-situacao">
+            <a
+              class="table-sort-link {% if sort_links.situacao.active %}active{% endif %}"
+              href="?{{ sort_links.situacao.querystring }}"
+              hx-get="{{ table_url }}?{{ sort_links.situacao.querystring }}"
+              hx-target="{{ table_target }}"
+            >
+              <span>Situa&ccedil;&atilde;o</span>
+              <i class="bi {% if sort_links.situacao.direction == 'asc' %}bi-arrow-up{% elif sort_links.situacao.direction == 'desc' %}bi-arrow-down{% else %}bi-arrow-down-up{% endif %}"></i>
+            </a>
+          </th>
+          <th class="col-acoes" style="white-space: nowrap;">A&ccedil;&otilde;es</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in page_obj.object_list %}
+        <tr>
+          {% if not public_mode %}
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input requisicao-checkbox" value="{{ item.pk }}">
+            </td>
+          {% endif %}
+          <td>
+            <div class="table-main-value table-main-value-code">{{ item.codigo }}</div>
+            <span class="table-main-meta">{{ item.data_cadastro|date:"d/m/Y" }}</span>
+          </td>
+          <td>
+            <div class="table-main-value">{{ item.assunto|default:"-" }}</div>
+            <span class="table-main-meta">
+              {% if item.predio %}
+                {{ item.predio.nome }}
+              {% else %}
+                {{ item.local_servico|default:"-" }}
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="table-main-value">{{ item.nome_requisitante_publico|default:"-" }}</div>
+            <span class="table-main-meta">{{ item.unidade_setor_snapshot|default:"-" }}</span>
+          </td>
+          <td><div class="table-main-value table-status-value">{{ item.status_sipac_exibicao|default:"-" }}</div></td>
+          <td>{% if item.situacao_requisicao|lower == 'ativa' %}{{ item.dias_desde_abertura|default_if_none:"-" }}{% else %}-{% endif %}</td>
+          {% if public_mode %}
+            <td>
+              <a
+                class="btn btn-outline-primary table-icon-action action-view"
+                href="{% url 'public-requisicao-detail' item.pk %}"
+                aria-label="Ver requisi&ccedil;&atilde;o {{ item.codigo }}"
+                title="Ver requisi&ccedil;&atilde;o {{ item.codigo }}"
+              >
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          {% else %}
+            <td>
+              {% if item.situacao_requisicao|lower == 'ativa' %}
+                <span class="badge badge-success-soft"><i class="bi bi-check-circle-fill me-1"></i>Ativa</span>
+              {% elif item.situacao_requisicao|lower == 'inativa' %}
+                <span class="badge badge-neutral"><i class="bi bi-dash-circle me-1"></i>Inativa</span>
+              {% else %}
+                <span>{{ item.situacao_requisicao|default:"-" }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="d-inline-flex gap-1 align-items-center">
+                <a class="btn btn-outline-secondary table-icon-action action-view"
+                   href="{% url 'internal-requisicao-detail' item.pk %}?next={{ request.get_full_path|urlencode }}"
+                   hx-boost="false"
+                   title="Ver requisi&ccedil;&atilde;o {{ item.codigo }}">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a class="btn btn-outline-primary table-icon-action action-edit"
+                   href="{% url 'requisicao-update' item.pk %}"
+                   title="Editar requisi&ccedil;&atilde;o {{ item.codigo }}">
+                  <i class="bi bi-pencil-square"></i>
+                </a>
+                <button
+                  class="btn btn-outline-danger table-icon-action"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#requisicaoDeleteModal"
+                  data-codigo="{{ item.codigo }}"
+                  data-delete-url="{% url 'requisicao-delete' item.pk %}"
+                  title="Apagar requisi&ccedil;&atilde;o {{ item.codigo }}"
+                >
+                  <i class="bi bi-trash3"></i>
+                </button>
+                {% if item.link_atendimento %}
+                  <a class="btn btn-outline-secondary table-icon-action action-view"
+                     href="{{ item.link_atendimento }}" target="_blank" rel="noopener noreferrer"
+                     title="Link para Atendimento CT">
+                    <i class="bi bi-headset"></i>
+                  </a>
+                {% else %}
+                  <button class="btn btn-outline-secondary table-icon-action" disabled title="Sem link de atendimento">
+                    <i class="bi bi-headset text-muted" style="opacity: 0.5;"></i>
+                  </button>
+                {% endif %}
+                {% if item.link_sipac %}
+                  <a class="btn btn-outline-secondary table-icon-action action-view"
+                     href="{{ item.link_sipac }}" target="_blank" rel="noopener noreferrer"
+                     title="Abrir no SIPAC">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </a>
+                {% else %}
+                  <button class="btn btn-outline-secondary table-icon-action" disabled title="Sem link SIPAC">
+                    <i class="bi bi-box-arrow-up-right text-muted" style="opacity: 0.5;"></i>
+                  </button>
+                {% endif %}
+              </div>
+            </td>
+          {% endif %}
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="{% if public_mode %}6{% else %}8{% endif %}" class="text-center text-muted py-4">
+            Nenhuma requisi&ccedil;&atilde;o encontrada com os filtros atuais.
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="table-results-meta p-3 border-top">
+  <div class="small text-muted">
+    {% if filtered_count %}
+      Exibindo {{ page_obj.start_index }}-{{ page_obj.end_index }} de
+      {% if has_active_filters %}
+        {{ filtered_count }} requisi&ccedil;&otilde;es filtradas ({{ total_count }} no total)
+      {% else %}
+        {{ total_count }} requisi&ccedil;&otilde;es
+      {% endif %}
+    {% else %}
+      Nenhuma requisi&ccedil;&atilde;o encontrada
+    {% endif %}
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <nav class="table-pagination p-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-2" aria-label="Pagina&ccedil;&atilde;o da tabela">
+    <div class="small text-muted">
+      P&aacute;gina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    </div>
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+        {% if page_obj.has_previous %}
+          <a
+            class="page-link"
+            href="?{{ previous_page_querystring }}"
+            hx-get="{{ table_url }}?{{ previous_page_querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            Anterior
+          </a>
+        {% else %}
+          <span class="page-link">Anterior</span>
+        {% endif %}
+      </li>
+
+      {% for page in pagination_pages %}
+        {% if page.ellipsis %}
+          <li class="page-item disabled" aria-hidden="true"><span class="page-link">...</span></li>
+        {% elif page.current %}
+          <li class="page-item active" aria-current="page"><span class="page-link">{{ page.number }}</span></li>
+        {% else %}
+          <li class="page-item">
+            <a
+              class="page-link"
+              href="?{{ page.querystring }}"
+              hx-get="{{ table_url }}?{{ page.querystring }}"
+              hx-target="{{ table_target }}"
+            >
+              {{ page.number }}
+            </a>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+        {% if page_obj.has_next %}
+          <a
+            class="page-link"
+            href="?{{ next_page_querystring }}"
+            hx-get="{{ table_url }}?{{ next_page_querystring }}"
+            hx-target="{{ table_target }}"
+          >
+            Pr&oacute;xima
+          </a>
+        {% else %}
+          <span class="page-link">Pr&oacute;xima</span>
+        {% endif %}
+      </li>
+    </ul>
+  </nav>
+{% endif %}

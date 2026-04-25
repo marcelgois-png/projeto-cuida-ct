@@ -1,0 +1,171 @@
+<div id="control-panel-shell">
+  <section class="public-panel control-panel-shell">
+    <div class="public-panel-header control-panel-filter-header">
+      <div>
+        <span class="public-panel-kicker"><i class="bi bi-funnel me-1"></i>FILTROS</span>
+        <h2 class="public-panel-title">Recorte do painel</h2>
+        <div class="section-subtitle mb-0">
+          Refine a leitura por busca, divis&atilde;o, tipo e servi&ccedil;o, pr&eacute;dio, situa&ccedil;&atilde;o, macrostatus, status Sipac, requisitante, unidade/setor, ano e faixa de espera.
+        </div>
+      </div>
+      <a class="btn btn-outline-primary" href="{% url 'public-dashboard' %}#public-details">
+        <i class="bi bi-search me-1"></i>Consulta detalhada
+      </a>
+    </div>
+
+    <form
+      id="control-panel-filters"
+      class="control-panel-filters uniform-filter-form"
+      action="{% url 'public-control-panel-shell' %}"
+      method="get"
+      hx-get="{{ control_panel_shell_url }}"
+      hx-target="#control-panel-shell"
+      hx-swap="outerHTML"
+      hx-trigger="change, submit"
+    >
+      <div class="uniform-filter-heading">
+        <h3 class="section-title mb-0"><i class="bi bi-funnel"></i>FILTROS</h3>
+      </div>
+
+      <div class="control-panel-filter-grid uniform-filter-grid">
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Busca</label>
+          <div class="uniform-filter-search">
+            <i class="bi bi-search filter-bar-icon"></i>
+            <input
+              class="form-control"
+              type="search"
+              name="q"
+              value="{{ request.GET.q }}"
+              placeholder="C&oacute;digo ou assunto..."
+            >
+          </div>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Divis&atilde;o da SINFRA</label>
+          <select class="form-select" name="divisao">
+            <option value="">Todos</option>
+            {% for item in filters.divisoes %}
+              <option value="{{ item }}" {% if request.GET.divisao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Tipo de servi&ccedil;o</label>
+          <select class="form-select" name="tipo_servico">
+            <option value="">Todos</option>
+            {% for item in filters.tipos_servico %}
+              <option value="{{ item }}" {% if request.GET.tipo_servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Servi&ccedil;o</label>
+          <select class="form-select" name="servico">
+            <option value="">Todos</option>
+            {% for item in filters.servicos %}
+              <option value="{{ item }}" {% if request.GET.servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Pr&eacute;dio</label>
+          <select class="form-select" name="predio">
+            <option value="">Todos</option>
+            {% for item in filters.predios %}
+              <option value="{{ item }}" {% if request.GET.predio == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Ativa/Inativa</label>
+          <select class="form-select" name="situacao_requisicao">
+            <option value="">Todos</option>
+            {% for item in filters.situacoes %}
+              <option value="{{ item }}" {% if request.GET.situacao_requisicao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Macrostatus</label>
+          <select class="form-select" name="macrostatus">
+            <option value="">Todos</option>
+            {% for item in filters.macrostatuses %}
+              <option value="{{ item.key }}" {% if request.GET.macrostatus == item.key %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Status Sipac</label>
+          <select class="form-select" name="status_sipac">
+            <option value="">Todos</option>
+            {% for item in filters.statuses %}
+              <option value="{{ item.value }}" {% if request.GET.status_sipac == item.value %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Requisitante</label>
+          <select class="form-select" name="requisitante">
+            <option value="">Todos</option>
+            {% for item in filters.requisitantes %}
+              <option value="{{ item }}" {% if request.GET.requisitante == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Unidade/Setor</label>
+          <select class="form-select" name="unidade_setor">
+            <option value="">Todos</option>
+            {% for item in filters.unidades_setor %}
+              <option value="{{ item }}" {% if request.GET.unidade_setor == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Ano de Cadastro</label>
+          <select class="form-select" name="ano">
+            <option value="">Todos</option>
+            {% for item in filters.anos %}
+              <option value="{{ item }}" {% if request.GET.ano == item|stringformat:"s" %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Espera M&iacute;nima (dias)</label>
+          <input type="number" class="form-control" name="dias_min" value="{{ request.GET.dias_min }}" placeholder="Todos">
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field">
+          <label class="form-label">Espera M&aacute;xima (dias)</label>
+          <input type="number" class="form-control" name="dias_max" value="{{ request.GET.dias_max }}" placeholder="Todos">
+        </div>
+
+        <div class="control-panel-filter-field uniform-filter-field uniform-filter-clear-cell">
+          <button class="btn btn-filter-clear" type="button" id="control-panel-clear">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar filtros
+          </button>
+          <span id="control-panel-loading" class="htmx-indicator control-panel-loading">
+            <i class="bi bi-arrow-repeat"></i>Atualizando painel...
+          </span>
+        </div>
+
+      </div>
+    </form>
+  </section>
+
+  <div id="control-panel-content">
+    {% include "tracker/_public_control_panel_content.html" %}
+  </div>
+</div>

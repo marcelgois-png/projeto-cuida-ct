@@ -1,0 +1,179 @@
+<div id="internal-lista-shell">
+  <div class="filter-bar uniform-filter-bar mb-3">
+    <form
+      id="internal-filters"
+      class="filter-bar-form uniform-filter-form"
+      hx-get="{% url 'internal-requisicoes-panel' %}"
+      hx-target="#internal-lista-shell"
+      hx-trigger="change, submit, refreshTable from:body"
+    >
+      <div class="uniform-filter-heading">
+        <h3 class="section-title mb-0"><i class="bi bi-funnel"></i>FILTROS</h3>
+      </div>
+
+      <div class="uniform-filter-grid">
+        <div class="uniform-filter-field">
+          <label class="form-label">Busca</label>
+          <div class="uniform-filter-search">
+            <i class="bi bi-search filter-bar-icon"></i>
+            <input
+              class="form-control"
+              type="search"
+              name="q"
+              value="{{ request.GET.q }}"
+              placeholder="C&oacute;digo ou assunto..."
+            >
+          </div>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Divis&atilde;o da SINFRA</label>
+          <select class="form-select" name="divisao">
+            <option value="">Todos</option>
+            {% for item in filters.divisoes %}
+              <option value="{{ item }}" {% if request.GET.divisao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Tipo de Servi&ccedil;o</label>
+          <select class="form-select" name="tipo_servico">
+            <option value="">Todos</option>
+            {% for item in filters.tipos_servico %}
+              <option value="{{ item }}" {% if request.GET.tipo_servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Servi&ccedil;o</label>
+          <select class="form-select" name="servico">
+            <option value="">Todos</option>
+            {% for item in filters.servicos %}
+              <option value="{{ item }}" {% if request.GET.servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Pr&eacute;dio</label>
+          <select class="form-select" name="predio">
+            <option value="">Todos</option>
+            {% for item in filters.predios %}
+              <option value="{{ item }}" {% if request.GET.predio == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Ativa/Inativa</label>
+          <select class="form-select" name="situacao_requisicao">
+            <option value="">Todos</option>
+            {% for item in filters.situacoes %}
+              <option value="{{ item }}" {% if request.GET.situacao_requisicao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Macrostatus</label>
+          <select class="form-select" name="macrostatus">
+            <option value="">Todos</option>
+            {% for item in filters.macrostatuses %}
+              <option value="{{ item.key }}" {% if request.GET.macrostatus == item.key %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Status Sipac</label>
+          <select class="form-select" name="status_sipac">
+            <option value="">Todos</option>
+            {% for item in filters.statuses %}
+              <option value="{{ item.value }}" {% if request.GET.status_sipac == item.value %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Requisitante</label>
+          <select class="form-select" name="requisitante">
+            <option value="">Todos</option>
+            {% for item in filters.requisitantes %}
+              <option value="{{ item }}" {% if request.GET.requisitante == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Unidade/Setor</label>
+          <select class="form-select" name="unidade_setor">
+            <option value="">Todos</option>
+            {% for item in filters.unidades_setor %}
+              <option value="{{ item }}" {% if request.GET.unidade_setor == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Ano de Cadastro</label>
+          <select class="form-select" name="ano">
+            <option value="">Todos</option>
+            {% for item in filters.anos %}
+              <option value="{{ item }}" {% if request.GET.ano == item|stringformat:"s" %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Espera M&iacute;nima (dias)</label>
+          <input type="number" class="form-control" name="dias_min" value="{{ request.GET.dias_min }}" placeholder="Todos">
+        </div>
+
+        <div class="uniform-filter-field">
+          <label class="form-label">Espera M&aacute;xima (dias)</label>
+          <input type="number" class="form-control" name="dias_max" value="{{ request.GET.dias_max }}" placeholder="Todos">
+        </div>
+
+        <div class="uniform-filter-field uniform-filter-clear-cell">
+          <button type="button" class="btn btn-filter-clear" onclick="clearInternalFilters()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar filtros
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card mb-3 shadow-sm uniform-action-card">
+    <div class="card-header">
+      <h3 class="section-title text-dark mb-0"><i class="bi bi-folder2-open"></i> Encaminhamentos</h3>
+    </div>
+    <div class="card-body py-3">
+      <div class="block-action-row">
+        <div class="section-subtitle">Encaminhe em lote as requisi&ccedil;&otilde;es selecionadas para decis&atilde;o da Dire&ccedil;&atilde;o.</div>
+        <div class="block-action-controls">
+          <button
+            type="button"
+            class="btn btn-primary text-nowrap"
+            onclick="applyBulkDecisions()"
+            title="Enviar para Dire&ccedil;&atilde;o &middot; Decis&otilde;es de Processo"
+          >
+            <i class="bi bi-briefcase me-1"></i>Encaminhar para a Dire&ccedil;&atilde;o
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="section-title mb-0"><i class="bi bi-table"></i>Requisi&ccedil;&otilde;es ({{ table_count_label }})</h3>
+    </div>
+    <div class="card-body p-0">
+      <div id="internal-results">
+        {% include "tracker/_requisicoes_table.html" %}
+      </div>
+    </div>
+  </div>
+</div>

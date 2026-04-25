@@ -1,0 +1,131 @@
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="bulk-decisions-modal">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Encaminhar para Direção</h5>
+          <div class="text-muted small">Revise as requisições selecionadas e registre o motivo do encaminhamento.</div>
+        </div>
+        <button type="button" class="btn-close" onclick="fecharModalBulkDecisions()"></button>
+      </div>
+
+      <form
+        hx-post="{% url 'lista-bulk-decisions' %}"
+        hx-target="#bulk-decisions-modal-container"
+        hx-swap="innerHTML"
+      >
+        {% csrf_token %}
+
+        <div class="modal-body">
+          {% if form_error %}
+            <div class="alert alert-danger py-2 mb-3">{{ form_error }}</div>
+          {% endif %}
+
+          <div class="mb-3 p-3 rounded bg-light border">
+            <div class="small fw-semibold text-uppercase text-muted mb-1">ACOMPANHAMENTO DA REQUISIÇÃO</div>
+            <div class="fw-semibold mb-1">Registre observações sucessivas sobre a evolução do atendimento.</div>
+            <div class="text-muted small">Explique por que cada requisição está sendo encaminhada para a Direção. Esse texto será salvo no acompanhamento da requisição.</div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="fw-semibold">
+              {% if selected_requisicoes|length == 1 %}
+                1 requisição selecionada
+              {% else %}
+                {{ selected_requisicoes|length }} requisições selecionadas
+              {% endif %}
+            </div>
+            <div class="text-muted small">Data do registro: {{ today|date:"d/m/Y" }}</div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 14%;">Nº Requisição</th>
+                  <th style="width: 24%;">Assunto e local</th>
+                  <th style="width: 20%;">Último acompanhamento</th>
+                  <th style="width: 42%;">Motivo do encaminhamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for requisicao in selected_requisicoes %}
+                  <tr>
+                    <td>
+                      <input type="hidden" name="requisicao_ids" value="{{ requisicao.pk }}">
+                      <div class="fw-semibold">{{ requisicao.codigo }}</div>
+                      <div class="text-muted small">{{ requisicao.data_cadastro|date:"d/m/Y"|default:"-" }}</div>
+                    </td>
+                    <td>
+                      <div class="fw-semibold">{{ requisicao.assunto|default:"-" }}</div>
+                      <div class="text-muted small">
+                        {% if requisicao.predio %}
+                          {{ requisicao.predio.nome }}
+                        {% else %}
+                          {{ requisicao.local_servico|default:"-" }}
+                        {% endif %}
+                      </div>
+                      <div class="text-muted small">{{ requisicao.nome_requisitante_publico|default:requisicao.nome_requisitante_snapshot|default:"-" }}</div>
+                    </td>
+                    <td>
+                      {% if requisicao.ultimo_acompanhamento %}
+                        <div class="small fw-semibold">{{ requisicao.ultimo_acompanhamento.data|date:"d/m/Y" }}</div>
+                        <div class="small text-muted">{{ requisicao.ultimo_acompanhamento.atualizacao_situacao }}</div>
+                      {% else %}
+                        <div class="small text-muted">Nenhum acompanhamento registrado até o momento.</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <label class="form-label small fw-semibold mb-1" for="acompanhamento_{{ requisicao.pk }}">
+                        Justificativa <span class="text-danger">*</span>
+                      </label>
+                      <textarea
+                        class="form-control{% if requisicao.bulk_missing %} is-invalid{% endif %}"
+                        id="acompanhamento_{{ requisicao.pk }}"
+                        name="acompanhamento_{{ requisicao.pk }}"
+                        rows="3"
+                        placeholder="Descreva por que esta requisição precisa de decisão da Direção."
+                        required
+                      >{{ requisicao.bulk_acompanhamento_value }}</textarea>
+                      {% if requisicao.bulk_missing %}
+                        <div class="invalid-feedback d-block">Informe o motivo do encaminhamento.</div>
+                      {% else %}
+                        <div class="form-text">Esse texto será incluído no acompanhamento da requisição.</div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" onclick="fecharModalBulkDecisions()">Cancelar</button>
+          <button type="submit" class="btn btn-warning">Confirmar encaminhamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    document.body.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
+
+    const firstTextarea = document.querySelector('#bulk-decisions-modal textarea');
+    if (firstTextarea) {
+      firstTextarea.focus();
+    }
+
+    const modal = document.getElementById('bulk-decisions-modal');
+    if (modal) {
+      modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+          fecharModalBulkDecisions();
+        }
+      });
+    }
+  })();
+</script>

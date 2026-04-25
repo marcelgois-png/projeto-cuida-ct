@@ -1,0 +1,27 @@
+{% for item in empresas %}
+<tr>
+  <td>
+    {% if item.ativa %}
+      <span class="badge bg-success-soft text-success"><i class="bi bi-check-circle me-1"></i>Ativa</span>
+    {% else %}
+      <span class="badge bg-secondary-soft text-secondary"><i class="bi bi-x-circle me-1"></i>Inativa</span>
+    {% endif %}
+  </td>
+  <td class="fw-medium text-dark">{{ item.nome }}</td>
+  <td class="text-center">
+    <div class="btn-group">
+      <button class="btn btn-sm btn-outline-primary" 
+              hx-get="{% url 'empresa-edit' item.pk %}" 
+              hx-target="#empresa-form-container">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <button class="btn btn-sm btn-outline-danger" 
+              hx-post="{% url 'empresa-delete' item.pk %}" 
+              hx-confirm="Excluir esta empresa?"
+              hx-target="#empresa-list-body">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </td>
+</tr>
+{% endfor %}

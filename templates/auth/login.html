@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar | CT -> SINFRA{% endblock %}
+
+{% block content %}
+<div class="login-shell">
+  <div class="container">
+    <div class="card login-panel mx-auto overflow-hidden">
+      <div class="row g-0">
+        <div class="col-lg-5 login-brand p-4 p-lg-5 d-flex flex-column justify-content-center">
+          <div class="mb-3">
+            <span class="badge badge-primary-soft">Acesso interno</span>
+          </div>
+          <h2 class="fw-bold mb-3">Área interna de acompanhamento CT → SINFRA</h2>
+          <p class="mb-4 opacity-90">
+            Entre com sua conta para atualizar requisições, importar planilhas e manter o painel público sincronizado.
+          </p>
+          <ul>
+            <li>Gestão operacional das requisições</li>
+            <li>Controle de visibilidade pública</li>
+            <li>Importação de histórico em XLSM, XLSX ou CSV</li>
+          </ul>
+        </div>
+        <div class="col-lg-7 p-4 p-lg-5 bg-white">
+          <div class="mb-4">
+            <span class="page-kicker">Autenticação</span>
+            <h1 class="page-title">Entrar no sistema</h1>
+            <div class="page-subtitle">Use suas credenciais para acessar o backoffice institucional.</div>
+          </div>
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-12">
+              <label for="id_username" class="form-label fw-semibold">Usuário</label>
+              <input class="form-control" id="id_username" name="username" type="text" required autofocus>
+            </div>
+            <div class="col-12">
+              <label for="id_password" class="form-label fw-semibold">Senha</label>
+              <input class="form-control" id="id_password" name="password" type="password" required>
+            </div>
+            <div class="col-12 d-flex gap-2 flex-wrap pt-2">
+              <button class="btn btn-primary" type="submit">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Entrar
+              </button>
+              <a class="btn btn-outline-secondary" href="{% url 'public-dashboard' %}">Voltar ao painel público</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
