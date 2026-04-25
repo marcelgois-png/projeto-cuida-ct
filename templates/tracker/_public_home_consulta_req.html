@@ -1,0 +1,202 @@
+<div id="home-req-shell" class="home-req-shell">
+
+  <!-- Filtros -->
+  <form
+    id="home-req-filters"
+    hx-get="{% url 'home-consulta-req' %}"
+    hx-target="#home-req-shell"
+    hx-swap="outerHTML"
+    hx-trigger="change, submit"
+  >
+    <!-- Cabeçalho da barra de filtros -->
+    <div class="uniform-filter-heading" style="border-radius: 0;">
+      <h3 class="section-title mb-0" style="color: var(--cuida-azul-escuro);">
+        <i class="bi bi-funnel"></i> Requisições
+        <small class="text-muted fw-normal ms-2" style="font-size: 0.7rem; text-transform: none; letter-spacing: 0;">
+          {{ table_count_label }}
+        </small>
+      </h3>
+    </div>
+
+    <!-- Filtros essenciais (sempre visíveis) -->
+    <div class="p-3 pb-2">
+      <div class="row g-2 align-items-end">
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Busca</label>
+          <div class="uniform-filter-search">
+            <i class="bi bi-search filter-bar-icon"></i>
+            <input
+              class="form-control"
+              type="search"
+              name="q"
+              value="{{ request.GET.q }}"
+              placeholder="Código ou assunto..."
+            >
+          </div>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Requisitante</label>
+          <select class="form-select" name="requisitante">
+            <option value="">Todos</option>
+            {% for item in filters.requisitantes %}
+              <option value="{{ item }}" {% if request.GET.requisitante == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Prédio</label>
+          <select class="form-select" name="predio">
+            <option value="">Todos</option>
+            {% for item in filters.predios %}
+              <option value="{{ item }}" {% if request.GET.predio == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Situação</label>
+          <select class="form-select" name="situacao_requisicao">
+            <option value="">Todas</option>
+            {% for item in filters.situacoes %}
+              <option value="{{ item }}" {% if request.GET.situacao_requisicao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2 d-flex gap-2">
+          <button
+            class="btn btn-outline-secondary flex-fill"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#home-req-mais-filtros"
+            aria-expanded="false"
+            style="font-size: 0.76rem; height: 40px; border-radius: 12px;"
+          >
+            <i class="bi bi-sliders me-1"></i>Mais filtros
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            onclick="homeClearReqFilters()"
+            style="font-size: 0.76rem; height: 40px; border-radius: 12px; white-space: nowrap;"
+            title="Limpar filtros"
+          >
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Filtros adicionais (colapso Bootstrap) -->
+    <div class="collapse px-3 pb-2" id="home-req-mais-filtros">
+      <div class="row g-2">
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Divisão SINFRA</label>
+          <select class="form-select" name="divisao">
+            <option value="">Todos</option>
+            {% for item in filters.divisoes %}
+              <option value="{{ item }}" {% if request.GET.divisao == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Tipo de Serviço</label>
+          <select class="form-select" name="tipo_servico">
+            <option value="">Todos</option>
+            {% for item in filters.tipos_servico %}
+              <option value="{{ item }}" {% if request.GET.tipo_servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Serviço</label>
+          <select class="form-select" name="servico">
+            <option value="">Todos</option>
+            {% for item in filters.servicos %}
+              <option value="{{ item }}" {% if request.GET.servico == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Macrostatus</label>
+          <select class="form-select" name="macrostatus">
+            <option value="">Todos</option>
+            {% for item in filters.macrostatuses %}
+              <option value="{{ item.key }}" {% if request.GET.macrostatus == item.key %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Status SIPAC</label>
+          <select class="form-select" name="status_sipac">
+            <option value="">Todos</option>
+            {% for item in filters.statuses %}
+              <option value="{{ item.value }}" {% if request.GET.status_sipac == item.value %}selected{% endif %}>{{ item.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label">Unidade/Setor</label>
+          <select class="form-select" name="unidade_setor">
+            <option value="">Todos</option>
+            {% for item in filters.unidades_setor %}
+              <option value="{{ item }}" {% if request.GET.unidade_setor == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-4 col-md-2">
+          <label class="form-label">Ano</label>
+          <select class="form-select" name="ano">
+            <option value="">Todos</option>
+            {% for item in filters.anos %}
+              <option value="{{ item }}" {% if request.GET.ano == item|stringformat:"s" %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-4 col-md-2">
+          <label class="form-label">Espera Mín. (dias)</label>
+          <input type="number" class="form-control" name="dias_min" value="{{ request.GET.dias_min }}" placeholder="—">
+        </div>
+
+        <div class="col-4 col-md-2">
+          <label class="form-label">Espera Máx. (dias)</label>
+          <input type="number" class="form-control" name="dias_max" value="{{ request.GET.dias_max }}" placeholder="—">
+        </div>
+
+      </div>
+    </div>
+
+  </form>
+
+  <!-- Tabela -->
+  <div class="home-req-table-wrap">
+    {% include "tracker/_requisicoes_table.html" %}
+  </div>
+
+</div>
+
+<script>
+function homeClearReqFilters() {
+  var form = document.getElementById('home-req-filters');
+  if (!form) return;
+  form.querySelectorAll('input[type="search"], input[type="number"]').forEach(function (f) { f.value = ''; });
+  form.querySelectorAll('select').forEach(function (f) { f.selectedIndex = 0; });
+  if (typeof form.requestSubmit === 'function') {
+    form.requestSubmit();
+  } else {
+    htmx.trigger(form, 'submit');
+  }
+}
+</script>

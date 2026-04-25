@@ -1077,12 +1077,19 @@ def _public_dashboard_context(request: HttpRequest) -> dict[str, Any]:
     queryset = filtered_queryset(request, public=True)
     selected_divisao = request.GET.get("divisao", "").strip()
     metrics = metrics_for_queryset(queryset)
-    metrics["investimento_climatizacao"] = climatization_investment_for_queryset(queryset)
+    metrics["investimento_requisicoes"] = climatization_investment_for_queryset(queryset)
     return {
         "metrics": metrics,
         "service_panel": service_panel_for_queryset(queryset, selected_divisao=selected_divisao),
         "filters": filter_options(public=True, request=request, queryset=base_queryset(public=True)),
         **table_context(request, public=True),
+        "processos_metrics": {
+            "enviados": 0,
+            "ativos": 0,
+            "executados": 0,
+            "investimento": 0,
+        },
+        "modulo_processos_disponivel": False,
         "today": date.today(),
     }
 
@@ -1744,6 +1751,11 @@ def public_requisicoes_table(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["GET"])
 def public_dashboard_panel(request: HttpRequest) -> HttpResponse:
     return render(request, "tracker/_public_dashboard_panel.html", _public_dashboard_context(request))
+
+
+@require_http_methods(["GET"])
+def home_consulta_req(request: HttpRequest) -> HttpResponse:
+    return render(request, "tracker/_public_home_consulta_req.html", _public_dashboard_context(request))
 
 
 @login_required

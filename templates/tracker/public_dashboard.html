@@ -1,101 +1,224 @@
 {% extends "base.html" %}
 {% load tracker_tags %}
 
-{% block title %}Painel P&uacute;blico | CT -&gt; SINFRA{% endblock %}
-
-{% block topbar_meta %}
-  <span class="topbar-badge">Atualizado em {{ today|date:"d/m/Y" }}</span>
-{% endblock %}
+{% block title %}Cuida CT — Manutenção Predial do CT/UFPB{% endblock %}
 
 {% block content %}
-<div class="page-toolbar">
-  <div class="page-title-wrap">
-    <i class="bi bi-globe-americas page-icon"></i>
-    <div>
-      <span class="page-kicker">Painel p&uacute;blico</span>
-      <h1 class="page-title">Acompanhamento de Requisi&ccedil;&otilde;es de Manuten&ccedil;&atilde;o</h1>
-      <div class="page-subtitle">
-        Consulta p&uacute;blica das requisi&ccedil;&otilde;es de manuten&ccedil;&atilde;o encaminhadas pelo CT &agrave; SINFRA, com indicadores e lista detalhada para acompanhamento.
+
+<!-- ── 1. CARD EXPLICATIVO ────────────────────────────────────────────── -->
+<div class="home-explainer-card">
+
+  <p class="home-explainer-lead">
+    O <strong>Centro de Tecnologia da UFPB</strong> encaminha demandas de manutenção predial à
+    <strong>Superintendência de Infraestrutura (SINFRA)</strong>.
+    Este painel dá transparência ao andamento dessas demandas para toda a comunidade do CT.
+  </p>
+
+  <div class="home-steps-grid">
+    <div class="home-step">
+      <span class="home-step-num">1</span>
+      <div>
+        <strong>Você solicita</strong>
+        <p>Abra uma requisição pelo
+          <a href="https://atendimento.ct.ufpb.br/index.php?category=9&amp;a=add" target="_blank" rel="noopener noreferrer">
+            GLPI do CT <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;"></i>
+          </a>
+        </p>
+      </div>
+    </div>
+    <div class="home-step">
+      <span class="home-step-num">2</span>
+      <div>
+        <strong>Nós avaliamos</strong>
+        <p>A equipe analisa, prioriza e encaminha à SINFRA</p>
+      </div>
+    </div>
+    <div class="home-step">
+      <span class="home-step-num">3</span>
+      <div>
+        <strong>Encaminhamos</strong>
+        <p>Abrimos requisição ou processo formal no SIPAC junto à SINFRA</p>
+      </div>
+    </div>
+    <div class="home-step">
+      <span class="home-step-num">4</span>
+      <div>
+        <strong>Você acompanha</strong>
+        <p>Consulte o andamento neste painel público</p>
       </div>
     </div>
   </div>
+
+  <hr class="home-explainer-hr">
+
+  <div class="home-diff-label">Qual é a diferença?</div>
+  <div class="home-diff-grid">
+    <div class="home-diff-card home-diff-req">
+      <div class="home-diff-card-title">
+        <i class="bi bi-clipboard2-check"></i>&nbsp; Requisição
+      </div>
+      <p>Pequenas demandas operacionais encaminhadas à SINFRA via SIPAC.</p>
+      <p class="home-diff-example">Ex: troca de luminária, manutenção de ar-condicionado, vazamento de torneira</p>
+    </div>
+    <div class="home-diff-card home-diff-proc">
+      <div class="home-diff-card-title">
+        <i class="bi bi-folder2-open"></i>&nbsp; Processo
+      </div>
+      <p>Manutenções e serviços de maior complexidade, formalizados como processo no SIPAC.</p>
+      <p class="home-diff-example">Ex: recuperação de telhado, reforma de banheiros, intervenções multiárea</p>
+    </div>
+  </div>
+
 </div>
 
-<div class="public-overview-stack">
-  <section class="public-panel public-panel-shortcuts">
-    <div class="public-panel-header">
-      <div class="public-panel-heading">
-        <span class="public-panel-kicker">Acesso r&aacute;pido</span>
-        <h2 class="public-panel-title">Atalhos do painel</h2>
-      </div>
-      <div class="public-toolbar-actions public-toolbar-actions-inline">
-        <a class="public-toolbar-action public-toolbar-action-primary" href="#public-details">
-          <i class="bi bi-arrow-down-circle"></i>
-          <span>Ver requisi&ccedil;&otilde;es</span>
-        </a>
-        <a class="public-toolbar-action public-toolbar-action-primary" href="https://atendimento.ct.ufpb.br/index.php?category=9&amp;a=add" target="_blank" rel="noopener noreferrer">
-          <i class="bi bi-box-arrow-up-right"></i>
-          <span>Abrir Requisi&ccedil;&atilde;o</span>
-        </a>
-        <a class="public-toolbar-action public-toolbar-action-primary" href="/painel-controle/">
-          <i class="bi bi-bar-chart-line"></i>
-          <span>Painel de controle</span>
-        </a>
-      </div>
-    </div>
-  </section>
+<!-- ── 2. MÉTRICAS DUAIS ─────────────────────────────────────────────── -->
+<div class="home-metrics-grid">
 
-  <section class="public-panel public-summary mb-4">
-    <div class="public-panel-header">
-      <div>
-        <span class="public-panel-kicker">Vis&atilde;o geral</span>
-        <h2 class="public-panel-title">Panorama das requisi&ccedil;&otilde;es</h2>
+  <div class="home-metric-panel home-metric-panel-req">
+    <div class="home-metric-panel-header">
+      <i class="bi bi-clipboard2-check"></i>
+      <span>Requisições</span>
+    </div>
+    <div class="home-metric-kpis">
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ metrics.total|intdot }}</span>
+        <span class="home-metric-lbl">Enviadas</span>
+      </div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ metrics.abertas|intdot }}</span>
+        <span class="home-metric-lbl">Ativas</span>
+      </div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ metrics.executadas|intdot }}</span>
+        <span class="home-metric-lbl">Executadas</span>
+      </div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val home-metric-val-currency">R$&nbsp;{{ metrics.investimento_requisicoes|brl }}</span>
+        <span class="home-metric-lbl">Investimento *</span>
       </div>
     </div>
-    <div class="public-summary-grid">
-      <div class="metric-card metric-primary public-summary-tile">
-        <div class="metric-label">Requisi&ccedil;&otilde;es enviadas</div>
-        <div class="metric-value">{{ metrics.total|intdot }}</div>
+  </div>
+
+  <div class="home-metric-panel home-metric-panel-proc">
+    <div class="home-metric-panel-header">
+      <i class="bi bi-folder2-open"></i>
+      <span>Processos</span>
+    </div>
+    <div class="home-metric-kpis">
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ processos_metrics.enviados }}</span>
+        <span class="home-metric-lbl">Enviados</span>
       </div>
-      <div class="metric-card metric-inactive public-summary-tile">
-        <div class="metric-label">Requisi&ccedil;&otilde;es inativas</div>
-        <div class="metric-value">{{ metrics.inativas|intdot }}</div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ processos_metrics.ativos }}</span>
+        <span class="home-metric-lbl">Ativos</span>
       </div>
-      <div class="metric-card metric-executed public-summary-tile">
-        <div class="metric-label">Requisi&ccedil;&otilde;es executadas</div>
-        <div class="metric-value">{{ metrics.executadas|intdot }}</div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val">{{ processos_metrics.executados }}</span>
+        <span class="home-metric-lbl">Executados</span>
       </div>
-      <div class="metric-card metric-active public-summary-tile">
-        <div class="metric-label">Requisi&ccedil;&otilde;es ativas</div>
-        <div class="metric-value">{{ metrics.abertas|intdot }}</div>
+      <div class="home-metric-kpi">
+        <span class="home-metric-val home-metric-val-currency">R$&nbsp;{{ processos_metrics.investimento|floatformat:2 }}</span>
+        <span class="home-metric-lbl">Investimento</span>
       </div>
-        <div class="metric-card metric-info public-summary-tile">
-          <div class="metric-label">Investidos em climatiza&ccedil;&atilde;o</div>
-        <div class="metric-value public-summary-currency">R$ {{ metrics.investimento_climatizacao|brl }}</div>
-        </div>
-      </div>
-  </section>
+    </div>
+  </div>
+
 </div>
 
-{% include "tracker/_public_dashboard_panel.html" %}
+<!-- ── 3. ACOMPANHE ──────────────────────────────────────────────────── -->
+<div class="home-action-section">
+  <h2 class="home-section-heading">Acompanhe</h2>
+  <div class="home-action-grid">
 
+    <!-- Consultar Requisições -->
+    <button type="button"
+            class="home-action-card home-action-card-req home-consulta-btn"
+            data-modulo="requisicoes"
+            onclick="homeCuidaToggle('requisicoes')">
+      <i class="bi bi-search"></i>
+      <span>Consultar Requisições</span>
+    </button>
+
+    <!-- Painel de Requisições -->
+    <a href="{% url 'public-control-panel' %}" target="_blank" rel="noopener noreferrer"
+       class="home-action-card home-action-card-req home-action-card-panel">
+      <i class="bi bi-bar-chart-line"></i>
+      <span>Painel de Requisições</span>
+      <i class="bi bi-arrow-up-right-square home-action-external-icon"></i>
+    </a>
+
+    <!-- Consultar Processos -->
+    <button type="button"
+            class="home-action-card home-action-card-proc home-consulta-btn"
+            data-modulo="processos"
+            onclick="homeCuidaToggle('processos')">
+      <i class="bi bi-search"></i>
+      <span>Consultar Processos</span>
+    </button>
+
+    <!-- Painel de Processos (placeholder) -->
+    <button type="button"
+            class="home-action-card home-action-card-proc home-action-card-disabled"
+            disabled
+            title="Em breve">
+      <i class="bi bi-bar-chart-line"></i>
+      <span>Painel de Processos</span>
+      <span class="home-action-badge-soon">Em breve</span>
+    </button>
+
+  </div>
+</div>
+
+<!-- ── 4. ÁREA EXPANSÍVEL ────────────────────────────────────────────── -->
+<div id="home-consulta-area"></div>
+
+<!-- * Nota de rodapé sobre investimento -->
+<p class="home-footnote">
+  * Investimento em requisições refere-se atualmente às aquisições de equipamentos de climatização finalizados.
+</p>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
 <script>
-  function clearPublicFilters() {
-    const form = document.getElementById('public-filters');
-    if (!form) {
+(function () {
+  var _moduloAtual = null;
+
+  window.homeCuidaToggle = function (modulo) {
+    var area = document.getElementById('home-consulta-area');
+    var btns = document.querySelectorAll('.home-consulta-btn');
+
+    /* Toggle: mesmo módulo fecha */
+    if (_moduloAtual === modulo) {
+      area.innerHTML = '';
+      _moduloAtual = null;
+      btns.forEach(function (b) { b.classList.remove('home-consulta-btn-active'); });
       return;
     }
-    form.querySelectorAll('input[type="search"], input[type="number"], input[type="hidden"]').forEach(function (field) {
-      field.value = '';
-    });
-    form.querySelectorAll('select').forEach(function (field) {
-      field.selectedIndex = 0;
-    });
-    if (typeof form.requestSubmit === 'function') {
-      form.requestSubmit();
-      return;
+
+    /* Troca ou abertura inicial */
+    _moduloAtual = modulo;
+    btns.forEach(function (b) { b.classList.remove('home-consulta-btn-active'); });
+    var btnAtivo = document.querySelector('[data-modulo="' + modulo + '"]');
+    if (btnAtivo) btnAtivo.classList.add('home-consulta-btn-active');
+
+    if (modulo === 'requisicoes') {
+      htmx.ajax('GET', '{% url "home-consulta-req" %}', {
+        target: '#home-consulta-area',
+        swap: 'innerHTML'
+      });
+    } else {
+      area.innerHTML = [
+        '<div class="home-processos-placeholder">',
+        '  <i class="bi bi-clock-history home-placeholder-icon"></i>',
+        '  <p class="home-placeholder-title">Módulo de Processos em desenvolvimento</p>',
+        '  <p class="home-placeholder-sub">Em breve você poderá consultar os processos de manutenção predial aqui.</p>',
+        '</div>'
+      ].join('');
     }
-    htmx.trigger(form, 'submit');
-  }
+  };
+}());
 </script>
 {% endblock %}

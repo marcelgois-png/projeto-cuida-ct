@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.PublicDashboardView.as_view(), name="public-dashboard"),
     path("requisicoes/<int:pk>/", views.PublicRequisicaoDetailView.as_view(), name="public-requisicao-detail"),
     path("public/painel/", views.public_dashboard_panel, name="public-dashboard-panel"),
+    path("public/consulta-req/", views.home_consulta_req, name="home-consulta-req"),
     path("painel-controle/", views.PublicControlPanelView.as_view(), name="public-control-panel"),
     path("painel-controle/conteudo/", views.public_control_panel_content, name="public-control-panel-content"),
     path("painel-controle/shell/", views.public_control_panel_shell, name="public-control-panel-shell"),
