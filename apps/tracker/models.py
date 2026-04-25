@@ -5,6 +5,8 @@ from datetime import date
 from django.conf import settings
 from django.db import models
 
+from apps.core.models import TimeStampedModel
+
 from .domain import (
     PRIORITY_CHOICES,
     calculate_gut,
@@ -14,14 +16,6 @@ from .domain import (
     normalize_key,
     resolve_status_sipac_metadata,
 )
-
-
-class TimeStampedModel(models.Model):
-    criado_em = models.DateTimeField(auto_now_add=True)
-    atualizado_em = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
 
 
 class Predio(TimeStampedModel):
