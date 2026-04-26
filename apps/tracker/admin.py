@@ -1,14 +1,17 @@
 from django.contrib import admin
 
+from apps.core.models import (
+    Predio,
+    RegraPrioridade,
+    TaxonomiaServico,
+    StatusRequisicao,
+    Solicitante,
+)
+
 from .models import (
     HistoricoStatus,
     ImportacaoArquivo,
-    Predio,
-    RegraPrioridade,
     Requisicao,
-    Requisitante,
-    StatusSipacOpcao,
-    TaxonomiaServico,
 )
 
 
@@ -18,10 +21,11 @@ class PredioAdmin(admin.ModelAdmin):
     search_fields = ("nome",)
 
 
-@admin.register(Requisitante)
-class RequisitanteAdmin(admin.ModelAdmin):
-    list_display = ("nome", "unidade_setor", "contato_url", "visivel_publicamente")
-    search_fields = ("nome", "unidade_setor")
+@admin.register(Solicitante)
+class SolicitanteAdmin(admin.ModelAdmin):
+    list_display = ("nome", "setor", "contato_url", "visivel_publicamente")
+    search_fields = ("nome",)
+    list_filter = ("setor",)
 
 
 @admin.register(TaxonomiaServico)
@@ -31,12 +35,12 @@ class TaxonomiaServicoAdmin(admin.ModelAdmin):
     search_fields = ("divisao", "tipo_servico", "servico")
 
 
-@admin.register(StatusSipacOpcao)
-class StatusSipacOpcaoAdmin(admin.ModelAdmin):
-    list_display = ("numero", "rotulo", "descricao", "ordem", "ativa")
-    list_filter = ("ativa",)
-    search_fields = ("numero", "rotulo", "descricao")
-    ordering = ("ordem", "numero", "descricao")
+@admin.register(StatusRequisicao)
+class StatusRequisicaoAdmin(admin.ModelAdmin):
+    list_display = ("numero", "nome", "codigo", "mapeamento_situacao", "ordem", "ativa")
+    list_filter = ("ativa", "mapeamento_situacao")
+    search_fields = ("numero", "nome", "codigo")
+    ordering = ("ordem", "numero", "codigo")
 
 
 @admin.register(RegraPrioridade)
@@ -65,7 +69,7 @@ class RequisicaoAdmin(admin.ModelAdmin):
         "sinfra_responsavel",
         "visivel_publicamente",
     )
-    list_filter = ("divisao", "situacao_requisicao", "status_sipac", "prioridade_final", "sinfra_responsavel")
+    list_filter = ("situacao_requisicao", "status_sipac", "prioridade_final", "sinfra_responsavel")
     search_fields = ("codigo", "assunto", "local_servico", "nome_requisitante_snapshot")
     inlines = [HistoricoStatusInline]
 

@@ -8,12 +8,21 @@ from django.db import models
 from apps.core.models import (
     TimeStampedModel,
     Predio,
-    Requisitante,
+    Setor,
+    Solicitante,
+    DivisaoSINFRA,
+    TipoServico,
+    Servico,
     TaxonomiaServico,
-    StatusSipacOpcao,
+    StatusRequisicao,
     GUTParametro,
     RegraPrioridade,
     Empresa,
+    Empenho,
+    MovimentacaoEmpenho,
+    # aliases de compatibilidade — removidos no Bloco E
+    Requisitante,
+    StatusSipacOpcao,
     NotaEmpenho,
     ReforcoEmpenho,
 )
@@ -65,19 +74,42 @@ class Requisicao(TimeStampedModel):
     orcamento = models.CharField(max_length=255, blank=True)
     data_cadastro = models.DateField(null=True, blank=True)
     tipo_requisicao = models.CharField(max_length=255, blank=True)
-    divisao = models.CharField(max_length=255, blank=True)
-    unidade_origem = models.CharField(max_length=255, blank=True)
-    status_sipac = models.CharField(max_length=255, blank=True)
-    situacao_requisicao = models.CharField(max_length=20, blank=True)
-    tipo_servico = models.CharField(max_length=255, blank=True)
-    servico = models.CharField(max_length=255, blank=True)
-    taxonomia = models.ForeignKey(
-        'core.TaxonomiaServico',
+    # divisao/tipo_servico/servico: eram CharFields, agora são FKs (migração C2)
+    divisao = models.ForeignKey(
+        'core.DivisaoSINFRA',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="requisicoes",
+        related_name='requisicoes',
+        verbose_name='Divisão',
     )
+    tipo_servico = models.ForeignKey(
+        'core.TipoServico',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisicoes',
+        verbose_name='Tipo de serviço',
+    )
+    servico = models.ForeignKey(
+        'core.Servico',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisicoes',
+        verbose_name='Serviço',
+    )
+    unidade_origem = models.CharField(max_length=255, blank=True)
+    # status_sipac: era CharField, agora é FK (migração C3) — permanece nullable
+    status_sipac = models.ForeignKey(
+        'core.StatusRequisicao',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisicoes',
+        verbose_name='Status SIPAC',
+    )
+    situacao_requisicao = models.CharField(max_length=20, blank=True)
     predio = models.ForeignKey(
         'core.Predio',
         on_delete=models.SET_NULL,
@@ -88,8 +120,9 @@ class Requisicao(TimeStampedModel):
     local_servico = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
+    # requisitante aponta para core.Solicitante (renomeado via C1); campo renomeado no Bloco E
     requisitante = models.ForeignKey(
-        'core.Requisitante',
+        'core.Solicitante',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -123,8 +156,9 @@ class Requisicao(TimeStampedModel):
     orcamento_valor = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Orçamento (R$)"
     )
+    # nota_empenho aponta para core.Empenho (renomeado via C4); campo renomeado no Bloco E
     nota_empenho = models.ForeignKey(
-        'core.NotaEmpenho',
+        'core.Empenho',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -158,11 +192,7 @@ class Requisicao(TimeStampedModel):
         self.assunto = clean_display_text(self.assunto)
         self.orcamento = clean_display_text(self.orcamento)
         self.tipo_requisicao = clean_display_text(self.tipo_requisicao)
-        self.divisao = clean_display_text(self.divisao)
         self.unidade_origem = clean_display_text(self.unidade_origem)
-        self.status_sipac = clean_display_text(self.status_sipac)
-        self.tipo_servico = clean_display_text(self.tipo_servico)
-        self.servico = clean_display_text(self.servico)
         self.local_servico = clean_display_text(self.local_servico)
         self.nome_requisitante_snapshot = clean_display_text(self.nome_requisitante_snapshot)
         self.unidade_setor_snapshot = clean_display_text(self.unidade_setor_snapshot)
@@ -175,12 +205,21 @@ class Requisicao(TimeStampedModel):
         self.sinfra_responsavel = clean_display_text(self.sinfra_responsavel)
         self.link_atendimento = clean_display_text(self.link_atendimento)
         self.link_sipac = clean_display_text(self.link_sipac)
-        self.situacao_requisicao = derive_situation(self.status_sipac)
+        # status_sipac é agora FK — derive situacao a partir do mapeamento
+        if self.status_sipac:
+            self.situacao_requisicao = (
+                'Ativa' if self.status_sipac.mapeamento_situacao == 'ATIVA' else 'Inativa'
+            )
+        else:
+            self.situacao_requisicao = ''
         self.gut_score = calculate_gut(self.gravidade, self.urgencia, self.tendencia)
         self.gut_nivel = classify_gut(self.gut_score)
         if not self.data_cadastro:
             self.dias_para_execucao = None
-        elif self.status_sipac == "06 FINALIZADA":
+        elif (
+            self.status_sipac
+            and self.status_sipac.codigo == "06 FINALIZADA"
+        ):
             if self.data_execucao:
                 self.dias_para_execucao = max((self.data_execucao - self.data_cadastro).days, 0)
             else:
@@ -197,7 +236,11 @@ class Requisicao(TimeStampedModel):
 
     @property
     def prioridade_lookup_key(self) -> str:
-        return normalize_key(self.divisao, self.tipo_servico, self.servico)
+        return normalize_key(
+            self.divisao.nome if self.divisao else '',
+            self.tipo_servico.nome if self.tipo_servico else '',
+            self.servico.nome if self.servico else '',
+        )
 
     @property
     def dias_desde_abertura(self) -> int | None:
