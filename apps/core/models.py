@@ -183,6 +183,38 @@ class TaxonomiaServico(TimeStampedModel):
         return ' / '.join(filter(None, [self.divisao, self.tipo_servico, self.servico]))
 
 
+# ── Priorização e ambientes ───────────────────────────────────────────────────
+
+class MetodoPriorizacao(TimeStampedModel):
+    nome = models.CharField(max_length=100, unique=True)
+    descricao = models.TextField(blank=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ('nome',)
+        db_table = 'core_metodopriorizacao'
+        verbose_name = 'Método de priorização'
+        verbose_name_plural = 'Métodos de priorização'
+
+    def __str__(self) -> str:
+        return self.nome
+
+
+class TipoAmbiente(TimeStampedModel):
+    nome = models.CharField(max_length=100, unique=True)
+    descricao = models.TextField(blank=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ('nome',)
+        db_table = 'core_tipoambiente'
+        verbose_name = 'Tipo de ambiente'
+        verbose_name_plural = 'Tipos de ambiente'
+
+    def __str__(self) -> str:
+        return self.nome
+
+
 # ── Status e priorização ──────────────────────────────────────────────────────
 
 class StatusRequisicao(TimeStampedModel):

@@ -15,6 +15,8 @@ from apps.core.models import (
     Servico,
     TaxonomiaServico,
     StatusRequisicao,
+    MetodoPriorizacao,
+    TipoAmbiente,
     GUTParametro,
     RegraPrioridade,
     Empresa,
@@ -256,11 +258,61 @@ class Requisicao(TimeStampedModel):
         return self.codigo
 
 
+class VisitaProgramada(TimeStampedModel):
+    class Status(models.TextChoices):
+        PLANEJADA = 'PLANEJADA', 'Planejada'
+        REALIZADA = 'REALIZADA', 'Realizada'
+        CANCELADA = 'CANCELADA', 'Cancelada'
+
+    numero = models.PositiveIntegerField(unique=True, editable=False)
+    data_visita = models.DateField(verbose_name='Data da visita')
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PLANEJADA,
+        verbose_name='Status',
+    )
+    observacao = models.TextField(blank=True, verbose_name='Observação')
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='visitas_criadas',
+        verbose_name='Criado por',
+    )
+    requisicoes = models.ManyToManyField(
+        Requisicao,
+        related_name='visitas_programadas',
+        blank=True,
+        verbose_name='Requisições',
+    )
+
+    class Meta:
+        ordering = ('-data_visita', '-numero')
+        verbose_name = 'Visita Programada'
+        verbose_name_plural = 'Visitas Programadas'
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            ultimo = VisitaProgramada.objects.aggregate(models.Max('numero')).get('numero__max') or 0
+            self.numero = ultimo + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f'Visita #{self.numero} — {self.data_visita:%d/%m/%Y}'
+
+
 class EncaminhamentoDiretor(TimeStampedModel):
     class Tipo(models.TextChoices):
         ABRIR_PROCESSO = "abrir_processo", "Abrir processo"
         ENCERRAR_REQUISICAO = "encerrar_requisicao", "Encerrar requisição"
         INSPECIONAR_IN_LOCO = "inspecionar_in_loco", "Inspecionar in loco"
+
+    class StatusEncaminhamento(models.TextChoices):
+        PENDENTE = 'PENDENTE', 'Pendente'
+        EM_ATENDIMENTO = 'EM_ATENDIMENTO', 'Em atendimento'
+        CONCLUIDO = 'CONCLUIDO', 'Concluído'
 
     numero = models.PositiveIntegerField(unique=True, editable=False)
     data_encaminhamento = models.DateField(default=date.today)
@@ -273,6 +325,22 @@ class EncaminhamentoDiretor(TimeStampedModel):
         blank=True,
         related_name="encaminhamentos_diretor",
     )
+    status = models.CharField(
+        max_length=20,
+        choices=StatusEncaminhamento.choices,
+        default=StatusEncaminhamento.PENDENTE,
+        verbose_name='Status',
+    )
+    responsavel_assessoria = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='encaminhamentos_assessoria',
+        verbose_name='Responsável (assessoria)',
+    )
+    data_conclusao = models.DateField(null=True, blank=True, verbose_name='Data de conclusão')
+    observacao_atendimento = models.TextField(blank=True, verbose_name='Observação de atendimento')
     requisicoes = models.ManyToManyField(
         Requisicao,
         related_name="encaminhamentos_diretor",
