@@ -11,7 +11,17 @@ from .domain import (
     is_valid_brazilian_phone,
     normalize_key,
 )
-from .models import AcompanhamentoRequisicao, Predio, Requisicao, Requisitante, TaxonomiaServico
+from .models import (
+    AcompanhamentoRequisicao,
+    DivisaoSINFRA,
+    Predio,
+    Requisicao,
+    Servico,
+    Solicitante,
+    StatusRequisicao,
+    TaxonomiaServico,
+    TipoServico,
+)
 from .services import register_status_history, resolve_priority_label, status_sipac_catalog, status_sipac_display
 
 DATE_INPUT_FORMAT = "%Y-%m-%d"
@@ -64,6 +74,7 @@ class RequisicaoForm(forms.ModelForm):
             "ano",
             "codigo",
             "assunto",
+            "orcamento",
             "orcamento_valor",
             "data_cadastro",
             "data_execucao",
@@ -76,7 +87,7 @@ class RequisicaoForm(forms.ModelForm):
             "servico",
             "predio",
             "local_servico",
-            "requisitante",
+            "solicitante",
             "nome_requisitante_snapshot",
             "unidade_setor_snapshot",
             "contato_direto_url",
@@ -103,9 +114,10 @@ class RequisicaoForm(forms.ModelForm):
         widgets = {
             "numero": forms.HiddenInput(),
             "ano": forms.HiddenInput(),
+            "orcamento": forms.HiddenInput(),
             "tipo_requisicao": forms.HiddenInput(),
             "unidade_origem": forms.HiddenInput(),
-            "requisitante": forms.HiddenInput(),
+            "solicitante": forms.HiddenInput(),
             "situacao_texto": forms.HiddenInput(),
             "gravidade": forms.HiddenInput(),
             "urgencia": forms.HiddenInput(),
@@ -175,10 +187,17 @@ class RequisicaoForm(forms.ModelForm):
 
     def _load_status_sipac_options(self) -> list[dict[str, str]]:
         extra_values = list(
-            Requisicao.objects.exclude(status_sipac="").values_list("status_sipac", flat=True).distinct().order_by("status_sipac")
+            Requisicao.objects.filter(status_sipac__isnull=False)
+            .values_list("status_sipac__codigo", flat=True)
+            .distinct()
+            .order_by("status_sipac__codigo")
         )
-        current = self._current_value("status_sipac")
-        if current:
+        if self.is_bound:
+            current = clean_display_text(self.data.get(self.add_prefix("status_sipac"), ""))
+        else:
+            status_obj = getattr(self.instance, "status_sipac", None)
+            current = status_obj.codigo if status_obj else ""
+        if current and current not in extra_values:
             extra_values.append(current)
         return status_sipac_catalog(extra_values)
 
@@ -187,8 +206,11 @@ class RequisicaoForm(forms.ModelForm):
             return clean_display_text(self.data.get(self.add_prefix(name), ""))
         initial = self.initial.get(name)
         if initial not in ("", None):
-            return clean_display_text(initial)
-        return clean_display_text(getattr(self.instance, name, ""))
+            return clean_display_text(str(initial))
+        val = getattr(self.instance, name, None) or ""
+        if hasattr(val, "nome"):
+            return clean_display_text(val.nome)
+        return clean_display_text(val)
 
     def _ordered_values(self, key: str) -> list[str]:
         values: list[str] = []
@@ -243,12 +265,25 @@ class RequisicaoForm(forms.ModelForm):
     def _status_source(self) -> str:
         if self.is_bound:
             return self.data.get(self.add_prefix("status_sipac"), "")
-        return self.initial.get("status_sipac") or getattr(self.instance, "status_sipac", "")
+        status_obj = getattr(self.instance, "status_sipac", None)
+        return status_obj.codigo if status_obj else ""
 
     def _resolve_taxonomia(self, divisao: str, tipo_servico: str, servico: str) -> TaxonomiaServico | None:
         if not any([divisao, tipo_servico, servico]):
             return None
         return TaxonomiaServico.objects.filter(chave_normalizada=normalize_key(divisao, tipo_servico, servico)).first()
+
+    def _post_clean(self):
+        # Temporarily stash the FK-related fields so construct_instance() won't
+        # try to assign strings to FK model attributes. The custom save() resolves
+        # these to real FK objects after validation.
+        _fk_keys = ("divisao", "tipo_servico", "servico", "status_sipac")
+        _stash = {k: self.cleaned_data.pop(k, None) for k in _fk_keys if k in getattr(self, "cleaned_data", {})}
+        try:
+            super()._post_clean()
+        finally:
+            if _stash:
+                self.cleaned_data.update(_stash)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -267,7 +302,6 @@ class RequisicaoForm(forms.ModelForm):
             cleaned_data["divisao"] = taxonomia.divisao
             cleaned_data["tipo_servico"] = taxonomia.tipo_servico
             cleaned_data["servico"] = taxonomia.servico
-        cleaned_data["taxonomia"] = taxonomia
         cleaned_data["status_sipac"] = status_sipac
         if status_sipac:
             cleaned_data["status_sipac_exibicao"] = status_sipac_display(status_sipac)
@@ -318,43 +352,66 @@ class RequisicaoForm(forms.ModelForm):
         return coerce_brazilian_phone(value)
 
     def save(self, commit=True):
-        previous_status = self.instance.status_sipac if self.instance.pk else ""
+        previous_status = (
+            self.instance.status_sipac.codigo
+            if (self.instance.pk and self.instance.status_sipac)
+            else ""
+        )
         previous_note = self.instance.situacao_texto if self.instance.pk else ""
         instance = super().save(commit=False)
         instance.numero = self.cleaned_data.get("numero")
         instance.ano = self.cleaned_data.get("ano")
-        instance.taxonomia = self.cleaned_data.get("taxonomia")
-        instance.situacao_requisicao = derive_situation(instance.status_sipac)
+
+        # Resolve status_sipac from string code → FK
+        status_codigo = clean_display_text(self.cleaned_data.get("status_sipac", ""))
+        instance.status_sipac = (
+            StatusRequisicao.objects.filter(codigo=status_codigo).first()
+            if status_codigo else None
+        )
+
+        # Resolve divisao/tipo_servico/servico from string names → FKs
+        divisao_nome = clean_display_text(self.cleaned_data.get("divisao", ""))
+        tipo_nome = clean_display_text(self.cleaned_data.get("tipo_servico", ""))
+        servico_nome = clean_display_text(self.cleaned_data.get("servico", ""))
+        instance.divisao = DivisaoSINFRA.objects.filter(nome=divisao_nome).first() if divisao_nome else None
+        instance.tipo_servico = (
+            TipoServico.objects.filter(nome=tipo_nome, divisao=instance.divisao).first()
+            if (tipo_nome and instance.divisao) else None
+        )
+        instance.servico = (
+            Servico.objects.filter(nome=servico_nome, tipo_servico=instance.tipo_servico).first()
+            if (servico_nome and instance.tipo_servico) else None
+        )
+
+        instance.situacao_requisicao = derive_situation(status_codigo)
         instance.prioridade_final = resolve_priority_label(instance.prioridade_lookup_key, instance.prioridade_final)
 
         if not self.instance.pk:
             instance.data_execucao = None
 
-        requisitante_nome = clean_display_text(instance.nome_requisitante_snapshot)
-        if requisitante_nome:
-            requisitante = Requisitante.objects.filter(
-                chave_normalizada=normalize_key(requisitante_nome),
-                unidade_setor=instance.unidade_setor_snapshot or "",
+        solicitante_nome = clean_display_text(instance.nome_requisitante_snapshot)
+        if solicitante_nome:
+            solicitante = Solicitante.objects.filter(
+                chave_normalizada=normalize_key(solicitante_nome),
             ).first()
-            if requisitante is None:
-                requisitante = Requisitante.objects.create(
-                    nome=requisitante_nome,
-                    unidade_setor=instance.unidade_setor_snapshot or "",
+            if solicitante is None:
+                solicitante = Solicitante.objects.create(
+                    nome=solicitante_nome,
                     contato_url=instance.contato_direto_url or "",
                 )
             else:
                 has_changes = False
-                if requisitante.nome != requisitante_nome:
-                    requisitante.nome = requisitante_nome
+                if solicitante.nome != solicitante_nome:
+                    solicitante.nome = solicitante_nome
                     has_changes = True
-                if requisitante.contato_url != (instance.contato_direto_url or ""):
-                    requisitante.contato_url = instance.contato_direto_url or ""
+                if solicitante.contato_url != (instance.contato_direto_url or ""):
+                    solicitante.contato_url = instance.contato_direto_url or ""
                     has_changes = True
                 if has_changes:
-                    requisitante.save()
-            instance.requisitante = requisitante
+                    solicitante.save()
+            instance.solicitante = solicitante
         else:
-            instance.requisitante = None
+            instance.solicitante = None
 
         if commit:
             instance.save()

@@ -67,15 +67,15 @@
   <td class="pt-0 border-top-0"></td>
   <td class="text-center pt-0 border-top-0"></td>
 </tr>
-{% for reforco in nota.reforcos.all %}
+{% for reforco in nota.reforcos_ativos %}
 <tr class="nota-detail-row">
   <td class="text-muted ps-4 pt-0 border-top-0">
-    <div>Reforço {{ forloop.counter }}</div>
+    <div>+ Reforço {{ forloop.counter }}</div>
     {% if reforco.descricao %}
       <div class="fst-italic">{{ reforco.descricao }}</div>
     {% endif %}
   </td>
-  <td class="text-muted text-end pt-0 border-top-0">R$ {{ reforco.valor|brl }}</td>
+  <td class="text-muted text-end pt-0 border-top-0">+ R$ {{ reforco.valor|brl }}</td>
   <td class="text-muted pt-0 border-top-0">
     {% if reforco.numero_processo_sipac %}
       {{ reforco.numero_processo_sipac }}

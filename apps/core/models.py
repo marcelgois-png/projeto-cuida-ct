@@ -95,8 +95,6 @@ class Solicitante(TimeStampedModel):
         return self.nome
 
 
-# Alias para compatibilidade durante a transição (Bloco E remove este alias)
-Requisitante = Solicitante
 
 
 # ── Serviços ──────────────────────────────────────────────────────────────────
@@ -257,8 +255,6 @@ class StatusRequisicao(TimeStampedModel):
         return self.exibicao
 
 
-# Alias de compatibilidade (Bloco E remove)
-StatusSipacOpcao = StatusRequisicao
 
 
 class RegraPrioridade(TimeStampedModel):
@@ -337,6 +333,12 @@ class Empenho(TimeStampedModel):
         return self.nota_empenho
 
     @property
+    def valor(self):
+        from decimal import Decimal
+        mov = self.reforcos.filter(tipo='VALOR_INICIAL').first()
+        return mov.valor if mov else Decimal('0')
+
+    @property
     def total_reforcos(self):
         from django.db.models import Sum
         return self.reforcos.filter(tipo='REFORCO').aggregate(total=Sum('valor'))['total'] or 0
@@ -345,6 +347,10 @@ class Empenho(TimeStampedModel):
     def valor_total(self):
         from django.db.models import Sum
         return self.reforcos.aggregate(total=Sum('valor'))['total'] or 0
+
+    @property
+    def reforcos_ativos(self):
+        return self.reforcos.filter(tipo='REFORCO')
 
     @property
     def saldo(self):
@@ -356,8 +362,6 @@ class Empenho(TimeStampedModel):
         return self.valor_total - gasto
 
 
-# Alias de compatibilidade (Bloco E remove)
-NotaEmpenho = Empenho
 
 
 class MovimentacaoEmpenho(TimeStampedModel):
@@ -395,5 +399,3 @@ class MovimentacaoEmpenho(TimeStampedModel):
         return f'{self.get_tipo_display()} R${self.valor} — {self.empenho.nota_empenho}'
 
 
-# Alias de compatibilidade (Bloco E remove)
-ReforcoEmpenho = MovimentacaoEmpenho

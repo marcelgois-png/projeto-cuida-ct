@@ -25,17 +25,17 @@ from .importers import WorkbookImporter
 from .domain import clean_display_text, derive_situation, resolve_status_sipac_metadata
 from .models import (
     AcompanhamentoRequisicao,
+    Empenho,
     Empresa,
     EncaminhamentoDiretor,
     GUTParametro,
     ImportacaoArquivo,
-    NotaEmpenho,
+    MovimentacaoEmpenho,
     Predio,
     RegraPrioridade,
-    ReforcoEmpenho,
     Requisicao,
-    Requisitante,
-    StatusSipacOpcao,
+    Solicitante,
+    StatusRequisicao,
     TaxonomiaServico,
 )
 from apps.accounts.views import AdminRequiredMixin, user_is_admin
@@ -92,24 +92,24 @@ SORTABLE_COLUMNS = {
     "prioridade": ("prioridade_final", "codigo"),
     "dias_abertura": ("data_cadastro", "codigo"),
     "status": ("status_fluxo", "situacao_texto", "codigo"),
-    "status_sipac": ("status_sipac", "codigo"),
+    "status_sipac": ("status_sipac__codigo", "codigo"),
     "situacao": ("situacao_requisicao", "codigo"),
     "link_sipac": ("link_sipac", "codigo"),
     "gravidade": ("gravidade", "codigo"),
     "urgencia": ("urgencia", "codigo"),
     "tendencia": ("tendencia", "codigo"),
     "gut": ("gut_score", "codigo"),
-    "empresa": ("empresa", "codigo"),
+    "empresa": ("empresa__nome", "codigo"),
 }
 
 ORCAMENTO_SORTABLE_COLUMNS = {
     "codigo": ("ano", "numero", "codigo"),
     "assunto": ("assunto", "codigo"),
     "orcamento_valor": ("orcamento_valor", "codigo"),
-    "tipo_servico": ("tipo_servico", "codigo"),
-    "servico": ("servico", "codigo"),
-    "empresa": ("empresa", "codigo"),
-    "nota_empenho": ("nota_empenho__nota_empenho", "codigo"),
+    "tipo_servico": ("tipo_servico__nome", "codigo"),
+    "servico": ("servico__nome", "codigo"),
+    "empresa": ("empresa__nome", "codigo"),
+    "nota_empenho": ("empenho__nota_empenho", "codigo"),
 }
 
 CONTROL_PANEL_SERVICE_SORTABLE_COLUMNS = ("tipo_servico", "ativas", "inativas", "total")
@@ -118,15 +118,15 @@ CONTROL_PANEL_ANNUAL_SORTABLE_COLUMNS = ("ano", "quantidade", "orcamento_total",
 CONTROL_PANEL_OLDEST_ACTIVE_SORTABLE_COLUMNS = ("codigo", "divisao", "predio", "status", "dias", "prioridade", "triagem")
 
 FILTER_OPTION_DEFINITIONS = {
-    "divisao": {"lookup": "divisao", "output": "divisoes"},
-    "status_sipac": {"lookup": "status_sipac", "output": "statuses", "kind": "status"},
+    "divisao": {"lookup": "divisao__nome", "output": "divisoes"},
+    "status_sipac": {"lookup": "status_sipac__codigo", "output": "statuses", "kind": "status"},
     "situacao_requisicao": {"lookup": "situacao_requisicao", "output": "situacoes"},
     "prioridade_final": {"lookup": "prioridade_final", "output": "prioridades"},
     "sinfra_responsavel": {"lookup": "sinfra_responsavel", "output": "sinfras"},
     "requisitante": {"lookup": "nome_requisitante_snapshot", "output": "requisitantes"},
     "unidade_setor": {"lookup": "unidade_setor_snapshot", "output": "unidades_setor"},
-    "tipo_servico": {"lookup": "tipo_servico", "output": "tipos_servico"},
-    "servico": {"lookup": "servico", "output": "servicos"},
+    "tipo_servico": {"lookup": "tipo_servico__nome", "output": "tipos_servico"},
+    "servico": {"lookup": "servico__nome", "output": "servicos"},
     "predio": {"lookup": "predio__nome", "output": "predios"},
 }
 
@@ -190,7 +190,7 @@ def orcamento_sort_context(request: HttpRequest) -> dict[str, Any]:
 
 
 def base_queryset(*, public: bool = False) -> QuerySet[Requisicao]:
-    queryset = Requisicao.objects.select_related("predio", "requisitante").all()
+    queryset = Requisicao.objects.select_related("predio", "solicitante").all()
     if public:
         queryset = queryset.filter(visivel_publicamente=True)
     return queryset
@@ -269,8 +269,8 @@ def _apply_request_filters(
         if macrostatus in valid_macrostatuses:
             matching_ids = [
                 pk
-                for pk, status_sipac, situacao_requisicao in queryset.values_list("pk", "status_sipac", "situacao_requisicao")
-                if resolve_control_panel_macrostatus(status_sipac, situacao_requisicao) == macrostatus
+                for pk, status_sipac, situacao_requisicao in queryset.values_list("pk", "status_sipac__codigo", "situacao_requisicao")
+                if resolve_control_panel_macrostatus(status_sipac or "", situacao_requisicao) == macrostatus
             ]
             queryset = queryset.filter(pk__in=matching_ids)
 
@@ -306,8 +306,8 @@ def _status_filter_catalog(values: list[str]) -> list[dict[str, Any]]:
 def _macrostatus_filter_catalog(queryset: QuerySet[Requisicao]) -> list[dict[str, str]]:
     catalog = control_panel_macrostatus_catalog()
     available_keys = {item["key"]: False for item in catalog}
-    for status_sipac, situacao in queryset.values_list("status_sipac", "situacao_requisicao"):
-        available_keys[resolve_control_panel_macrostatus(status_sipac, situacao)] = True
+    for status_codigo, situacao in queryset.values_list("status_sipac__codigo", "situacao_requisicao"):
+        available_keys[resolve_control_panel_macrostatus(status_codigo or "", situacao)] = True
     return [item for item in catalog if available_keys.get(item["key"])]
 
 
@@ -322,17 +322,17 @@ def _year_filter_values(queryset: QuerySet[Requisicao]) -> list[int]:
 
 
 def _basic_filter_options(queryset: QuerySet[Requisicao]) -> dict[str, Any]:
-    status_values = _distinct_filter_values(queryset, "status_sipac")
+    status_values = _distinct_filter_values(queryset, "status_sipac__codigo")
     return {
-        "divisoes": _distinct_filter_values(queryset, "divisao"),
+        "divisoes": _distinct_filter_values(queryset, "divisao__nome"),
         "statuses": _status_filter_catalog(status_values),
         "situacoes": _distinct_filter_values(queryset, "situacao_requisicao"),
         "prioridades": _distinct_filter_values(queryset, "prioridade_final"),
         "sinfras": _distinct_filter_values(queryset, "sinfra_responsavel"),
         "requisitantes": _distinct_filter_values(queryset, "nome_requisitante_snapshot"),
         "unidades_setor": _distinct_filter_values(queryset, "unidade_setor_snapshot"),
-        "tipos_servico": _distinct_filter_values(queryset, "tipo_servico"),
-        "servicos": _distinct_filter_values(queryset, "servico"),
+        "tipos_servico": _distinct_filter_values(queryset, "tipo_servico__nome"),
+        "servicos": _distinct_filter_values(queryset, "servico__nome"),
         "predios": _distinct_filter_values(queryset, "predio__nome"),
         "macrostatuses": _macrostatus_filter_catalog(queryset),
         "anos": _year_filter_values(queryset),
@@ -422,7 +422,7 @@ def table_context(request: HttpRequest, *, public: bool = False) -> dict[str, An
     paginator = Paginator(queryset, TABLE_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page", 1))
     page_items = list(page_obj.object_list)
-    lookup = status_sipac_lookup([item.status_sipac for item in page_items])
+    lookup = status_sipac_lookup([item.status_sipac.codigo if item.status_sipac else "" for item in page_items])
     for item in page_items:
         item.status_sipac_exibicao = status_sipac_display(item.status_sipac, lookup)
     page_obj.object_list = page_items
@@ -868,8 +868,8 @@ def _control_panel_macrostatus_options(request: HttpRequest | None = None) -> li
         item["key"]: False
         for item in catalog
     }
-    for status_sipac, situacao in queryset.values_list("status_sipac", "situacao_requisicao"):
-        available_keys[resolve_control_panel_macrostatus(status_sipac, situacao)] = True
+    for status_codigo, situacao in queryset.values_list("status_sipac__codigo", "situacao_requisicao"):
+        available_keys[resolve_control_panel_macrostatus(status_codigo or "", situacao)] = True
     return [item for item in catalog if available_keys.get(item["key"])]
 
 
@@ -935,7 +935,7 @@ def _control_panel_content_context(request: HttpRequest) -> dict[str, Any]:
     analytics = control_panel_analytics(
         filtered_queryset,
         macrostatus_filter=macrostatus,
-        include_internal=user_is_operator(request) or user_is_director(request),
+        include_internal=user_is_operator(request) or user_is_director(request) or user_is_admin(request),
         years=_control_panel_years(filtered_queryset),
     )
     analytics["service_groups"] = _sort_control_panel_service_groups(
@@ -1034,7 +1034,7 @@ def _control_panel_content_context(request: HttpRequest) -> dict[str, Any]:
 
     analytics.update(
         {
-            "is_internal_viewer": user_is_operator(request) or user_is_director(request),
+            "is_internal_viewer": user_is_operator(request) or user_is_director(request) or user_is_admin(request),
             "has_active_filters": _control_panel_has_active_filters(request),
             "control_panel_return_url": control_panel_return_url,
             "control_panel_content_url": reverse("public-control-panel-content"),
@@ -1170,7 +1170,7 @@ class PublicRequisicaoDetailView(DetailView):
     def get_queryset(self):
         return (
             Requisicao.objects.filter(visivel_publicamente=True)
-            .select_related("predio", "requisitante")
+            .select_related("predio", "solicitante")
             .prefetch_related(acompanhamento_prefetch())
         )
 
@@ -1189,7 +1189,7 @@ class InternalRequisicaoDetailView(InternalViewerRequiredMixin, DetailView):
 
     def get_queryset(self):
         return (
-            Requisicao.objects.select_related("predio", "requisitante")
+            Requisicao.objects.select_related("predio", "solicitante")
             .prefetch_related(acompanhamento_prefetch())
         )
 
@@ -1275,7 +1275,7 @@ class InternalEncaminhamentosView(DirectorRequiredMixin, TemplateView):
             {
                 "encaminhamentos": EncaminhamentoDiretor.objects.select_related("diretor").prefetch_related(
                     "requisicoes__predio",
-                    "requisicoes__requisitante",
+                    "requisicoes__solicitante",
                 ),
                 "total_encaminhamentos": EncaminhamentoDiretor.objects.count(),
             }
@@ -1432,7 +1432,7 @@ def internal_decision_forward_preview(request: HttpRequest) -> HttpResponse:
     ids = request.POST.getlist("requisicao_ids")
     decisao = request.POST.get("decisao", "").strip()
     requisicoes = list(
-        _director_pending_queryset().filter(id__in=ids).select_related("predio", "requisitante").order_by("-ano", "-numero")
+        _director_pending_queryset().filter(id__in=ids).select_related("predio", "solicitante").order_by("-ano", "-numero")
     )
     if not requisicoes:
         return HttpResponse("Selecione ao menos uma requisi\u00e7\u00e3o para encaminhar.", status=400)
@@ -1452,7 +1452,7 @@ def internal_bulk_decide_process(request: HttpRequest) -> HttpResponse:
     orientacoes = request.POST.get("orientacoes", "").strip()
     decision_definition = _director_decision_definition(decisao)
     requisicoes = list(
-        _director_pending_queryset().filter(id__in=ids).select_related("predio", "requisitante").order_by("-ano", "-numero")
+        _director_pending_queryset().filter(id__in=ids).select_related("predio", "solicitante").order_by("-ano", "-numero")
     )
 
     if not requisicoes:
@@ -1835,7 +1835,7 @@ def internal_bulk_decisions_preview(request: HttpRequest) -> HttpResponse:
     requisicoes = _prepare_bulk_decision_requisicoes(
         list(
             Requisicao.objects.filter(id__in=ids)
-            .select_related("predio", "requisitante")
+            .select_related("predio", "solicitante")
             .prefetch_related("acompanhamentos")
             .order_by("-ano", "-numero")
         )
@@ -1864,7 +1864,7 @@ def internal_bulk_decisions(request: HttpRequest) -> HttpResponse:
     is_htmx_request = request.headers.get("HX-Request") == "true"
     requisicoes = list(
         Requisicao.objects.filter(id__in=ids)
-        .select_related("predio", "requisitante")
+        .select_related("predio", "solicitante")
         .prefetch_related("acompanhamentos")
         .order_by("-ano", "-numero")
     )
@@ -1926,7 +1926,12 @@ def json_error(message: str, *, status: int = 400) -> JsonResponse:
 
 
 def requisicao_to_form_data(instance: Requisicao) -> dict[str, Any]:
-    return model_to_dict(instance, fields=RequisicaoForm.Meta.fields)
+    data = model_to_dict(instance, fields=RequisicaoForm.Meta.fields)
+    data["divisao"] = instance.divisao.nome if instance.divisao else ""
+    data["tipo_servico"] = instance.tipo_servico.nome if instance.tipo_servico else ""
+    data["servico"] = instance.servico.nome if instance.servico else ""
+    data["status_sipac"] = instance.status_sipac.codigo if instance.status_sipac else ""
+    return data
 
 
 @require_http_methods(["GET"])
@@ -1938,7 +1943,7 @@ def api_public_indicadores(request: HttpRequest) -> JsonResponse:
 @require_http_methods(["GET"])
 def api_public_requisicoes(request: HttpRequest) -> JsonResponse:
     context = table_context(request, public=True)
-    lookup = status_sipac_lookup([item.status_sipac for item in context["page_obj"].object_list])
+    lookup = status_sipac_lookup([item.status_sipac.codigo if item.status_sipac else "" for item in context["page_obj"].object_list])
     return JsonResponse(
         {
             "count": context["page_obj"].paginator.count,
@@ -1951,8 +1956,8 @@ def api_public_requisicoes(request: HttpRequest) -> JsonResponse:
 
 @require_http_methods(["GET"])
 def api_public_requisicao_detail(request: HttpRequest, pk: int) -> JsonResponse:
-    requisicao = get_object_or_404(Requisicao.objects.select_related("predio", "requisitante"), pk=pk, visivel_publicamente=True)
-    lookup = status_sipac_lookup([requisicao.status_sipac])
+    requisicao = get_object_or_404(Requisicao.objects.select_related("predio", "solicitante"), pk=pk, visivel_publicamente=True)
+    lookup = status_sipac_lookup([requisicao.status_sipac.codigo if requisicao.status_sipac else ""])
     return JsonResponse(serialize_requisicao(requisicao, public=True, status_lookup_map=lookup))
 
 
@@ -1967,7 +1972,7 @@ def api_internal_requisicoes(request: HttpRequest) -> JsonResponse | HttpRespons
         if request.GET.get("format") == "csv":
             return export_internal_csv(queryset)
         context = table_context(request, public=False)
-        lookup = status_sipac_lookup([item.status_sipac for item in context["page_obj"].object_list])
+        lookup = status_sipac_lookup([item.status_sipac.codigo if item.status_sipac else "" for item in context["page_obj"].object_list])
         return JsonResponse(
             {
                 "count": context["page_obj"].paginator.count,
@@ -1982,7 +1987,7 @@ def api_internal_requisicoes(request: HttpRequest) -> JsonResponse | HttpRespons
     if not form.is_valid():
         return JsonResponse({"errors": form.errors}, status=400)
     requisicao = form.save()
-    lookup = status_sipac_lookup([requisicao.status_sipac])
+    lookup = status_sipac_lookup([requisicao.status_sipac.codigo if requisicao.status_sipac else ""])
     return JsonResponse(serialize_requisicao(requisicao, public=False, status_lookup_map=lookup), status=201)
 
 
@@ -1992,9 +1997,9 @@ def api_internal_requisicao_detail(request: HttpRequest, pk: int) -> JsonRespons
     if not user_is_operator(request):
         return json_error("Acesso negado.", status=403)
 
-    requisicao = get_object_or_404(Requisicao.objects.select_related("predio", "requisitante"), pk=pk)
+    requisicao = get_object_or_404(Requisicao.objects.select_related("predio", "solicitante"), pk=pk)
     if request.method == "GET":
-        lookup = status_sipac_lookup([requisicao.status_sipac])
+        lookup = status_sipac_lookup([requisicao.status_sipac.codigo if requisicao.status_sipac else ""])
         payload = serialize_requisicao(requisicao, public=False, status_lookup_map=lookup)
         payload["historico"] = [
             {
@@ -2014,7 +2019,7 @@ def api_internal_requisicao_detail(request: HttpRequest, pk: int) -> JsonRespons
     if not form.is_valid():
         return JsonResponse({"errors": form.errors}, status=400)
     requisicao = form.save()
-    lookup = status_sipac_lookup([requisicao.status_sipac])
+    lookup = status_sipac_lookup([requisicao.status_sipac.codigo if requisicao.status_sipac else ""])
     return JsonResponse(serialize_requisicao(requisicao, public=False, status_lookup_map=lookup))
 
 
@@ -2071,7 +2076,7 @@ def api_internal_cadastros(request: HttpRequest) -> JsonResponse:
     return JsonResponse(
         {
             "predios": [{"id": item.id, "nome": item.nome} for item in Predio.objects.all()[:500]],
-            "requisitantes": [{"id": item.id, "nome": item.nome, "unidade_setor": item.unidade_setor} for item in Requisitante.objects.all()[:500]],
+            "requisitantes": [{"id": item.id, "nome": item.nome} for item in Solicitante.objects.all()[:500]],
             "taxonomias": [
                 {"id": item.id, "divisao": item.divisao, "tipo_servico": item.tipo_servico, "servico": item.servico}
                 for item in TaxonomiaServico.objects.exclude(servico="")[:500]
@@ -2134,9 +2139,9 @@ def export_internal_csv(queryset: QuerySet[Requisicao]) -> HttpResponse:
 def _annotate_status_list(qs):
     result = []
     for item in qs:
-        meta = resolve_status_sipac_metadata(item.descricao)
-        item.rotulo_exibicao = meta["rotulo"] or item.descricao
-        item.situacao_derivada = derive_situation(item.descricao)
+        meta = resolve_status_sipac_metadata(item.codigo)
+        item.rotulo_exibicao = meta["rotulo"] or item.codigo
+        item.situacao_derivada = derive_situation(item.codigo)
         item.mapeado = bool(meta["numero"])
         result.append(item)
     return result
@@ -2147,7 +2152,7 @@ class InternalGestaoListasView(AdminRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["status_list"] = _annotate_status_list(StatusSipacOpcao.objects.all())
+        context["status_list"] = _annotate_status_list(StatusRequisicao.objects.all())
         context["taxonomia_list"] = TaxonomiaServico.objects.all()
         context["gut_params"] = GUTParametro.objects.all()
         context["empresas"] = Empresa.objects.all()
@@ -2243,26 +2248,26 @@ def status_sipac_crud(request, pk=None):
     if not user_is_admin(request):
         raise Http404
     
-    instance = get_object_or_404(StatusSipacOpcao, pk=pk) if pk else None
-    
+    instance = get_object_or_404(StatusRequisicao, pk=pk) if pk else None
+
     if request.method == "POST":
         descricao = request.POST.get("descricao", "").strip()
         ativa = request.POST.get("ativa") == "on"
-        
+
         if not descricao:
             return HttpResponse("Descrição obrigatória", status=400)
-            
+
         if instance:
-            instance.descricao = descricao
+            instance.codigo = descricao
             instance.ativa = ativa
             instance.save()
         else:
-            StatusSipacOpcao.objects.create(descricao=descricao, ativa=ativa)
-            
+            StatusRequisicao.objects.create(codigo=descricao, ativa=ativa)
+
         return render(request, "tracker/_status_list_rows.html", {
-            "status_list": _annotate_status_list(StatusSipacOpcao.objects.all())
+            "status_list": _annotate_status_list(StatusRequisicao.objects.all())
         })
-        
+
     return render(request, "tracker/_status_form.html", {"instance": instance})
 
 
@@ -2271,10 +2276,10 @@ def status_sipac_crud(request, pk=None):
 def status_sipac_delete(request, pk):
     if not user_is_admin(request):
         raise Http404
-    instance = get_object_or_404(StatusSipacOpcao, pk=pk)
+    instance = get_object_or_404(StatusRequisicao, pk=pk)
     instance.delete()
     return render(request, "tracker/_status_list_rows.html", {
-        "status_list": _annotate_status_list(StatusSipacOpcao.objects.all())
+        "status_list": _annotate_status_list(StatusRequisicao.objects.all())
     })
 
 @login_required
@@ -2282,17 +2287,17 @@ def status_sipac_delete(request, pk):
 def status_sipac_bulk(request):
     if not user_is_admin(request):
         raise Http404
-    
+
     status_ids = request.POST.getlist("status_ids")
     action = request.POST.get("action")
-    
+
     if status_ids and action in ["ativar", "inativar"]:
-        StatusSipacOpcao.objects.filter(pk__in=status_ids).update(
+        StatusRequisicao.objects.filter(pk__in=status_ids).update(
             ativa=(action == "ativar")
         )
-        
+
     return render(request, "tracker/_status_list_rows.html", {
-        "status_list": _annotate_status_list(StatusSipacOpcao.objects.all())
+        "status_list": _annotate_status_list(StatusRequisicao.objects.all())
     })
 
 @login_required
@@ -2348,7 +2353,7 @@ def _requisicoes_finalizadas_orcamento_queryset() -> QuerySet[Requisicao]:
         orcamento_valor__isnull=False,
         orcamento_valor__gt=0,
     ).filter(
-        Q(situacao_requisicao__iexact="Inativa") | Q(status_sipac__icontains="FINALIZADA")
+        Q(situacao_requisicao__iexact="Inativa") | Q(status_sipac__codigo__icontains="FINALIZADA")
     )
 
 
@@ -2374,10 +2379,10 @@ def _orcamento_redirect_url(return_query: str = "", anchor: str = "") -> str:
 
 
 def _orcamento_context(request: HttpRequest | None = None):
-    notas = list(NotaEmpenho.objects.prefetch_related("reforcos", "requisicoes_empenho").all())
+    notas = list(Empenho.objects.prefetch_related("reforcos", "requisicoes_empenho").all())
     valor_total = sum(n.valor_total for n in notas)
     saldo_total = sum(n.saldo for n in notas)
-    reqs_finalizadas = _orcamento_filtered_queryset(request).select_related("nota_empenho")
+    reqs_finalizadas = _orcamento_filtered_queryset(request).select_related("empenho")
     total_reqs_pagas = _requisicoes_finalizadas_orcamento_queryset().count()
     return {
         "notas": notas,
@@ -2437,14 +2442,14 @@ def requisicao_orcamento_nota_update(request, pk):
     return_query = request.POST.get("return_query", "").strip()
 
     if nota_id:
-        requisicao.nota_empenho = get_object_or_404(NotaEmpenho, pk=nota_id)
+        requisicao.empenho = get_object_or_404(Empenho, pk=nota_id)
         requisicao.save()
         messages.success(
             request,
-            f"Nota de empenho {requisicao.nota_empenho.nota_empenho} vinculada à requisição {requisicao.codigo}.",
+            f"Nota de empenho {requisicao.empenho.nota_empenho} vinculada à requisição {requisicao.codigo}.",
         )
     else:
-        requisicao.nota_empenho = None
+        requisicao.empenho = None
         requisicao.save()
         messages.warning(
             request,
@@ -2479,7 +2484,7 @@ def requisicoes_orcamento_nota_bulk_update(request):
 
     if bulk_action == "unlink":
         for requisicao in requisicoes:
-            requisicao.nota_empenho = None
+            requisicao.empenho = None
             requisicao.save()
         messages.warning(request, f"Nota de empenho desvinculada de {quantidade} {label}.")
         return redirect(_orcamento_redirect_url(return_query))
@@ -2488,9 +2493,9 @@ def requisicoes_orcamento_nota_bulk_update(request):
         messages.error(request, "Selecione uma nota de empenho para vincular em lote.")
         return redirect(_orcamento_redirect_url(return_query))
 
-    nota = get_object_or_404(NotaEmpenho, pk=nota_id)
+    nota = get_object_or_404(Empenho, pk=nota_id)
     for requisicao in requisicoes:
-        requisicao.nota_empenho = nota
+        requisicao.empenho = nota
         requisicao.save()
 
     messages.success(request, f"Nota de empenho {nota.nota_empenho} vinculada a {quantidade} {label}.")
@@ -2502,7 +2507,7 @@ def nota_empenho_crud(request, pk=None):
     if not user_is_operator(request):
         raise Http404
 
-    instance = get_object_or_404(NotaEmpenho, pk=pk) if pk else None
+    instance = get_object_or_404(Empenho, pk=pk) if pk else None
 
     if request.method == "POST":
         from decimal import Decimal, InvalidOperation
@@ -2514,7 +2519,8 @@ def nota_empenho_crud(request, pk=None):
         valor_str = valor_str.replace("R$", "").replace(" ", "")
         numero_processo = request.POST.get("numero_processo_sipac", "").strip()
         link_processo = request.POST.get("link_processo_sipac", "").strip()
-        empresa = request.POST.get("empresa", "").strip()
+        empresa_pk = request.POST.get("empresa", "").strip()
+        empresa_obj = Empresa.objects.filter(pk=empresa_pk).first() if empresa_pk else None
 
         if not numero or not valor_str:
             return HttpResponse("Número e Valor são obrigatórios.", status=400)
@@ -2526,18 +2532,26 @@ def nota_empenho_crud(request, pk=None):
 
         if instance:
             instance.nota_empenho = numero
-            instance.valor = valor
             instance.numero_processo_sipac = numero_processo
             instance.link_processo_sipac = link_processo
-            instance.empresa = empresa
+            instance.empresa = empresa_obj
             instance.save()
+            MovimentacaoEmpenho.objects.update_or_create(
+                empenho=instance,
+                tipo=MovimentacaoEmpenho.Tipo.VALOR_INICIAL,
+                defaults={"valor": valor},
+            )
         else:
-            NotaEmpenho.objects.create(
+            empenho = Empenho.objects.create(
                 nota_empenho=numero,
-                valor=valor,
                 numero_processo_sipac=numero_processo,
                 link_processo_sipac=link_processo,
-                empresa=empresa,
+                empresa=empresa_obj,
+            )
+            MovimentacaoEmpenho.objects.create(
+                empenho=empenho,
+                tipo=MovimentacaoEmpenho.Tipo.VALOR_INICIAL,
+                valor=valor,
             )
 
         return render(request, "tracker/_nota_empenho_rows.html", _orcamento_context())
@@ -2553,8 +2567,8 @@ def nota_empenho_reforco(request, pk, reforco_pk=None):
     if not user_is_operator(request):
         raise Http404
 
-    nota = get_object_or_404(NotaEmpenho, pk=pk)
-    reforco = get_object_or_404(ReforcoEmpenho, pk=reforco_pk, empenho=nota) if reforco_pk else None
+    nota = get_object_or_404(Empenho, pk=pk)
+    reforco = get_object_or_404(MovimentacaoEmpenho, pk=reforco_pk, empenho=nota) if reforco_pk else None
 
     if request.method == "GET":
         return render(
@@ -2591,8 +2605,9 @@ def nota_empenho_reforco(request, pk, reforco_pk=None):
         reforco.descricao = descricao
         reforco.save()
     else:
-        ReforcoEmpenho.objects.create(
+        MovimentacaoEmpenho.objects.create(
             empenho=nota,
+            tipo=MovimentacaoEmpenho.Tipo.REFORCO,
             valor=adicional,
             numero_processo_sipac=numero_processo_sipac,
             descricao=descricao,
@@ -2607,8 +2622,8 @@ def nota_empenho_reforco_delete(request, pk, reforco_pk):
     if not user_is_operator(request):
         raise Http404
 
-    nota = get_object_or_404(NotaEmpenho, pk=pk)
-    reforco = get_object_or_404(ReforcoEmpenho, pk=reforco_pk, empenho=nota)
+    nota = get_object_or_404(Empenho, pk=pk)
+    reforco = get_object_or_404(MovimentacaoEmpenho, pk=reforco_pk, empenho=nota)
     reforco.delete()
     return render(request, "tracker/_nota_empenho_rows.html", _orcamento_context())
 
@@ -2619,7 +2634,7 @@ def nota_empenho_delete(request, pk):
     if not user_is_operator(request):
         raise Http404
 
-    nota = get_object_or_404(NotaEmpenho, pk=pk)
+    nota = get_object_or_404(Empenho, pk=pk)
     nota.delete()
     return render(request, "tracker/_nota_empenho_rows.html", _orcamento_context())
 

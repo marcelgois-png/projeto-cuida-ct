@@ -17,20 +17,24 @@ from .domain import (
     coerce_coordinate,
     coerce_date,
     coerce_int,
+    derive_situation,
     extract_request_parts,
     normalize_key,
     normalize_text,
     resolve_status_sipac_metadata,
 )
 from .models import (
+    DivisaoSINFRA,
     HistoricoStatus,
     ImportacaoArquivo,
     Predio,
     RegraPrioridade,
     Requisicao,
-    Requisitante,
-    StatusSipacOpcao,
+    Servico,
+    Solicitante,
+    StatusRequisicao,
     TaxonomiaServico,
+    TipoServico,
 )
 from .services import register_status_history, resolve_priority_label
 
@@ -137,13 +141,15 @@ class WorkbookImporter:
             contato = coerce_brazilian_phone(self._get_value(row, "contato") or requisitante_data.get("contato", ""))
 
             predio = self._ensure_predio(self._get_value(row, "predio envolvido"))
-            taxonomia = self._ensure_taxonomia(
-                self._get_value(row, "divisao"),
-                self._get_value(row, "tipo de servico"),
-                self._get_value(row, "servico"),
-            )
-            requisitante = self._ensure_requisitante(requisitante_nome, unidade_setor, contato)
+            solicitante = self._ensure_solicitante(requisitante_nome, contato)
             reference = references["gme"].get(str(codigo)) or references["ar"].get(str(codigo)) or {}
+
+            divisao_str = clean_display_text(self._get_value(row, "divisao") or "")
+            tipo_str = clean_display_text(self._get_value(row, "tipo de servico") or "")
+            servico_str = clean_display_text(self._get_value(row, "servico") or "")
+            status_str = clean_display_text(self._get_value(row, "status sipac") or "")
+            divisao_fk, tipo_fk, servico_fk = self._resolve_service_fks(divisao_str, tipo_str, servico_str)
+            status_fk = StatusRequisicao.objects.filter(codigo=status_str).first() if status_str else None
 
             defaults = {
                 "numero": numero,
@@ -152,22 +158,24 @@ class WorkbookImporter:
                 "orcamento": self._get_value(row, "orcamento", "orçamento") or "",
                 "data_cadastro": coerce_date(self._get_value(row, "data de cadastro")),
                 "tipo_requisicao": clean_display_text(self._get_value(row, "tipo de requisicao") or ""),
-                "divisao": clean_display_text(self._get_value(row, "divisao") or ""),
+                "divisao": divisao_fk,
                 "unidade_origem": clean_display_text(self._get_value(row, "unidade de origem") or ""),
-                "status_sipac": clean_display_text(self._get_value(row, "status sipac") or ""),
-                "tipo_servico": clean_display_text(self._get_value(row, "tipo de servico") or ""),
-                "servico": clean_display_text(self._get_value(row, "servico") or ""),
-                "taxonomia": taxonomia,
+                "status_sipac": status_fk,
+                "tipo_servico": tipo_fk,
+                "servico": servico_fk,
                 "predio": predio,
                 "local_servico": clean_display_text(self._get_value(row, "local do servico") or ""),
                 "latitude": coerce_coordinate(self._get_value(row, "latitude"), kind="latitude"),
                 "longitude": coerce_coordinate(self._get_value(row, "longitude"), kind="longitude"),
-                "requisitante": requisitante,
+                "solicitante": solicitante,
                 "nome_requisitante_snapshot": clean_display_text(requisitante_nome or ""),
                 "unidade_setor_snapshot": clean_display_text(unidade_setor),
                 "contato_direto_url": contato or "",
                 "situacao_texto": clean_display_text(self._get_value(row, "situacao") or reference.get("situacao", "") or ""),
                 "status_fluxo": clean_display_text(self._get_value(row, "status") or ""),
+                "gravidade": clean_display_text(self._get_value(row, "gravidade") or ""),
+                "urgencia": clean_display_text(self._get_value(row, "urgencia") or ""),
+                "tendencia": clean_display_text(self._get_value(row, "tendencia") or ""),
                 "sinfra_responsavel": clean_display_text(self._get_value(row, "sinfra") or reference.get("sinfra", "") or ""),
                 "link_atendimento": clean_display_text(self._get_value(row, "link do atendimento") or reference.get("link_atendimento", "") or ""),
                 "link_sipac": clean_display_text(self._get_value(row, "link sipac") or reference.get("link_sipac", "") or ""),
@@ -178,7 +186,9 @@ class WorkbookImporter:
             }
 
             requisicao, was_created = Requisicao.objects.get_or_create(codigo=str(codigo), defaults=defaults)
-            previous_status = requisicao.status_sipac if not was_created else ""
+            previous_status = (
+                requisicao.status_sipac.codigo if (not was_created and requisicao.status_sipac) else ""
+            )
             previous_note = requisicao.situacao_texto if not was_created else ""
             if was_created:
                 created += 1
@@ -195,7 +205,7 @@ class WorkbookImporter:
             if was_created:
                 HistoricoStatus.objects.create(
                     requisicao=requisicao,
-                    status_sipac=requisicao.status_sipac,
+                    status_sipac=requisicao.status_sipac.codigo if requisicao.status_sipac else "",
                     situacao_requisicao=requisicao.situacao_requisicao,
                     observacao=requisicao.situacao_texto,
                     origem=HistoricoStatus.Origem.IMPORTACAO,
@@ -211,8 +221,8 @@ class WorkbookImporter:
                     origin=HistoricoStatus.Origem.IMPORTACAO,
                 )
 
-            counters["divisao"][requisicao.divisao] += 1
-            counters["status_sipac"][requisicao.status_sipac] += 1
+            counters["divisao"][requisicao.divisao.nome if requisicao.divisao else ""] += 1
+            counters["status_sipac"][requisicao.status_sipac.codigo if requisicao.status_sipac else ""] += 1
             counters["situacao_requisicao"][requisicao.situacao_requisicao] += 1
             counters["sinfra_responsavel"][requisicao.sinfra_responsavel] += 1
             counters["prioridade_final"][requisicao.prioridade_final] += 1
@@ -235,20 +245,19 @@ class WorkbookImporter:
                 continue
             setor = normalize_text(row[1] if len(row) > 1 else "")
             contato = coerce_brazilian_phone(row[2] if len(row) > 2 else "")
-            requisitante, _ = Requisitante.objects.get_or_create(
+            solicitante, _ = Solicitante.objects.get_or_create(
                 chave_normalizada=normalize_key(nome),
-                unidade_setor=setor,
                 defaults={"nome": nome, "contato_url": contato},
             )
             changed = False
-            if not requisitante.nome:
-                requisitante.nome = nome
+            if not solicitante.nome:
+                solicitante.nome = nome
                 changed = True
-            if contato and requisitante.contato_url != contato:
-                requisitante.contato_url = contato
+            if contato and solicitante.contato_url != contato:
+                solicitante.contato_url = contato
                 changed = True
             if changed:
-                requisitante.save()
+                solicitante.save()
             lookup[normalize_key(nome)] = {"setor": setor, "contato": contato}
         return lookup
 
@@ -286,16 +295,17 @@ class WorkbookImporter:
             if not descricao:
                 continue
             metadata = resolve_status_sipac_metadata(descricao)
+            codigo = metadata["descricao"] or descricao
             ordem = metadata["ordem"] or seen.setdefault(descricao, len(seen) + 1)
-            StatusSipacOpcao.objects.update_or_create(
-                descricao=metadata["descricao"] or descricao,
+            StatusRequisicao.objects.update_or_create(
+                codigo=codigo,
                 defaults={
                     "numero": metadata["numero"],
-                    "rotulo": metadata["rotulo"] or descricao,
-                    "descricao": metadata["descricao"] or descricao,
-                    "chave_normalizada": normalize_key(metadata["descricao"] or descricao),
+                    "nome": metadata["rotulo"] or descricao,
+                    "chave_normalizada": normalize_key(codigo),
                     "ordem": ordem,
                     "ativa": True,
+                    "mapeamento_situacao": "ATIVA" if derive_situation(codigo) == "Ativa" else "INATIVA",
                 },
             )
 
@@ -456,28 +466,34 @@ class WorkbookImporter:
             return predio
         return Predio.objects.create(nome=normalize_text(nome))
 
-    def _ensure_requisitante(self, nome: str | None, setor: str, contato: str) -> Requisitante | None:
+    def _ensure_solicitante(self, nome: str | None, contato: str) -> Solicitante | None:
         if not nome:
             return None
         normalized = normalize_key(nome)
-        normalized_setor = normalize_text(setor)
-        requisitante = Requisitante.objects.filter(
-            chave_normalizada=normalized,
-            unidade_setor=normalized_setor,
-        ).first()
-        if requisitante:
-            changed = False
-            if contato and requisitante.contato_url != contato:
-                requisitante.contato_url = contato
-                changed = True
-            if changed:
-                requisitante.save()
-            return requisitante
-        return Requisitante.objects.create(
+        solicitante = Solicitante.objects.filter(chave_normalizada=normalized).first()
+        if solicitante:
+            if contato and solicitante.contato_url != contato:
+                solicitante.contato_url = contato
+                solicitante.save()
+            return solicitante
+        return Solicitante.objects.create(
             nome=normalize_text(nome),
-            unidade_setor=normalized_setor,
             contato_url=coerce_brazilian_phone(contato),
         )
+
+    def _resolve_service_fks(
+        self, divisao: str, tipo_servico: str, servico: str
+    ) -> tuple[DivisaoSINFRA | None, TipoServico | None, Servico | None]:
+        if not divisao:
+            return None, None, None
+        divisao_fk, _ = DivisaoSINFRA.objects.get_or_create(nome=divisao)
+        tipo_fk = None
+        servico_fk = None
+        if tipo_servico:
+            tipo_fk, _ = TipoServico.objects.get_or_create(nome=tipo_servico, divisao=divisao_fk)
+        if servico and tipo_fk:
+            servico_fk, _ = Servico.objects.get_or_create(nome=servico, tipo_servico=tipo_fk)
+        return divisao_fk, tipo_fk, servico_fk
 
     def _ensure_taxonomia(self, divisao: str | None, tipo_servico: str | None, servico: str | None) -> TaxonomiaServico | None:
         if not divisao and not tipo_servico and not servico:

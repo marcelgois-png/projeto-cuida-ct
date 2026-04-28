@@ -22,11 +22,6 @@ from apps.core.models import (
     Empresa,
     Empenho,
     MovimentacaoEmpenho,
-    # aliases de compatibilidade — removidos no Bloco E
-    Requisitante,
-    StatusSipacOpcao,
-    NotaEmpenho,
-    ReforcoEmpenho,
 )
 
 from .domain import (
@@ -122,8 +117,7 @@ class Requisicao(TimeStampedModel):
     local_servico = models.CharField(max_length=255, blank=True)
     latitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
-    # requisitante aponta para core.Solicitante (renomeado via C1); campo renomeado no Bloco E
-    requisitante = models.ForeignKey(
+    solicitante = models.ForeignKey(
         'core.Solicitante',
         on_delete=models.SET_NULL,
         null=True,
@@ -154,18 +148,24 @@ class Requisicao(TimeStampedModel):
         blank=True,
         related_name="requisicoes",
     )
-    empresa = models.CharField(max_length=255, blank=True, verbose_name="Empresa")
+    empresa = models.ForeignKey(
+        'core.Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='requisicoes',
+        verbose_name='Empresa',
+    )
     orcamento_valor = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Orçamento (R$)"
     )
-    # nota_empenho aponta para core.Empenho (renomeado via C4); campo renomeado no Bloco E
-    nota_empenho = models.ForeignKey(
+    empenho = models.ForeignKey(
         'core.Empenho',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="requisicoes_empenho",
-        verbose_name="Nota de Empenho",
+        verbose_name="Empenho",
     )
 
     class StatusProcessoDiretor(models.TextChoices):
@@ -252,7 +252,7 @@ class Requisicao(TimeStampedModel):
 
     @property
     def nome_requisitante_publico(self) -> str:
-        return self.nome_requisitante_snapshot or (self.requisitante.nome if self.requisitante else "")
+        return self.nome_requisitante_snapshot or (self.solicitante.nome if self.solicitante else "")
 
     def __str__(self) -> str:
         return self.codigo

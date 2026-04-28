@@ -6,7 +6,7 @@ from django.test import TestCase
 from openpyxl import Workbook
 
 from apps.tracker.importers import WorkbookImporter
-from apps.tracker.models import Predio, RegraPrioridade, Requisicao, Requisitante, StatusSipacOpcao, TaxonomiaServico
+from apps.tracker.models import Predio, RegraPrioridade, Requisicao, Solicitante, StatusRequisicao, TaxonomiaServico
 
 
 class WorkbookImporterTests(TestCase):
@@ -165,10 +165,10 @@ class WorkbookImporterTests(TestCase):
         self.assertEqual(result.resumo_json["total_processado"], 2)
         self.assertEqual(Requisicao.objects.count(), 2)
         self.assertEqual(Predio.objects.count(), 1)
-        self.assertEqual(Requisitante.objects.count(), 2)
+        self.assertEqual(Solicitante.objects.count(), 2)
         self.assertGreaterEqual(TaxonomiaServico.objects.count(), 2)
         self.assertGreaterEqual(RegraPrioridade.objects.count(), 2)
-        self.assertGreaterEqual(StatusSipacOpcao.objects.count(), 17)
+        self.assertGreaterEqual(StatusRequisicao.objects.count(), 2)
 
         first = Requisicao.objects.get(codigo="100/2026")
         self.assertEqual(first.situacao_requisicao, "Ativa")
@@ -177,9 +177,9 @@ class WorkbookImporterTests(TestCase):
         self.assertEqual(first.link_atendimento, "https://atendimento.local/100")
         self.assertEqual(first.orcamento, "R$ 1.500,00")
         self.assertEqual(first.predio.nome, "Bloco A")
-        self.assertEqual(first.taxonomia.divisao, "Construção Civil")
-        self.assertEqual(first.taxonomia.tipo_servico, "Manutenção de Esquadrias")
-        self.assertEqual(first.taxonomia.servico, "Porta de Madeira")
+        self.assertEqual(first.divisao.nome, "Construção Civil")
+        self.assertEqual(first.tipo_servico.nome, "Manutenção de Esquadrias")
+        self.assertEqual(first.servico.nome, "Porta de Madeira")
         self.assertEqual(first.gut_score, 48)
         self.assertEqual(first.gut_nivel, "REGULAR")
         self.assertEqual(str(first.predio.latitude), "-7.123456")
@@ -216,7 +216,7 @@ class WorkbookImporterTests(TestCase):
         uploaded = self.build_workbook_file()
         WorkbookImporter().import_file(uploaded)
 
-        self.assertTrue(StatusSipacOpcao.objects.filter(descricao="04 OS EMITIDA").exists())
-        self.assertTrue(StatusSipacOpcao.objects.filter(descricao="06 FINALIZADA").exists())
-        self.assertEqual(StatusSipacOpcao.objects.get(descricao="04 OS EMITIDA").numero, "04")
-        self.assertEqual(StatusSipacOpcao.objects.get(descricao="04 OS EMITIDA").rotulo, "OS emitida")
+        self.assertTrue(StatusRequisicao.objects.filter(codigo="04 OS EMITIDA").exists())
+        self.assertTrue(StatusRequisicao.objects.filter(codigo="06 FINALIZADA").exists())
+        self.assertEqual(StatusRequisicao.objects.get(codigo="04 OS EMITIDA").numero, "04")
+        self.assertEqual(StatusRequisicao.objects.get(codigo="04 OS EMITIDA").nome, "OS emitida")

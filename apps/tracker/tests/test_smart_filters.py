@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.tracker.models import Predio, Requisicao
+from apps.tracker.models import DivisaoSINFRA, Predio, Requisicao, Servico, StatusRequisicao, TipoServico
 
 
 User = get_user_model()
@@ -31,16 +31,41 @@ class SmartFiltersTests(TestCase):
             telefone="83999990011",
         )
 
+        # FK objects
+        self.div_civil, _ = DivisaoSINFRA.objects.get_or_create(nome="Construcao Civil")
+        self.div_eletrica, _ = DivisaoSINFRA.objects.get_or_create(nome="Instalacoes Eletricas")
+        self.div_maquinas, _ = DivisaoSINFRA.objects.get_or_create(nome="Maquinas e Equipamentos")
+        self.tipo_esquadrias, _ = TipoServico.objects.get_or_create(nome="Esquadrias", divisao=self.div_civil)
+        self.tipo_eletrica, _ = TipoServico.objects.get_or_create(nome="Instalacao Eletrica", divisao=self.div_eletrica)
+        self.tipo_clima, _ = TipoServico.objects.get_or_create(nome="Climatizacao", divisao=self.div_civil)
+        self.serv_porta, _ = Servico.objects.get_or_create(nome="Porta de Madeira", tipo_servico=self.tipo_esquadrias)
+        self.serv_disjuntor, _ = Servico.objects.get_or_create(nome="Disjuntor", tipo_servico=self.tipo_eletrica)
+        self.serv_split, _ = Servico.objects.get_or_create(nome="Split", tipo_servico=self.tipo_clima)
+        self.serv_tomada, _ = Servico.objects.get_or_create(nome="Tomada", tipo_servico=self.tipo_eletrica)
+        self.serv_janela, _ = Servico.objects.get_or_create(nome="Janela", tipo_servico=self.tipo_clima)
+        self.st_enviada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="02 ENVIADA",
+            defaults={"nome": "Enviada", "mapeamento_situacao": "ATIVA", "ordem": 2},
+        )
+        self.st_os_emitida, _ = StatusRequisicao.objects.get_or_create(
+            codigo="04 OS EMITIDA",
+            defaults={"nome": "OS emitida", "mapeamento_situacao": "ATIVA", "ordem": 4},
+        )
+        self.st_finalizada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="06 FINALIZADA",
+            defaults={"nome": "Finalizada", "mapeamento_situacao": "INATIVA", "ordem": 6},
+        )
+
         self.civil_active = Requisicao.objects.create(
             codigo="201/2026",
             numero=201,
             ano=2026,
             assunto="Porta danificada",
             data_cadastro=date(2026, 3, 10),
-            divisao="Construcao Civil",
-            status_sipac="02 ENVIADA",
-            tipo_servico="Esquadrias",
-            servico="Porta de Madeira",
+            divisao=self.div_civil,
+            status_sipac=self.st_enviada,
+            tipo_servico=self.tipo_esquadrias,
+            servico=self.serv_porta,
             predio=self.predio_a,
             nome_requisitante_snapshot="Maria",
             visivel_publicamente=True,
@@ -52,10 +77,10 @@ class SmartFiltersTests(TestCase):
             ano=2026,
             assunto="Disjuntor com defeito",
             data_cadastro=date(2026, 3, 11),
-            divisao="Instalacoes Eletricas",
-            status_sipac="04 OS EMITIDA",
-            tipo_servico="Instalacao Eletrica",
-            servico="Disjuntor",
+            divisao=self.div_eletrica,
+            status_sipac=self.st_os_emitida,
+            tipo_servico=self.tipo_eletrica,
+            servico=self.serv_disjuntor,
             predio=self.predio_b,
             nome_requisitante_snapshot="Joao",
             visivel_publicamente=True,
@@ -68,10 +93,10 @@ class SmartFiltersTests(TestCase):
             assunto="Split instalado",
             data_cadastro=date(2026, 1, 10),
             data_execucao=date(2026, 1, 25),
-            divisao="Construcao Civil",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Climatizacao",
-            servico="Split",
+            divisao=self.div_civil,
+            status_sipac=self.st_finalizada,
+            tipo_servico=self.tipo_clima,
+            servico=self.serv_split,
             predio=self.predio_a,
             nome_requisitante_snapshot="Ana",
             orcamento_valor=Decimal("1200.00"),
@@ -84,10 +109,10 @@ class SmartFiltersTests(TestCase):
             assunto="Tomada regularizada",
             data_cadastro=date(2026, 1, 12),
             data_execucao=date(2026, 1, 20),
-            divisao="Instalacoes Eletricas",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Instalacao Eletrica",
-            servico="Tomada",
+            divisao=self.div_eletrica,
+            status_sipac=self.st_finalizada,
+            tipo_servico=self.tipo_eletrica,
+            servico=self.serv_tomada,
             predio=self.predio_b,
             nome_requisitante_snapshot="Carlos",
             orcamento_valor=Decimal("300.00"),
@@ -100,10 +125,10 @@ class SmartFiltersTests(TestCase):
             assunto="Climatizacao oculta",
             data_cadastro=date(2026, 2, 1),
             data_execucao=date(2026, 2, 8),
-            divisao="Maquinas e Equipamentos",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Climatizacao",
-            servico="Janela",
+            divisao=self.div_maquinas,
+            status_sipac=self.st_finalizada,
+            tipo_servico=self.serv_janela.tipo_servico,
+            servico=self.serv_janela,
             predio=self.predio_b,
             orcamento_valor=Decimal("900.00"),
             visivel_publicamente=False,

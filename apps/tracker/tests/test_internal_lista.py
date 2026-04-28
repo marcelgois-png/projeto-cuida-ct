@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.tracker.models import AcompanhamentoRequisicao, Requisicao
+from apps.tracker.models import AcompanhamentoRequisicao, Requisicao, StatusRequisicao
 
 
 User = get_user_model()
@@ -19,13 +19,20 @@ class InternalListaBulkDecisionTests(TestCase):
         )
         self.client.login(username="operador_lista", password="segredo")
 
+        st_enviada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="02 ENVIADA", defaults={"nome": "Enviada", "mapeamento_situacao": "ATIVA", "ordem": 2}
+        )
+        st_os_emitida, _ = StatusRequisicao.objects.get_or_create(
+            codigo="04 OS EMITIDA", defaults={"nome": "OS emitida", "mapeamento_situacao": "ATIVA", "ordem": 4}
+        )
+
         self.requisicao_1 = Requisicao.objects.create(
             codigo="301/2026",
             numero=301,
             ano=2026,
             assunto="Troca de luminária",
             data_cadastro=date(2026, 4, 1),
-            status_sipac="02 ENVIADA",
+            status_sipac=st_enviada,
             local_servico="Biblioteca",
             nome_requisitante_snapshot="CARLA TESTE",
         )
@@ -35,7 +42,7 @@ class InternalListaBulkDecisionTests(TestCase):
             ano=2026,
             assunto="Reparo hidráulico",
             data_cadastro=date(2026, 4, 2),
-            status_sipac="04 OS EMITIDA",
+            status_sipac=st_os_emitida,
             local_servico="Laboratório",
             nome_requisitante_snapshot="JOÃO TESTE",
         )

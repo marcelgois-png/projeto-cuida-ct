@@ -5,10 +5,18 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.tracker.models import NotaEmpenho, ReforcoEmpenho, Requisicao
+from apps.tracker.models import Empenho, MovimentacaoEmpenho, Requisicao, StatusRequisicao
 
 
 User = get_user_model()
+
+
+def _make_status_finalizada():
+    status, _ = StatusRequisicao.objects.get_or_create(
+        codigo="06 FINALIZADA",
+        defaults={"nome": "Finalizada", "mapeamento_situacao": "INATIVA"},
+    )
+    return status
 
 
 class InternalBudgetPanelTests(TestCase):
@@ -18,10 +26,13 @@ class InternalBudgetPanelTests(TestCase):
             password="segredo",
             role="operator",
         )
-        self.nota = NotaEmpenho.objects.create(
-            nota_empenho="2026NE0001",
+        self.nota = Empenho.objects.create(nota_empenho="2026NE0001")
+        MovimentacaoEmpenho.objects.create(
+            empenho=self.nota,
+            tipo=MovimentacaoEmpenho.Tipo.VALOR_INICIAL,
             valor=Decimal("1000.00"),
         )
+        self.status_finalizada = _make_status_finalizada()
 
     def test_total_balance_only_subtracts_finalized_request_budgets_linked_to_note(self):
         Requisicao.objects.create(
@@ -31,9 +42,9 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Demanda finalizada com custo",
             data_cadastro=date(2026, 4, 5),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("250.00"),
-            nota_empenho=self.nota,
+            empenho=self.nota,
         )
         Requisicao.objects.create(
             codigo="119/2026",
@@ -42,7 +53,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Demanda finalizada sem vínculo",
             data_cadastro=date(2026, 4, 6),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("300.00"),
         )
 
@@ -62,7 +73,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Demanda aguardando vínculo",
             data_cadastro=date(2026, 4, 7),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("400.00"),
         )
 
@@ -75,7 +86,7 @@ class InternalBudgetPanelTests(TestCase):
         requisicao.refresh_from_db()
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(requisicao.nota_empenho, self.nota)
+        self.assertEqual(requisicao.empenho, self.nota)
 
     def test_budget_page_can_update_note_link_in_bulk_for_selected_requests(self):
         primeira = Requisicao.objects.create(
@@ -85,7 +96,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Primeira em lote",
             data_cadastro=date(2026, 4, 8),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("150.00"),
         )
         segunda = Requisicao.objects.create(
@@ -95,7 +106,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Segunda em lote",
             data_cadastro=date(2026, 4, 9),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("175.00"),
         )
 
@@ -109,8 +120,8 @@ class InternalBudgetPanelTests(TestCase):
         segunda.refresh_from_db()
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(primeira.nota_empenho, self.nota)
-        self.assertEqual(segunda.nota_empenho, self.nota)
+        self.assertEqual(primeira.empenho, self.nota)
+        self.assertEqual(segunda.empenho, self.nota)
 
     def test_budget_page_can_unlink_note_in_bulk_for_selected_requests(self):
         primeira = Requisicao.objects.create(
@@ -120,9 +131,9 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Primeira desvinculação em lote",
             data_cadastro=date(2026, 4, 8),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("150.00"),
-            nota_empenho=self.nota,
+            empenho=self.nota,
         )
         segunda = Requisicao.objects.create(
             codigo="122A/2026",
@@ -131,9 +142,9 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Segunda desvinculação em lote",
             data_cadastro=date(2026, 4, 9),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("175.00"),
-            nota_empenho=self.nota,
+            empenho=self.nota,
         )
 
         self.client.login(username="operador_orcamento", password="segredo")
@@ -146,12 +157,13 @@ class InternalBudgetPanelTests(TestCase):
         segunda.refresh_from_db()
 
         self.assertEqual(response.status_code, 302)
-        self.assertIsNone(primeira.nota_empenho)
-        self.assertIsNone(segunda.nota_empenho)
+        self.assertIsNone(primeira.empenho)
+        self.assertIsNone(segunda.empenho)
 
     def test_budget_page_details_base_and_reforco_values_in_note_table(self):
-        reforco = ReforcoEmpenho.objects.create(
+        reforco = MovimentacaoEmpenho.objects.create(
             empenho=self.nota,
+            tipo=MovimentacaoEmpenho.Tipo.REFORCO,
             valor=Decimal("250.00"),
             numero_processo_sipac="23074.012345/2026-10",
             descricao="Complemento para ampliação do escopo",
@@ -183,13 +195,17 @@ class InternalBudgetPanelTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        reforco = ReforcoEmpenho.objects.get(empenho=self.nota)
+        reforco = MovimentacaoEmpenho.objects.filter(
+            empenho=self.nota, tipo=MovimentacaoEmpenho.Tipo.REFORCO
+        ).first()
+        self.assertIsNotNone(reforco)
         self.assertEqual(reforco.numero_processo_sipac, "23074.009999/2026-21")
         self.assertEqual(reforco.descricao, "Reforço emergencial")
 
     def test_budget_page_can_edit_existing_reforco(self):
-        reforco = ReforcoEmpenho.objects.create(
+        reforco = MovimentacaoEmpenho.objects.create(
             empenho=self.nota,
+            tipo=MovimentacaoEmpenho.Tipo.REFORCO,
             valor=Decimal("250.00"),
             numero_processo_sipac="23074.000001/2026-01",
             descricao="Texto inicial",
@@ -212,8 +228,9 @@ class InternalBudgetPanelTests(TestCase):
         self.assertEqual(reforco.descricao, "Texto atualizado")
 
     def test_budget_page_can_delete_existing_reforco(self):
-        reforco = ReforcoEmpenho.objects.create(
+        reforco = MovimentacaoEmpenho.objects.create(
             empenho=self.nota,
+            tipo=MovimentacaoEmpenho.Tipo.REFORCO,
             valor=Decimal("250.00"),
             numero_processo_sipac="23074.000003/2026-03",
             descricao="Texto para exclusão",
@@ -225,7 +242,7 @@ class InternalBudgetPanelTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(ReforcoEmpenho.objects.filter(pk=reforco.pk).exists())
+        self.assertFalse(MovimentacaoEmpenho.objects.filter(pk=reforco.pk).exists())
 
     def test_budget_page_sorts_finalized_requests_by_budget_value(self):
         menor = Requisicao.objects.create(
@@ -235,7 +252,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Menor orçamento",
             data_cadastro=date(2026, 4, 10),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("100.00"),
         )
         maior = Requisicao.objects.create(
@@ -245,7 +262,7 @@ class InternalBudgetPanelTests(TestCase):
             assunto="Maior orçamento",
             data_cadastro=date(2026, 4, 11),
             situacao_requisicao="Inativa",
-            status_sipac="06 FINALIZADA",
+            status_sipac=self.status_finalizada,
             orcamento_valor=Decimal("900.00"),
         )
 

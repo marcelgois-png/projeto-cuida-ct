@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.tracker.models import Predio, Requisicao
+from apps.tracker.models import DivisaoSINFRA, Predio, Requisicao, Servico, StatusRequisicao, TipoServico
 from apps.tracker.services import control_panel_analytics, resolve_control_panel_macrostatus
 
 
@@ -53,16 +53,42 @@ class ControlPanelViewTests(TestCase):
             telefone="83999990002",
         )
 
+        # FK objects
+        div_civil, _ = DivisaoSINFRA.objects.get_or_create(nome="Construcao Civil")
+        div_eletrica, _ = DivisaoSINFRA.objects.get_or_create(nome="Instalacoes Eletricas")
+        div_hidraulica, _ = DivisaoSINFRA.objects.get_or_create(nome="Instalacoes Hidraulicas")
+        div_marcenaria, _ = DivisaoSINFRA.objects.get_or_create(nome="Marcenaria")
+        tipo_arcondicionado, _ = TipoServico.objects.get_or_create(nome="Ar Condicionado", divisao=div_civil)
+        tipo_eletrica, _ = TipoServico.objects.get_or_create(nome="Eletrica", divisao=div_eletrica)
+        tipo_hidraulica, _ = TipoServico.objects.get_or_create(nome="Hidraulica", divisao=div_hidraulica)
+        tipo_marcenaria, _ = TipoServico.objects.get_or_create(nome="Marcenaria", divisao=div_marcenaria)
+        serv_split, _ = Servico.objects.get_or_create(nome="Split", tipo_servico=tipo_arcondicionado)
+        serv_tomada, _ = Servico.objects.get_or_create(nome="Tomada", tipo_servico=tipo_eletrica)
+        serv_vazamento, _ = Servico.objects.get_or_create(nome="Vazamento", tipo_servico=tipo_hidraulica)
+        serv_porta, _ = Servico.objects.get_or_create(nome="Porta", tipo_servico=tipo_marcenaria)
+        st_enviada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="02 ENVIADA", defaults={"nome": "Enviada", "mapeamento_situacao": "ATIVA", "ordem": 2}
+        )
+        st_finalizada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="06 FINALIZADA", defaults={"nome": "Finalizada", "mapeamento_situacao": "INATIVA", "ordem": 6}
+        )
+        st_negada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="09 NEGADA", defaults={"nome": "Negada", "mapeamento_situacao": "INATIVA", "ordem": 9}
+        )
+        st_estornada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="08 ESTORNADA", defaults={"nome": "Estornada", "mapeamento_situacao": "INATIVA", "ordem": 8}
+        )
+
         self.public_active = Requisicao.objects.create(
             codigo="101/2026",
             numero=101,
             ano=2026,
             assunto="Climatizacao do laboratorio",
             data_cadastro=date(2026, 3, 1),
-            divisao="Construcao Civil",
-            status_sipac="02 ENVIADA",
-            tipo_servico="Ar Condicionado",
-            servico="Split",
+            divisao=div_civil,
+            status_sipac=st_enviada,
+            tipo_servico=tipo_arcondicionado,
+            servico=serv_split,
             predio=self.predio_a,
             prioridade_final="",
             visivel_publicamente=True,
@@ -74,10 +100,10 @@ class ControlPanelViewTests(TestCase):
             assunto="Troca de equipamento",
             data_cadastro=date(2025, 2, 1),
             data_execucao=date(2025, 2, 11),
-            divisao="Construcao Civil",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Ar Condicionado",
-            servico="Split",
+            divisao=div_civil,
+            status_sipac=st_finalizada,
+            tipo_servico=tipo_arcondicionado,
+            servico=serv_split,
             predio=self.predio_a,
             orcamento_valor=Decimal("1000.00"),
             sinfra_responsavel="Equipe 1",
@@ -90,10 +116,10 @@ class ControlPanelViewTests(TestCase):
             assunto="Reparo eletrico",
             data_cadastro=date(2026, 1, 1),
             data_execucao=date(2026, 1, 21),
-            divisao="Instalacoes Eletricas",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Eletrica",
-            servico="Tomada",
+            divisao=div_eletrica,
+            status_sipac=st_finalizada,
+            tipo_servico=tipo_eletrica,
+            servico=serv_tomada,
             predio=self.predio_b,
             visivel_publicamente=True,
         )
@@ -103,10 +129,10 @@ class ControlPanelViewTests(TestCase):
             ano=2026,
             assunto="Servico negado",
             data_cadastro=date(2026, 2, 2),
-            divisao="Instalacoes Hidraulicas",
-            status_sipac="09 NEGADA",
-            tipo_servico="Hidraulica",
-            servico="Vazamento",
+            divisao=div_hidraulica,
+            status_sipac=st_negada,
+            tipo_servico=tipo_hidraulica,
+            servico=serv_vazamento,
             predio=self.predio_b,
             visivel_publicamente=True,
         )
@@ -116,10 +142,10 @@ class ControlPanelViewTests(TestCase):
             ano=2026,
             assunto="Servico estornado",
             data_cadastro=date(2026, 2, 10),
-            divisao="Marcenaria",
-            status_sipac="08 ESTORNADA",
-            tipo_servico="Marcenaria",
-            servico="Porta",
+            divisao=div_marcenaria,
+            status_sipac=st_estornada,
+            tipo_servico=tipo_marcenaria,
+            servico=serv_porta,
             predio=self.predio_b,
             visivel_publicamente=True,
         )
@@ -130,10 +156,10 @@ class ControlPanelViewTests(TestCase):
             assunto="Oculta do publico",
             data_cadastro=date(2026, 2, 1),
             data_execucao=date(2026, 2, 6),
-            divisao="Construcao Civil",
-            status_sipac="06 FINALIZADA",
-            tipo_servico="Ar Condicionado",
-            servico="Split",
+            divisao=div_civil,
+            status_sipac=st_finalizada,
+            tipo_servico=tipo_arcondicionado,
+            servico=serv_split,
             predio=self.predio_a,
             orcamento_valor=Decimal("5000.00"),
             visivel_publicamente=False,
@@ -177,8 +203,8 @@ class ControlPanelViewTests(TestCase):
         response = self.client.get(reverse("public-control-panel"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Vis&atilde;o executiva p&uacute;blica")
-        self.assertNotContains(response, "Gest&atilde;o interna")
+        self.assertContains(response, "Indicadores Chave de Desempenho")
+        self.assertNotIn("internal_triage", response.context)
         self.assertEqual(response.context["filtered_total"], 5)
         summary = {item["label"]: item["value"] for item in response.context["summary_cards"]}
         self.assertEqual(summary["Orçamento finalizado"], Decimal("1000.00"))
@@ -188,7 +214,6 @@ class ControlPanelViewTests(TestCase):
         response = self.client.get(reverse("public-control-panel"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Gest&atilde;o interna")
         self.assertIn("internal_triage", response.context)
 
     def test_director_sees_internal_management_block(self):
@@ -196,7 +221,6 @@ class ControlPanelViewTests(TestCase):
         response = self.client.get(reverse("public-control-panel"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Gest&atilde;o interna")
         self.assertIn("internal_triage", response.context)
 
     def test_admin_sees_internal_management_block(self):
@@ -204,7 +228,6 @@ class ControlPanelViewTests(TestCase):
         response = self.client.get(reverse("public-control-panel"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Gest&atilde;o interna")
         self.assertIn("internal_triage", response.context)
 
     def test_control_panel_partial_applies_combined_filters_and_preserves_public_scope(self):

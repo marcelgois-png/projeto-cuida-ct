@@ -8,22 +8,22 @@ from typing import Any
 from django.db.models import Count, Q, QuerySet, Sum
 
 from .domain import clean_display_text, derive_situation, normalize_text, resolve_status_sipac_metadata
-from .models import HistoricoStatus, RegraPrioridade, Requisicao, StatusSipacOpcao
+from .models import HistoricoStatus, RegraPrioridade, Requisicao, StatusRequisicao
 
 
 def status_sipac_catalog(extra_values: list[str] | tuple[str, ...] | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    for item in StatusSipacOpcao.objects.filter(ativa=True).order_by("ordem", "numero", "descricao"):
-        value = clean_display_text(item.descricao)
+    for item in StatusRequisicao.objects.filter(ativa=True).order_by("ordem", "numero", "codigo"):
+        value = clean_display_text(item.codigo)
         if not value or value in seen:
             continue
         rows.append(
             {
                 "value": value,
                 "numero": clean_display_text(item.numero),
-                "rotulo": clean_display_text(item.rotulo) or value,
+                "rotulo": clean_display_text(item.nome) or value,
                 "descricao": value,
                 "ordem": item.ordem,
                 "label": item.exibicao,
@@ -69,10 +69,10 @@ def calculate_execution_days(requisicao: Requisicao) -> int | None:
     if not requisicao.data_cadastro:
         return None
 
-    status = clean_display_text(requisicao.status_sipac)
-    situacao = clean_display_text(requisicao.situacao_requisicao) or derive_situation(status)
+    status_codigo = requisicao.status_sipac.codigo if requisicao.status_sipac else ""
+    situacao = clean_display_text(requisicao.situacao_requisicao) or derive_situation(status_codigo)
 
-    if status == "06 FINALIZADA":
+    if status_codigo == "06 FINALIZADA":
         if not requisicao.data_execucao:
             return None
         return max((requisicao.data_execucao - requisicao.data_cadastro).days, 0)
@@ -101,13 +101,14 @@ def register_status_history(
     origin: str = HistoricoStatus.Origem.MANUAL,
     note: str = "",
 ) -> None:
-    status_changed = (previous_status or "") != (requisicao.status_sipac or "")
+    status_atual = requisicao.status_sipac.codigo if requisicao.status_sipac else ""
+    status_changed = (previous_status or "") != status_atual
     note_changed = bool(note) and note != (previous_note or "")
     if not requisicao.pk or not (status_changed or note_changed):
         return
     HistoricoStatus.objects.create(
         requisicao=requisicao,
-        status_sipac=requisicao.status_sipac,
+        status_sipac=status_atual,
         situacao_requisicao=requisicao.situacao_requisicao,
         observacao=note,
         origem=origin,
@@ -119,19 +120,23 @@ def metrics_for_queryset(queryset: QuerySet[Requisicao]) -> dict[str, Any]:
     total = queryset.count()
     abertas = queryset.filter(situacao_requisicao="Ativa").count()
     inativas = queryset.filter(situacao_requisicao="Inativa").count()
-    concluidas = queryset.filter(status_sipac="06 FINALIZADA").count()
-    executadas = queryset.filter(Q(data_execucao__isnull=False) | Q(status_sipac="06 FINALIZADA")).count()
+    concluidas = queryset.filter(status_sipac__codigo="06 FINALIZADA").count()
+    executadas = queryset.filter(Q(data_execucao__isnull=False) | Q(status_sipac__codigo="06 FINALIZADA")).count()
     publicas = queryset.filter(visivel_publicamente=True).count()
     por_divisao = list(
-        queryset.values("divisao")
+        queryset.values("divisao__nome")
         .annotate(total=Count("id"))
-        .order_by("-total", "divisao")[:8]
+        .order_by("-total", "divisao__nome")[:8]
     )
-    status_rows = list(queryset.exclude(status_sipac="").values("status_sipac").annotate(total=Count("id")))
-    lookup = status_sipac_lookup([item["status_sipac"] for item in status_rows])
+    status_rows = list(
+        queryset.filter(status_sipac__isnull=False)
+        .values("status_sipac__codigo")
+        .annotate(total=Count("id"))
+    )
+    lookup = status_sipac_lookup([row["status_sipac__codigo"] for row in status_rows])
     por_status = []
     for row in status_rows:
-        raw_status = clean_display_text(row["status_sipac"])
+        raw_status = clean_display_text(row["status_sipac__codigo"])
         metadata = lookup.get(raw_status, {})
         por_status.append(
             {
@@ -164,13 +169,13 @@ def metrics_for_queryset(queryset: QuerySet[Requisicao]) -> dict[str, Any]:
 
 def climatization_investment_for_queryset(queryset: QuerySet[Requisicao]) -> Decimal:
     total = queryset.filter(
-        Q(status_sipac__icontains="FINALIZADA")
+        Q(status_sipac__codigo__icontains="FINALIZADA")
     ).filter(
-        Q(tipo_servico__icontains="Ar Condicionado")
-        | Q(servico__icontains="Ar Condicionado")
-        | Q(servico__icontains="ar-condicionado")
-        | Q(tipo_servico__icontains="Climatiza")
-        | Q(servico__icontains="Climatiza")
+        Q(tipo_servico__nome__icontains="Ar Condicionado")
+        | Q(servico__nome__icontains="Ar Condicionado")
+        | Q(servico__nome__icontains="ar-condicionado")
+        | Q(tipo_servico__nome__icontains="Climatiza")
+        | Q(servico__nome__icontains="Climatiza")
         | Q(assunto__icontains="ar condicionado")
         | Q(assunto__icontains="ar-condicionado")
         | Q(assunto__icontains="climatiza")
@@ -240,7 +245,7 @@ def control_panel_analytics(
 ) -> dict[str, Any]:
     macro_lookup = {item["key"]: item for item in CONTROL_PANEL_MACROSTATUS}
     items = list(queryset.order_by("ano", "numero", "codigo"))
-    status_lookup = status_sipac_lookup([item.status_sipac for item in items])
+    status_lookup = status_sipac_lookup([item.status_sipac.codigo if item.status_sipac else "" for item in items])
 
     if years is None:
         years = sorted(
@@ -254,8 +259,9 @@ def control_panel_analytics(
 
     filtered_items: list[Requisicao] = []
     for item in items:
-        item.status_sipac_exibicao = status_sipac_display(item.status_sipac, status_lookup)
-        item.control_macrostatus_key = resolve_control_panel_macrostatus(item.status_sipac, item.situacao_requisicao)
+        item._status_codigo = item.status_sipac.codigo if item.status_sipac else ""
+        item.status_sipac_exibicao = status_sipac_display(item._status_codigo, status_lookup)
+        item.control_macrostatus_key = resolve_control_panel_macrostatus(item._status_codigo, item.situacao_requisicao)
         item.control_macrostatus_label = macro_lookup[item.control_macrostatus_key]["label"]
         item.control_days = calculate_execution_days(item)
         item.control_year = item.ano or (item.data_cadastro.year if item.data_cadastro else None)
@@ -299,7 +305,7 @@ def control_panel_analytics(
         if item.control_days is not None:
             macro_entry["days"].append(item.control_days)
 
-        raw_status = clean_display_text(item.status_sipac) or "(Em branco)"
+        raw_status = clean_display_text(item._status_codigo) or "(Em branco)"
         status_entry = raw_status_rows.setdefault(
             raw_status,
             {
@@ -312,7 +318,7 @@ def control_panel_analytics(
         )
         status_entry["total"] += 1
 
-        division = clean_display_text(item.divisao) or "(Em branco)"
+        division = clean_display_text(item.divisao.nome if item.divisao else "") or "(Em branco)"
         division_entry = division_rows.setdefault(division, {"divisao": division, "ativas": 0, "inativas": 0, "total": 0})
         division_entry["total"] += 1
         if item.situacao_requisicao == "Ativa":
@@ -328,8 +334,8 @@ def control_panel_analytics(
         else:
             building_entry["inativas"] += 1
 
-        tipo_servico = clean_display_text(item.tipo_servico) or "(Em branco)"
-        servico = clean_display_text(item.servico) or "(Em branco)"
+        tipo_servico = clean_display_text(item.tipo_servico.nome if item.tipo_servico else "") or "(Em branco)"
+        servico = clean_display_text(item.servico.nome if item.servico else "") or "(Em branco)"
         service_group = service_groups.setdefault(
             tipo_servico,
             {
@@ -373,9 +379,10 @@ def control_panel_analytics(
                     annual_rows[item.control_year]["orcamento_total"] += item.orcamento_valor
                 if item.control_days is not None:
                     annual_rows[item.control_year]["dias"].append(item.control_days)
-                quantity_matrix[division][item.control_year] += 1
+                qty_div = clean_display_text(item.divisao.nome if item.divisao else "") or "(Em branco)"
+                quantity_matrix[qty_div][item.control_year] += 1
                 if item.control_days is not None:
-                    wait_matrix[division][item.control_year].append(item.control_days)
+                    wait_matrix[qty_div][item.control_year].append(item.control_days)
 
         if item.situacao_requisicao == "Ativa":
             oldest_active.append(item)
@@ -599,23 +606,23 @@ def control_panel_analytics(
 def service_panel_for_queryset(queryset: QuerySet[Requisicao], *, selected_divisao: str = "") -> dict[str, Any]:
     base_queryset = queryset
     if selected_divisao:
-        queryset = queryset.filter(divisao=selected_divisao)
+        queryset = queryset.filter(divisao__nome=selected_divisao)
 
     divisao_status = list(
-        base_queryset.values("divisao")
+        base_queryset.values("divisao__nome")
         .annotate(
             ativas=Count("id", filter=Q(situacao_requisicao="Ativa")),
             inativas=Count("id", filter=Q(situacao_requisicao="Inativa")),
             total=Count("id"),
         )
-        .order_by("-total", "divisao")[:10]
+        .order_by("-total", "divisao__nome")[:10]
     )
 
     grouped_services: OrderedDict[str, dict[str, Any]] = OrderedDict()
-    ordered_items = queryset.order_by("tipo_servico", "servico", "codigo")
+    ordered_items = queryset.order_by("tipo_servico__nome", "servico__nome", "codigo")
     for item in ordered_items:
-        tipo_servico = clean_display_text(item.tipo_servico) or "(Em branco)"
-        servico = clean_display_text(item.servico) or "(Em branco)"
+        tipo_servico = clean_display_text(item.tipo_servico.nome if item.tipo_servico else "") or "(Em branco)"
+        servico = clean_display_text(item.servico.nome if item.servico else "") or "(Em branco)"
         dias_execucao = calculate_execution_days(item)
 
         group = grouped_services.setdefault(
@@ -674,7 +681,7 @@ def service_panel_for_queryset(queryset: QuerySet[Requisicao], *, selected_divis
     for row in divisao_status:
         normalized_divisoes.append(
             {
-                "divisao": row["divisao"] or "(Em branco)",
+                "divisao": row["divisao__nome"] or "(Em branco)",
                 "ativas": row["ativas"],
                 "inativas": row["inativas"],
                 "total": row["total"],
@@ -694,7 +701,8 @@ def serialize_requisicao(
     public: bool = False,
     status_lookup_map: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    status_display = status_sipac_display(requisicao.status_sipac, status_lookup_map)
+    status_codigo = requisicao.status_sipac.codigo if requisicao.status_sipac else ""
+    status_display = status_sipac_display(status_codigo, status_lookup_map)
     payload = OrderedDict(
         [
             ("id", requisicao.id),
@@ -704,12 +712,12 @@ def serialize_requisicao(
             ("assunto", requisicao.assunto),
             ("orcamento", requisicao.orcamento),
             ("data_cadastro", requisicao.data_cadastro.isoformat() if requisicao.data_cadastro else None),
-            ("divisao", requisicao.divisao),
-            ("tipo_servico", requisicao.tipo_servico),
-            ("servico", requisicao.servico),
+            ("divisao", requisicao.divisao.nome if requisicao.divisao else ""),
+            ("tipo_servico", requisicao.tipo_servico.nome if requisicao.tipo_servico else ""),
+            ("servico", requisicao.servico.nome if requisicao.servico else ""),
             ("predio", requisicao.predio.nome if requisicao.predio else ""),
             ("local_servico", requisicao.local_servico),
-            ("status_sipac", requisicao.status_sipac),
+            ("status_sipac", status_codigo),
             ("status_sipac_exibicao", status_display),
             ("situacao_requisicao", requisicao.situacao_requisicao),
             ("sinfra_responsavel", requisicao.sinfra_responsavel),

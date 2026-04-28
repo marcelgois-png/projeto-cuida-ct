@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.tracker.models import AcompanhamentoRequisicao, EncaminhamentoDiretor, Requisicao
+from apps.tracker.models import AcompanhamentoRequisicao, EncaminhamentoDiretor, Requisicao, StatusRequisicao
 
 
 User = get_user_model()
@@ -19,13 +19,20 @@ class InternalDecisoesFlowTests(TestCase):
         )
         self.client.login(username="diretor_ct", password="segredo")
 
+        st_enviada, _ = StatusRequisicao.objects.get_or_create(
+            codigo="02 ENVIADA", defaults={"nome": "Enviada", "mapeamento_situacao": "ATIVA", "ordem": 2}
+        )
+        st_os_emitida, _ = StatusRequisicao.objects.get_or_create(
+            codigo="04 OS EMITIDA", defaults={"nome": "OS emitida", "mapeamento_situacao": "ATIVA", "ordem": 4}
+        )
+
         self.requisicao_1 = Requisicao.objects.create(
             codigo="401/2026",
             numero=401,
             ano=2026,
             assunto="Adequacao eletrica",
             data_cadastro=date(2026, 4, 3),
-            status_sipac="02 ENVIADA",
+            status_sipac=st_enviada,
             local_servico="Bloco A",
             nome_requisitante_snapshot="MARIA TESTE",
             status_processo_diretor=Requisicao.StatusProcessoDiretor.AGUARDANDO_DECISAO,
@@ -36,7 +43,7 @@ class InternalDecisoesFlowTests(TestCase):
             ano=2026,
             assunto="Revisao estrutural",
             data_cadastro=date(2026, 4, 4),
-            status_sipac="04 OS EMITIDA",
+            status_sipac=st_os_emitida,
             local_servico="Bloco B",
             nome_requisitante_snapshot="JOSE TESTE",
             status_processo_diretor=Requisicao.StatusProcessoDiretor.AGUARDANDO_DECISAO,
@@ -47,7 +54,7 @@ class InternalDecisoesFlowTests(TestCase):
             reverse("decisoes-encaminhamento-preview"),
             {
                 "requisicao_ids": [self.requisicao_1.pk, self.requisicao_2.pk],
-                "decisao": "autorizado",
+                "decisao": "abrir_processo",
             },
             HTTP_HX_REQUEST="true",
         )
@@ -63,7 +70,7 @@ class InternalDecisoesFlowTests(TestCase):
             reverse("decisoes-bulk-decide"),
             {
                 "requisicao_ids": [self.requisicao_1.pk, self.requisicao_2.pk],
-                "decisao": "autorizado",
+                "decisao": "abrir_processo",
                 "orientacoes": "Abrir processo administrativo e orientar o operador a reunir a documentacao.",
             },
             HTTP_HX_REQUEST="true",
@@ -106,7 +113,7 @@ class InternalDecisoesFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Encaminhamento #001")
-        self.assertContains(response, "Encerrar requisicao")
+        self.assertContains(response, "Encerrar requisição")
         self.assertContains(response, self.requisicao_1.codigo)
         self.assertContains(response, "Encerrar a requisicao e comunicar o requisitante.")
 

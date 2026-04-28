@@ -30,7 +30,16 @@
       "Bash(del \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\\\\run_migrate.py\")",
       "Bash(dir \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto - Acompanhamento Requisições de Manutenção - CT\")",
       "Bash(echo \"Exit: $?\")",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "PowerShell(head -20)",
+      "PowerShell(Get-ChildItem -Recurse -Directory \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto_Cuida_CT\" | Select-Object -First 50 -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto_Cuida_CT\\\\\", \"\"\\) })",
+      "Bash(python manage.py check --no-color)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python manage.py migrate core 0004_c3_status_requisicao)",
+      "PowerShell(cd \"C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto_Cuida_CT\"; \\(Get-Content apps\\\\tracker\\\\views.py\\).Count)",
+      "PowerShell(cd C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto_Cuida_CT; $env:MYSQL_DB = $null; python manage.py test apps.tracker --verbosity=1 2>&1 | Select-Object -Last 50)",
+      "PowerShell(cd C:\\\\Users\\\\MarcelGois\\\\Documents\\\\Projeto_Cuida_CT; [System.Environment]::GetEnvironmentVariable\\(\"MYSQL_DB\"\\))",
+      "Bash(python manage.py test apps.tracker --settings=ct_sinfra.settings_test)"
     ]
   }
 }
