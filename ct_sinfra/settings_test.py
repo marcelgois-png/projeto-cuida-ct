@@ -13,6 +13,7 @@ MIGRATION_MODULES = {
     "accounts": None,
     "core": None,
     "tracker": None,
+    "processos": None,
 }
 
 # Use simple static files storage — no manifest required in tests.

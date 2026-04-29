@@ -399,3 +399,63 @@ class MovimentacaoEmpenho(TimeStampedModel):
         return f'{self.get_tipo_display()} R${self.valor} — {self.empenho.nota_empenho}'
 
 
+# ── Módulo de Processos — modelos de apoio ────────────────────────────────────
+
+class StatusProcesso(TimeStampedModel):
+    codigo = models.CharField(max_length=10, unique=True)
+    nome = models.CharField(max_length=200)
+    ordem = models.IntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'core_statusprocesso'
+        ordering = ['ordem']
+        verbose_name = 'Status de Processo'
+        verbose_name_plural = 'Status de Processo'
+
+    def __str__(self) -> str:
+        return f'{self.codigo} — {self.nome}'
+
+
+class SituacaoSIPAC(TimeStampedModel):
+    nome = models.CharField(max_length=50, unique=True)
+    ativa = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'core_situacaosipac'
+        ordering = ['nome']
+        verbose_name = 'Situação SIPAC'
+        verbose_name_plural = 'Situações SIPAC'
+
+    def __str__(self) -> str:
+        return self.nome
+
+
+class GerenciaSINFRA(TimeStampedModel):
+    nome = models.CharField(max_length=200, unique=True)
+    ativa = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'core_gerenciasinfra'
+        ordering = ['nome']
+        verbose_name = 'Gerência SINFRA'
+        verbose_name_plural = 'Gerências SINFRA'
+
+    def __str__(self) -> str:
+        return self.nome
+
+
+class ServicoProcesso(TimeStampedModel):
+    nome = models.CharField(max_length=200, unique=True)
+    ordem = models.IntegerField(default=0, blank=True, null=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'core_servicoprocesso'
+        ordering = ['ordem', 'nome']
+        verbose_name = 'Serviço de Processo'
+        verbose_name_plural = 'Serviços de Processo'
+
+    def __str__(self) -> str:
+        return self.nome
+
