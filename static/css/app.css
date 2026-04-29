@@ -416,6 +416,22 @@ a:hover {
 .sb-txt { transition: opacity 0.2s; white-space: nowrap; }
 #sidebar.sb-col .sb-txt { opacity: 0; width: 0; overflow: hidden; }
 
+.sb-trocar-modulo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px 10px;
+  font-size: .75rem;
+  color: #A5B1BA;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  margin-bottom: 4px;
+  transition: color .15s;
+}
+.sb-trocar-modulo:hover { color: #d0d8de; }
+.sb-trocar-modulo i { font-size: 1rem; flex-shrink: 0; }
+#sidebar.sb-col .sb-trocar-modulo .sb-txt { opacity: 0; width: 0; overflow: hidden; }
+
 /* MAIN WRAPPER */
 #main-wrapper {
   margin-left: var(--ct-sidebar-width);

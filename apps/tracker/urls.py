@@ -4,6 +4,7 @@ from . import views
 
 
 urlpatterns = [
+    path("hub/", views.HubModuloView.as_view(), name="hub-modulo"),
     path("", views.PublicDashboardView.as_view(), name="public-dashboard"),
     path("requisicoes/<int:pk>/", views.PublicRequisicaoDetailView.as_view(), name="public-requisicao-detail"),
     path("public/painel/", views.public_dashboard_panel, name="public-dashboard-panel"),

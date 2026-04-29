@@ -61,6 +61,17 @@ PAGINATION_EDGE_PAGES = 2
 PAGINATION_WINDOW_PAGES = 2
 
 
+# ── Hub de seleção de módulo ──────────────────────────────────────────────────
+
+class HubModuloView(LoginRequiredMixin, TemplateView):
+    template_name = "tracker/hub_modulo.html"
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["modulo_processos_disponivel"] = False  # Etapa 3 habilita
+        return ctx
+
+
 def user_is_operator(request: HttpRequest) -> bool:
     return bool(request.user.is_authenticated and getattr(request.user, "is_operator", False))
 

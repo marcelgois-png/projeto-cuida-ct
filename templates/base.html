@@ -90,9 +90,15 @@
 </header>
 
 <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
+{% block sidebar %}
 {% if request.user.is_authenticated %}
 <nav id="sidebar">
   <div class="sb-nav">
+
+    <a href="{% url 'hub-modulo' %}" class="sb-trocar-modulo" data-sb-label="Trocar módulo">
+      <i class="bi bi-arrow-left-short"></i>
+      <span class="sb-txt">Trocar m&oacute;dulo</span>
+    </a>
 
     {% if request.user.is_operator %}
       <div class="sb-section">Gestão de requisições</div>
@@ -184,9 +190,10 @@
   </div>
 </nav>
 {% endif %}
+{% endblock sidebar %}
 
 <!-- ── MAIN WRAPPER ────────────────────────────────────────────────── -->
-<div id="main-wrapper" {% if not request.user.is_authenticated %}class="mw-no-sb"{% endif %}>
+<div id="main-wrapper" class="{% block main_wrapper_class %}{% if not request.user.is_authenticated %}mw-no-sb{% endif %}{% endblock %}">
 
   {% if messages %}
     <div class="px-4 pt-3">

@@ -143,7 +143,7 @@ SECURE_PROXY_SSL_HEADER = (
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "internal-cadastro"
+LOGIN_REDIRECT_URL = "hub-modulo"
 LOGOUT_REDIRECT_URL = "public-dashboard"
 
 MEDIA_URL = "/media/"
