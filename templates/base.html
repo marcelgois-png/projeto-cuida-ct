@@ -134,20 +134,22 @@
     {% endif %}
 
     {% if request.user.is_director %}
-      <div class="sb-section">Direção</div>
+      <div class="sb-section">Gestão de Decisões</div>
 
       <a href="{% url 'internal-decisoes' %}"
          class="sb-link {% if request.resolver_match.url_name == 'internal-decisoes' %}active{% endif %}"
-         data-sb-label="Decisões de Processo">
+         data-sb-label="Mesa da Direção">
         <i class="bi bi-briefcase"></i>
-        <span class="sb-txt">Decisões de Processo</span>
+        <span class="sb-txt">Mesa da Direção</span>
+        {% if sidebar_decisoes_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_decisoes_count }}</span>{% endif %}
       </a>
 
       <a href="{% url 'internal-encaminhamentos' %}"
          class="sb-link {% if request.resolver_match.url_name == 'internal-encaminhamentos' %}active{% endif %}"
-         data-sb-label="Encaminhamentos">
-        <i class="bi bi-power"></i>
-        <span class="sb-txt">Encaminhamentos</span>
+         data-sb-label="Mesa da Assessoria">
+        <i class="bi bi-send-check"></i>
+        <span class="sb-txt">Mesa da Assessoria</span>
+        {% if sidebar_assessoria_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_assessoria_count }}</span>{% endif %}
       </a>
     {% endif %}
 
