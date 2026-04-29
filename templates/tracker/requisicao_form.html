@@ -136,6 +136,7 @@
           <div class="col-md-4">
             <label for="{{ form.nome_requisitante_snapshot.id_for_label }}" class="form-label fw-semibold">{{ form.nome_requisitante_snapshot.label }}</label>
             {{ form.nome_requisitante_snapshot }}
+            <datalist id="solicitantes-datalist"></datalist>
             {% for error in form.nome_requisitante_snapshot.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
@@ -379,6 +380,32 @@
 {% endblock %}
 
 {% block extra_scripts %}
+  <script>
+  (function () {
+    const input = document.getElementById("{{ form.nome_requisitante_snapshot.id_for_label }}");
+    const datalist = document.getElementById("solicitantes-datalist");
+    if (!input || !datalist) return;
+
+    input.setAttribute("list", "solicitantes-datalist");
+    input.setAttribute("autocomplete", "off");
+
+    let debounceTimer;
+    input.addEventListener("input", function () {
+      clearTimeout(debounceTimer);
+      const q = this.value.trim();
+      if (q.length < 2) { datalist.innerHTML = ""; return; }
+      debounceTimer = setTimeout(function () {
+        fetch("{% url 'api-autocomplete-solicitantes' %}?q=" + encodeURIComponent(q))
+          .then(r => r.json())
+          .then(names => {
+            datalist.innerHTML = names
+              .map(n => `<option value="${n}">`)
+              .join("");
+          });
+      }, 250);
+    });
+  })();
+  </script>
   {{ form.taxonomy_options|json_script:"taxonomy-options-data" }}
   <script>
     (function () {

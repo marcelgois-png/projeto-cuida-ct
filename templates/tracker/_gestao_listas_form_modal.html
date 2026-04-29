@@ -1,0 +1,28 @@
+<div class="p-3 border rounded bg-light mb-3">
+  <form method="post" action="{{ post_url }}">
+    {% csrf_token %}
+    <div class="row g-2 align-items-end">
+      <div class="col">
+        <label class="form-label fw-semibold mb-1">{{ field_label }}</label>
+        <input
+          type="text"
+          name="nome"
+          class="form-control form-control-sm"
+          value="{{ instance.nome|default:'' }}"
+          required
+          autofocus
+        >
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-check-lg me-1"></i>{% if instance %}Salvar{% else %}Adicionar{% endif %}
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          onclick="this.closest('.p-3').remove()"
+        >Cancelar</button>
+      </div>
+    </div>
+  </form>
+</div>

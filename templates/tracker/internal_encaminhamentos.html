@@ -34,6 +34,20 @@
             <span class="badge {% if encaminhamento.tipo == 'abrir_processo' %}badge-success-soft{% elif encaminhamento.tipo == 'encerrar_requisicao' %}badge-danger-soft{% else %}badge-primary-soft{% endif %}">
               {{ encaminhamento.get_tipo_display }}
             </span>
+            <span class="badge {% if encaminhamento.status == 'CONCLUIDO' %}bg-success{% elif encaminhamento.status == 'EM_ATENDIMENTO' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ encaminhamento.get_status_display }}
+            </span>
+            {% if encaminhamento.tipo == 'abrir_processo' %}
+              <button
+                type="button"
+                class="btn btn-sm btn-success"
+                disabled
+                title="Dispon&iacute;vel na Etapa 3 &mdash; m&oacute;dulo de Processos"
+                data-bs-toggle="tooltip"
+              >
+                <i class="bi bi-check-lg me-1"></i>Abrir processo
+              </button>
+            {% endif %}
             <form method="post" action="{% url 'internal-cancel-encaminhamento' encaminhamento.pk %}">
               {% csrf_token %}
               <button type="submit" class="btn btn-sm btn-danger text-white btn-cancel-encaminhamento" onclick="return confirm('Cancelar o encaminhamento #{{ encaminhamento.numero|stringformat:"03d" }} e devolver as requisições para a lista de decisões?');">

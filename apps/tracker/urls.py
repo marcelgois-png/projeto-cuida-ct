@@ -82,6 +82,29 @@ urlpatterns = [
     path("painel/listas/empresa/<int:pk>/edit/", views.empresa_crud, name="empresa-edit"),
     path("painel/listas/empresa/<int:pk>/delete/", views.empresa_delete, name="empresa-delete"),
 
+    # Autocomplete
+    path("api/autocomplete/solicitantes/", views.api_autocomplete_solicitantes, name="api-autocomplete-solicitantes"),
+
+    # Gestão de Listas — Prédios
+    path("painel/listas/predios/add/", views.predio_crud, name="predio-add"),
+    path("painel/listas/predios/<int:pk>/edit/", views.predio_crud, name="predio-edit"),
+    path("painel/listas/predios/<int:pk>/delete/", views.predio_delete, name="predio-delete"),
+
+    # Gestão de Listas — Setores
+    path("painel/listas/setores/add/", views.setor_crud, name="setor-add"),
+    path("painel/listas/setores/<int:pk>/edit/", views.setor_crud, name="setor-edit"),
+    path("painel/listas/setores/<int:pk>/delete/", views.setor_delete, name="setor-delete"),
+
+    # Gestão de Listas — Tipos de Ambiente
+    path("painel/listas/tipo-ambiente/add/", views.tipo_ambiente_crud, name="tipo-ambiente-add"),
+    path("painel/listas/tipo-ambiente/<int:pk>/edit/", views.tipo_ambiente_crud, name="tipo-ambiente-edit"),
+    path("painel/listas/tipo-ambiente/<int:pk>/delete/", views.tipo_ambiente_delete, name="tipo-ambiente-delete"),
+
+    # Gestão de Listas — Solicitantes
+    path("painel/listas/solicitantes/add/", views.solicitante_crud, name="solicitante-add"),
+    path("painel/listas/solicitantes/<int:pk>/edit/", views.solicitante_crud, name="solicitante-edit"),
+    path("painel/listas/solicitantes/<int:pk>/delete/", views.solicitante_delete, name="solicitante-delete"),
+
     # Edição Dinâmica e Ações em Lote
     path("painel/priorizacao/bulk-assign/", views.priorizacao_bulk_assign_empresa, name="priorizacao-bulk-assign"),
     path("painel/decisoes/encaminhamento/preview/", views.internal_decision_forward_preview, name="decisoes-encaminhamento-preview"),

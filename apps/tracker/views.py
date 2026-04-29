@@ -34,9 +34,12 @@ from .models import (
     Predio,
     RegraPrioridade,
     Requisicao,
+    Setor,
+    Servico,
     Solicitante,
     StatusRequisicao,
     TaxonomiaServico,
+    TipoAmbiente,
 )
 from apps.accounts.views import AdminRequiredMixin, user_is_admin
 from .services import (
@@ -2156,6 +2159,10 @@ class InternalGestaoListasView(AdminRequiredMixin, TemplateView):
         context["taxonomia_list"] = TaxonomiaServico.objects.all()
         context["gut_params"] = GUTParametro.objects.all()
         context["empresas"] = Empresa.objects.all()
+        context["predios"] = Predio.objects.all().order_by("nome")
+        context["setores"] = Setor.objects.all().order_by("nome")
+        context["tipos_ambiente"] = TipoAmbiente.objects.all().order_by("nome")
+        context["solicitantes"] = Solicitante.objects.all().order_by("nome")
         return context
 
 
@@ -2658,3 +2665,175 @@ def requisicao_delete(request, pk):
 
     messages.warning(request, f"Requisição {codigo} apagada com sucesso.")
     return redirect("internal-lista")
+
+
+# ── Autocomplete ──────────────────────────────────────────────────────────────
+
+@login_required
+def api_autocomplete_solicitantes(request: HttpRequest) -> JsonResponse:
+    """Fuzzy autocomplete for solicitante names. Returns top-20 matches."""
+    q = request.GET.get("q", "").strip()
+    if len(q) < 2:
+        return JsonResponse([], safe=False)
+    qs = (
+        Solicitante.objects.filter(nome__icontains=q)
+        .values_list("nome", flat=True)
+        .order_by("nome")[:20]
+    )
+    return JsonResponse(list(qs), safe=False)
+
+
+# ── Gestão de Listas — CRUD auxiliar (Prédios, Setores, TipoAmbiente, Serviços, Solicitantes) ──
+
+def _gestao_listas_redirect():
+    return redirect("internal-gestao-listas")
+
+
+@login_required
+def predio_crud(request: HttpRequest, pk: int | None = None) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    instance = get_object_or_404(Predio, pk=pk) if pk else None
+    if request.method == "POST":
+        nome = request.POST.get("nome", "").strip()
+        if not nome:
+            return HttpResponse("Nome é obrigatório.", status=400)
+        if instance:
+            instance.nome = nome
+            instance.save()
+        else:
+            Predio.objects.create(nome=nome)
+        return _gestao_listas_redirect()
+    return render(request, "tracker/_gestao_listas_form_modal.html", {
+        "instance": instance,
+        "entity_label": "Prédio",
+        "field_label": "Nome do Prédio",
+        "post_url": (
+            reverse("predio-edit", args=[pk]) if pk
+            else reverse("predio-add")
+        ),
+    })
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def predio_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    get_object_or_404(Predio, pk=pk).delete()
+    return _gestao_listas_redirect()
+
+
+@login_required
+def setor_crud(request: HttpRequest, pk: int | None = None) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    instance = get_object_or_404(Setor, pk=pk) if pk else None
+    if request.method == "POST":
+        nome = request.POST.get("nome", "").strip()
+        sigla = request.POST.get("sigla", "").strip()
+        ativo = request.POST.get("ativo") == "on"
+        if not nome:
+            return HttpResponse("Nome é obrigatório.", status=400)
+        if instance:
+            instance.nome = nome
+            instance.sigla = sigla
+            instance.ativo = ativo
+            instance.save()
+        else:
+            Setor.objects.create(nome=nome, sigla=sigla, ativo=ativo)
+        return _gestao_listas_redirect()
+    return render(request, "tracker/_gestao_listas_form_modal.html", {
+        "instance": instance,
+        "entity_label": "Setor",
+        "field_label": "Nome do Setor",
+        "post_url": (
+            reverse("setor-edit", args=[pk]) if pk
+            else reverse("setor-add")
+        ),
+    })
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def setor_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    get_object_or_404(Setor, pk=pk).delete()
+    return _gestao_listas_redirect()
+
+
+@login_required
+def tipo_ambiente_crud(request: HttpRequest, pk: int | None = None) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    instance = get_object_or_404(TipoAmbiente, pk=pk) if pk else None
+    if request.method == "POST":
+        nome = request.POST.get("nome", "").strip()
+        descricao = request.POST.get("descricao", "").strip()
+        ativo = request.POST.get("ativo") == "on"
+        if not nome:
+            return HttpResponse("Nome é obrigatório.", status=400)
+        if instance:
+            instance.nome = nome
+            instance.descricao = descricao
+            instance.ativo = ativo
+            instance.save()
+        else:
+            TipoAmbiente.objects.create(nome=nome, descricao=descricao, ativo=ativo)
+        return _gestao_listas_redirect()
+    return render(request, "tracker/_gestao_listas_form_modal.html", {
+        "instance": instance,
+        "entity_label": "Tipo de Ambiente",
+        "field_label": "Nome do Tipo de Ambiente",
+        "post_url": (
+            reverse("tipo-ambiente-edit", args=[pk]) if pk
+            else reverse("tipo-ambiente-add")
+        ),
+    })
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def tipo_ambiente_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    get_object_or_404(TipoAmbiente, pk=pk).delete()
+    return _gestao_listas_redirect()
+
+
+@login_required
+def solicitante_crud(request: HttpRequest, pk: int | None = None) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    instance = get_object_or_404(Solicitante, pk=pk) if pk else None
+    if request.method == "POST":
+        nome = request.POST.get("nome", "").strip()
+        identificador = request.POST.get("identificador", "").strip()
+        if not nome:
+            return HttpResponse("Nome é obrigatório.", status=400)
+        if instance:
+            instance.nome = nome
+            instance.identificador = identificador
+            instance.save()
+        else:
+            Solicitante.objects.create(nome=nome, identificador=identificador)
+        return _gestao_listas_redirect()
+    return render(request, "tracker/_gestao_listas_form_modal.html", {
+        "instance": instance,
+        "entity_label": "Solicitante",
+        "field_label": "Nome do Solicitante",
+        "post_url": (
+            reverse("solicitante-edit", args=[pk]) if pk
+            else reverse("solicitante-add")
+        ),
+    })
+
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def solicitante_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    get_object_or_404(Solicitante, pk=pk).delete()
+    return _gestao_listas_redirect()
