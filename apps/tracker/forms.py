@@ -52,7 +52,7 @@ class RequisicaoForm(forms.ModelForm):
         widget=forms.DateInput(format=DATE_INPUT_FORMAT, attrs={"type": "date"}),
     )
     local_servico = forms.CharField(required=False)
-    nome_requisitante_snapshot = forms.CharField(label="Nome do Requisitante")
+    nome_requisitante_snapshot = forms.CharField(label="Nome do Solicitante")
     unidade_setor_snapshot = forms.CharField(label="Unidade/Setor")
     contato_direto_url = forms.CharField(
         required=False,
