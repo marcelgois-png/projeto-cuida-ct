@@ -318,6 +318,59 @@ class ProcessoPublicoDetalheView(DetailView):
         return ctx
 
 
+# ── Importação em lote ───────────────────────────────────────────────────────
+
+@require_http_methods(["GET"])
+def modelo_planilha_processos(request):
+    """GET: gera e retorna o modelo XLSX para preenchimento e importação."""
+    from .importers import gerar_modelo_xlsx
+    content = gerar_modelo_xlsx()
+    response = HttpResponse(
+        content,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="modelo_processos.xlsx"'
+    return response
+
+
+@require_http_methods(["POST"])
+def importar_processos(request):
+    """POST: recebe arquivo XLSX e importa processos em lote."""
+    from .importers import ProcessoImporter
+    arquivo = request.FILES.get("arquivo")
+    if not arquivo:
+        messages.error(request, "Nenhum arquivo enviado.")
+        return redirect(reverse("processos:lista"))
+    try:
+        importer = ProcessoImporter()
+        resultado = importer.import_file(arquivo)
+    except Exception as exc:  # noqa: BLE001
+        messages.error(request, f"Erro ao processar o arquivo: {exc}")
+        return redirect(reverse("processos:lista"))
+
+    criados = resultado.get("criados", 0)
+    atualizados = resultado.get("atualizados", 0)
+    erros = resultado.get("erros", [])
+
+    if erros:
+        for erro in erros[:10]:
+            messages.warning(request, erro)
+        if len(erros) > 10:
+            messages.warning(request, f"… e mais {len(erros) - 10} erro(s) omitido(s).")
+
+    if criados or atualizados:
+        partes = []
+        if criados:
+            partes.append(f"{criados} processo(s) criado(s)")
+        if atualizados:
+            partes.append(f"{atualizados} processo(s) atualizado(s)")
+        messages.success(request, "Importação concluída: " + " e ".join(partes) + ".")
+    elif not erros:
+        messages.info(request, "Nenhum processo foi importado (planilha vazia ou sem dados novos).")
+
+    return redirect(reverse("processos:lista"))
+
+
 # ── Empenhos ──────────────────────────────────────────────────────────────────
 
 class EmpenhoProcessosView(LoginRequiredMixin, ListView):

@@ -15,10 +15,73 @@
       </div>
     </div>
   </div>
-  <div class="d-flex gap-2 flex-wrap">
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+
+    {# ── Gerar modelo ─────────────────────────────────── #}
+    <a href="{% url 'processos:modelo-planilha' %}"
+       class="btn btn-sm btn-outline-secondary"
+       title="Baixar planilha modelo para preenchimento">
+      <i class="bi bi-file-earmark-arrow-down me-1"></i>Gerar modelo
+    </a>
+
+    {# ── Importar planilha ────────────────────────────── #}
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary"
+            title="Importar processos via planilha Excel"
+            data-bs-toggle="modal" data-bs-target="#modalImportar">
+      <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
+    </button>
+
+    {# ── Novo processo ────────────────────────────────── #}
     <a class="btn btn-primary" href="{% url 'processos:cadastro' %}" style="background:#7A2632;border-color:#7A2632;">
       <i class="bi bi-folder-plus me-1"></i>Novo Processo
     </a>
+
+  </div>
+</div>
+
+{# ── Modal de importação ───────────────────────────────────────────────────── #}
+<div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalImportarLabel">
+          <i class="bi bi-file-earmark-arrow-up me-2" style="color:#7A2632;"></i>Importar Processos
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'processos:importar' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="text-muted small mb-3">
+            Selecione uma planilha Excel (<code>.xlsx</code>) no formato do modelo.
+            Processos já existentes (mesmo número) serão <strong>atualizados</strong>;
+            os demais serão <strong>criados</strong>.
+          </p>
+          <div class="mb-3">
+            <label for="importArquivo" class="form-label form-label-sm fw-semibold">
+              Arquivo <span class="text-danger">*</span>
+            </label>
+            <input class="form-control form-control-sm" type="file"
+                   id="importArquivo" name="arquivo" accept=".xlsx" required>
+            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos.</div>
+          </div>
+          <div class="alert alert-info d-flex gap-2 py-2 mb-0" style="font-size:.82rem;">
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+            <span>
+              Não tem o modelo? <a href="{% url 'processos:modelo-planilha' %}" class="alert-link">Baixe aqui</a>
+              antes de preencher.
+            </span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-primary" style="background:#7A2632;border-color:#7A2632;">
+            <i class="bi bi-upload me-1"></i>Importar
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 

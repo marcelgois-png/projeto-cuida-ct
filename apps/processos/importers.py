@@ -1,0 +1,410 @@
+from __future__ import annotations
+
+import io
+import re
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any
+
+from django.db import transaction
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+from apps.core.models import (
+    Empresa,
+    GerenciaSINFRA,
+    Predio,
+    ServicoProcesso,
+    SituacaoSIPAC,
+    StatusProcesso,
+    TipoAmbiente,
+)
+
+from .models import Processo
+
+
+# ── Cabeçalhos e metadados das colunas ────────────────────────────────────────
+
+COLUNAS = [
+    # (nome_coluna, campo_modelo, obrigatorio, descricao_legenda)
+    ("numero_processo",   "numero_processo",  True,  "Número do processo no SIPAC (ex: 23074.001234/2024-01). Obrigatório e único."),
+    ("assunto",           "assunto",          False, "Descrição resumida do objeto do processo."),
+    ("data_abertura",     "data_abertura",    False, "Data de abertura do processo. Formato: DD/MM/AAAA ou AAAA-MM-DD."),
+    ("data_os",           "data_os",          False, "Data de emissão da Ordem de Serviço. Formato: DD/MM/AAAA ou AAAA-MM-DD."),
+    ("data_conclusao",    "data_conclusao",   False, "Data de conclusão do serviço. Formato: DD/MM/AAAA ou AAAA-MM-DD."),
+    ("data_arquivamento", "data_arquivamento",False, "Data de arquivamento do processo. Formato: DD/MM/AAAA ou AAAA-MM-DD."),
+    ("status",            "status",           False, "Código ou nome do status do processo. Ver aba LEGENDAS para valores válidos."),
+    ("situacao_sipac",    "situacao_sipac",   False, "Situação no SIPAC: ATIVO, ARQUIVADO ou APENSADO."),
+    ("gerencia",          "gerencia",         False, "Nome da gerência da SINFRA responsável. Ver aba LEGENDAS para valores válidos."),
+    ("servico",           "servico",          False, "Nome do serviço do processo. Ver aba LEGENDAS para valores válidos."),
+    ("predio",            "predio",           False, "Nome do prédio (deve corresponder ao cadastro). Ver aba LEGENDAS para valores válidos."),
+    ("tipo_ambiente",     "tipo_ambiente",    False, "Tipo de ambiente (ex: Sala de Aula, Banheiro). Ver aba LEGENDAS para valores válidos."),
+    ("empresa",           "empresa",          False, "Nome da empresa executora. Se não existir, será criada automaticamente."),
+    ("classificacao_az",  "classificacao_az", False, "Letra de priorização A–Z (apenas uma letra maiúscula)."),
+    ("link_sipac",        "link_sipac",       False, "URL do processo no SIPAC (https://...)."),
+    ("observacao",        "observacao",       False, "Observação interna (não aparece publicamente)."),
+    ("acompanhamento_ct", "acompanhamento_ct",False, "Histórico de acompanhamento interno do CT."),
+]
+
+HEADER_NAMES = [c[0] for c in COLUNAS]
+
+# Cor do cabeçalho: vinho do módulo
+COR_HEADER_FG = "FFFFFF"
+COR_HEADER_BG = "7A2632"
+COR_OBG_BG    = "F4D0D4"   # rosa claro para colunas obrigatórias
+
+
+# ── Gerador de modelo ─────────────────────────────────────────────────────────
+
+def gerar_modelo_xlsx() -> bytes:
+    """Retorna bytes de um arquivo XLSX com a aba PROCESSOS (modelo) e LEGENDAS."""
+    wb = Workbook()
+
+    # ── aba PROCESSOS ─────────────────────────────────────────────────────────
+    ws = wb.active
+    ws.title = "PROCESSOS"
+
+    header_font  = Font(bold=True, color=COR_HEADER_FG)
+    header_fill  = PatternFill("solid", fgColor=COR_HEADER_BG)
+    obg_fill     = PatternFill("solid", fgColor=COR_OBG_BG)
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for col_idx, (nome, _, obg, _desc) in enumerate(COLUNAS, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=nome)
+        cell.font  = header_font if obg else Font(bold=True)
+        cell.fill  = header_fill if obg else obg_fill if obg else PatternFill("solid", fgColor="D9D9D9")
+        cell.alignment = center_align
+
+    # Larguras de coluna
+    larguras = {
+        "numero_processo": 28, "assunto": 50,
+        "data_abertura": 16, "data_os": 16, "data_conclusao": 16, "data_arquivamento": 18,
+        "status": 20, "situacao_sipac": 18, "gerencia": 38, "servico": 32,
+        "predio": 28, "tipo_ambiente": 22, "empresa": 28,
+        "classificacao_az": 14, "link_sipac": 40,
+        "observacao": 40, "acompanhamento_ct": 40,
+    }
+    for col_idx, nome in enumerate(HEADER_NAMES, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = larguras.get(nome, 20)
+    ws.row_dimensions[1].height = 28
+
+    # 3 linhas de exemplo comentadas (guias visuais)
+    ws.cell(row=2, column=1, value="23074.001234/2024-01")
+    ws.cell(row=2, column=2, value="Reforma do telhado do Bloco CTB")
+    ws.cell(row=2, column=3, value="10/03/2024")
+    ws.cell(row=2, column=7, value="07")
+    ws.cell(row=2, column=8, value="ATIVO")
+    ws.cell(row=2, column=14, value="B")
+    for col_idx in range(1, len(COLUNAS) + 1):
+        ws.cell(row=2, column=col_idx).font = Font(italic=True, color="888888")
+
+    # ── aba LEGENDAS ──────────────────────────────────────────────────────────
+    wl = wb.create_sheet("LEGENDAS")
+    wl.column_dimensions["A"].width = 22
+    wl.column_dimensions["B"].width = 60
+    wl.column_dimensions["C"].width = 55
+
+    legend_header = Font(bold=True, color=COR_HEADER_FG)
+    legend_fill   = PatternFill("solid", fgColor=COR_HEADER_BG)
+    for col, titulo in enumerate(["Coluna", "Descrição", "Valores válidos / exemplos"], start=1):
+        cell = wl.cell(row=1, column=col, value=titulo)
+        cell.font = legend_header
+        cell.fill = legend_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    # Colunas com listas de valores do banco
+    try:
+        status_vals = " | ".join(
+            f"{s.codigo} — {s.nome}" for s in StatusProcesso.objects.order_by("ordem")[:13]
+        )
+    except Exception:
+        status_vals = "Código do status (ex: 01, 07, 08…)"
+
+    try:
+        gerencia_vals = " | ".join(g.nome for g in GerenciaSINFRA.objects.order_by("nome"))
+    except Exception:
+        gerencia_vals = "Nome da gerência SINFRA"
+
+    try:
+        servico_vals = " | ".join(s.nome for s in ServicoProcesso.objects.order_by("nome")[:20])
+    except Exception:
+        servico_vals = "Nome do serviço"
+
+    try:
+        predio_vals = " | ".join(p.nome for p in Predio.objects.order_by("nome")[:15])
+    except Exception:
+        predio_vals = "Nome do prédio"
+
+    try:
+        tipo_vals = " | ".join(t.nome for t in TipoAmbiente.objects.order_by("nome")[:15])
+    except Exception:
+        tipo_vals = "Tipo de ambiente"
+
+    extras = {
+        "status": status_vals,
+        "situacao_sipac": "ATIVO | ARQUIVADO | APENSADO",
+        "gerencia": gerencia_vals,
+        "servico": servico_vals,
+        "predio": predio_vals,
+        "tipo_ambiente": tipo_vals,
+        "data_abertura": "DD/MM/AAAA ou AAAA-MM-DD",
+        "data_os": "DD/MM/AAAA ou AAAA-MM-DD",
+        "data_conclusao": "DD/MM/AAAA ou AAAA-MM-DD",
+        "data_arquivamento": "DD/MM/AAAA ou AAAA-MM-DD",
+        "classificacao_az": "Uma letra maiúscula: A, B, C, D…",
+        "link_sipac": "URL completa: https://sipac.ufpb.br/...",
+        "numero_processo": "Formato SIPAC: 23074.XXXXXX/AAAA-DV",
+    }
+
+    for row_idx, (nome, _campo, obg, desc) in enumerate(COLUNAS, start=2):
+        obg_txt = " [OBRIGATÓRIO]" if obg else ""
+        wl.cell(row=row_idx, column=1, value=nome + obg_txt)
+        wl.cell(row=row_idx, column=2, value=desc)
+        wl.cell(row=row_idx, column=3, value=extras.get(nome, "Texto livre"))
+        if obg:
+            for col in range(1, 4):
+                wl.cell(row=row_idx, column=col).fill = PatternFill("solid", fgColor=COR_OBG_BG)
+        wl.row_dimensions[row_idx].height = 22
+        wl.cell(row=row_idx, column=2).alignment = Alignment(wrap_text=True)
+        wl.cell(row=row_idx, column=3).alignment = Alignment(wrap_text=True)
+
+    # Salva em memória
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ── Importador ────────────────────────────────────────────────────────────────
+
+class ProcessoImporter:
+    """Importa processos de um arquivo XLSX/XLSM/CSV."""
+
+    DATE_FORMATS = ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y"]
+
+    def __init__(self):
+        # Caches para evitar N+1 queries
+        self._status_cache:    dict[str, StatusProcesso]   = {}
+        self._gerencia_cache:  dict[str, GerenciaSINFRA]   = {}
+        self._servico_cache:   dict[str, ServicoProcesso]  = {}
+        self._situacao_cache:  dict[str, SituacaoSIPAC]    = {}
+        self._predio_cache:    dict[str, Predio]            = {}
+        self._ambiente_cache:  dict[str, TipoAmbiente]     = {}
+        self._empresa_cache:   dict[str, Empresa]           = {}
+
+    # ── Ponto de entrada ─────────────────────────────────────────────────────
+
+    def import_file(self, uploaded_file) -> dict[str, Any]:
+        """Importa arquivo e retorna dict com resumo."""
+        suffix = Path(uploaded_file.name).suffix.lower()
+        if suffix not in {".xlsm", ".xlsx"}:
+            raise ValueError("Formato inválido. Envie um arquivo XLSX ou XLSM.")
+
+        uploaded_file.seek(0)
+        wb = load_workbook(
+            uploaded_file,
+            read_only=True,
+            data_only=True,
+            keep_vba=(suffix == ".xlsm"),
+        )
+
+        # Aceita aba "PROCESSOS" ou a primeira aba
+        sheet = None
+        for name in wb.sheetnames:
+            if name.strip().upper() == "PROCESSOS":
+                sheet = wb[name]
+                break
+        if sheet is None:
+            sheet = wb.active
+
+        rows = self._sheet_to_dicts(sheet)
+        with transaction.atomic():
+            return self._upsert_processos(rows)
+
+    # ── Conversão de planilha ─────────────────────────────────────────────────
+
+    def _sheet_to_dicts(self, sheet) -> list[dict[str, str]]:
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows:
+            return []
+        # Normaliza cabeçalhos
+        headers = [self._norm(str(h)) if h is not None else "" for h in rows[0]]
+        result = []
+        for row in rows[1:]:
+            if all(v is None or str(v).strip() == "" for v in row):
+                continue
+            result.append({headers[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)})
+        return result
+
+    @staticmethod
+    def _norm(text: str) -> str:
+        """Normaliza cabeçalho: minúsculas, sem acentos, underscores."""
+        import unicodedata
+        text = unicodedata.normalize("NFD", text.lower())
+        text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+        text = re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+        return text
+
+    # ── Upsert ────────────────────────────────────────────────────────────────
+
+    def _upsert_processos(self, rows: list[dict]) -> dict[str, Any]:
+        created = updated = skipped = 0
+        erros: list[str] = []
+
+        for i, row in enumerate(rows, start=2):
+            num = self._get(row, "numero_processo", "numero", "n_processo", "num_processo")
+            if not num:
+                skipped += 1
+                continue
+            num = num.strip()
+            try:
+                processo, is_new = Processo.objects.get_or_create(numero_processo=num)
+                self._fill_processo(processo, row)
+                processo.save()
+                if is_new:
+                    created += 1
+                else:
+                    updated += 1
+            except Exception as exc:
+                erros.append(f"Linha {i} ({num}): {exc}")
+
+        return {
+            "criados": created,
+            "atualizados": updated,
+            "ignorados": skipped,
+            "erros": erros,
+            "total_linhas": len(rows),
+        }
+
+    def _fill_processo(self, processo: Processo, row: dict) -> None:
+        """Preenche campos do processo a partir da linha da planilha."""
+        def set_if(attr, *keys):
+            val = self._get(row, *keys)
+            if val:
+                setattr(processo, attr, val)
+
+        # Texto livre
+        set_if("assunto", "assunto")
+        set_if("link_sipac", "link_sipac", "link", "sipac")
+        set_if("observacao", "observacao", "obs")
+        set_if("acompanhamento_ct", "acompanhamento_ct", "acompanhamento")
+
+        # Classificação A-Z
+        az = self._get(row, "classificacao_az", "az", "prioridade_az", "classificacao")
+        if az:
+            az = az.upper().strip()
+            if len(az) == 1 and az.isalpha():
+                processo.classificacao_az = az
+
+        # Datas
+        for attr, *keys in [
+            ("data_abertura",     "data_abertura",     "abertura"),
+            ("data_os",           "data_os",            "data_ordem_servico", "os"),
+            ("data_conclusao",    "data_conclusao",     "conclusao"),
+            ("data_arquivamento", "data_arquivamento",  "arquivamento"),
+        ]:
+            val = self._get(row, attr, *keys)
+            if val:
+                parsed = self._parse_date(val)
+                if parsed:
+                    setattr(processo, attr, parsed)
+
+        # FK por nome/código
+        processo.status        = self._resolve_status(self._get(row, "status", "status_processo"))
+        processo.gerencia      = self._resolve_gerencia(self._get(row, "gerencia", "gerencia_sinfra"))
+        processo.servico       = self._resolve_servico(self._get(row, "servico", "servico_processo", "tipo_servico"))
+        processo.situacao_sipac = self._resolve_situacao(self._get(row, "situacao_sipac", "situacao", "sit_sipac"))
+        processo.predio        = self._resolve_predio(self._get(row, "predio", "edificio", "bloco"))
+        processo.tipo_ambiente = self._resolve_ambiente(self._get(row, "tipo_ambiente", "ambiente"))
+        processo.empresa       = self._resolve_empresa(self._get(row, "empresa", "empresa_executora"))
+
+    # ── Resolvers de FK ───────────────────────────────────────────────────────
+
+    def _resolve_status(self, val: str | None) -> StatusProcesso | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._status_cache:
+            obj = (
+                StatusProcesso.objects.filter(codigo=key).first()
+                or StatusProcesso.objects.filter(nome__icontains=key).first()
+            )
+            self._status_cache[key] = obj
+        return self._status_cache[key]
+
+    def _resolve_gerencia(self, val: str | None) -> GerenciaSINFRA | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._gerencia_cache:
+            self._gerencia_cache[key] = GerenciaSINFRA.objects.filter(nome__icontains=key).first()
+        return self._gerencia_cache[key]
+
+    def _resolve_servico(self, val: str | None) -> ServicoProcesso | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._servico_cache:
+            self._servico_cache[key] = ServicoProcesso.objects.filter(nome__icontains=key).first()
+        return self._servico_cache[key]
+
+    def _resolve_situacao(self, val: str | None) -> SituacaoSIPAC | None:
+        if not val:
+            return None
+        key = val.strip().upper()
+        if key not in self._situacao_cache:
+            self._situacao_cache[key] = SituacaoSIPAC.objects.filter(nome__iexact=key).first()
+        return self._situacao_cache[key]
+
+    def _resolve_predio(self, val: str | None) -> Predio | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._predio_cache:
+            self._predio_cache[key] = (
+                Predio.objects.filter(nome__iexact=key).first()
+                or Predio.objects.filter(nome__icontains=key).first()
+            )
+        return self._predio_cache[key]
+
+    def _resolve_ambiente(self, val: str | None) -> TipoAmbiente | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._ambiente_cache:
+            self._ambiente_cache[key] = TipoAmbiente.objects.filter(nome__icontains=key).first()
+        return self._ambiente_cache[key]
+
+    def _resolve_empresa(self, val: str | None) -> Empresa | None:
+        if not val:
+            return None
+        key = val.strip()
+        if key not in self._empresa_cache:
+            obj, _ = Empresa.objects.get_or_create(nome=key, defaults={"ativa": True})
+            self._empresa_cache[key] = obj
+        return self._empresa_cache[key]
+
+    # ── Utilitários ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _get(row: dict, *keys: str) -> str | None:
+        for key in keys:
+            # Tenta exato e normalizado
+            val = row.get(key) or row.get(ProcessoImporter._norm(key))
+            if val and str(val).strip():
+                return str(val).strip()
+        return None
+
+    def _parse_date(self, val: str) -> date | None:
+        if not val:
+            return None
+        # openpyxl pode retornar datetime direto
+        if isinstance(val, (date, datetime)):
+            return val if isinstance(val, date) else val.date()
+        val = str(val).strip()
+        for fmt in self.DATE_FORMATS:
+            try:
+                return datetime.strptime(val, fmt).date()
+            except ValueError:
+                continue
+        return None

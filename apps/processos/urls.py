@@ -14,6 +14,8 @@ urlpatterns = [
     path('<int:processo_pk>/orcamento/add/', views.orcamento_add, name='orcamento-add'),
     path('<int:processo_pk>/orcamento/<int:orcamento_pk>/delete/', views.orcamento_delete, name='orcamento-delete'),
     path('<int:pk>/az/', views.priorizacao_az_update, name='priorizacao-az-update'),
+    path('modelo/', views.modelo_planilha_processos, name='modelo-planilha'),
+    path('importar/', views.importar_processos, name='importar'),
     path('public/consulta/', views.public_consulta_processos, name='public-consulta'),
     path('publico/<int:pk>/', views.ProcessoPublicoDetalheView.as_view(), name='detalhe-publico'),
 ]
