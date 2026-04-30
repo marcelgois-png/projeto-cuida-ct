@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Processo {{ processo.numero_processo }} | Cuida CT{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-folder2-open page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">{{ processo.numero_processo }}</h1>
+      <div class="page-subtitle">{{ processo.assunto|default:"Sem assunto" }}</div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'processos:edicao' processo.pk %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <a href="{% url 'processos:lista' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Lista
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Coluna esquerda: dados principais ─────────────────────────────── #}
+  <div class="col-12 col-xl-8">
+
+    {# Dados gerais #}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="section-title mb-0"><i class="bi bi-info-circle me-1"></i>Dados do Processo</h3>
+        {% if processo.classificacao_az %}
+          <span class="badge rounded-pill fs-6 px-3" style="background:#7A2632;">
+            Prioridade {{ processo.classificacao_az }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Status</div>
+            <div class="fw-semibold">
+              {% if processo.status %}
+                <span class="badge bg-secondary">{{ processo.status.codigo }}</span>
+                {{ processo.status.nome }}
+              {% else %}—{% endif %}
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Situação SIPAC</div>
+            <div class="fw-semibold">{{ processo.situacao_sipac.nome|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Gerência SINFRA</div>
+            <div class="fw-semibold">{{ processo.gerencia.nome|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Serviço</div>
+            <div class="fw-semibold">{{ processo.servico.nome|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Prédio</div>
+            <div class="fw-semibold">{{ processo.predio.nome|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Tipo de ambiente</div>
+            <div class="fw-semibold">{{ processo.tipo_ambiente.nome|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Empresa</div>
+            <div class="fw-semibold">{{ processo.empresa.nome|default:"—" }}</div>
+          </div>
+          {% if processo.link_sipac %}
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Link SIPAC</div>
+            <a href="{{ processo.link_sipac }}" target="_blank" rel="noopener" class="small">
+              <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no SIPAC
+            </a>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if processo.assunto %}
+        <hr class="my-3">
+        <div class="text-muted small mb-1">Assunto</div>
+        <p class="mb-0">{{ processo.assunto }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Datas e tempos #}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-calendar3 me-1"></i>Datas e Tempos</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Abertura</div>
+            <div class="fw-semibold">{{ processo.data_abertura|date:"d/m/Y"|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Data OS</div>
+            <div class="fw-semibold">{{ processo.data_os|date:"d/m/Y"|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Conclusão</div>
+            <div class="fw-semibold">{{ processo.data_conclusao|date:"d/m/Y"|default:"—" }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Arquivamento</div>
+            <div class="fw-semibold">{{ processo.data_arquivamento|date:"d/m/Y"|default:"—" }}</div>
+          </div>
+        </div>
+        <hr class="my-3">
+        <div class="row g-3">
+          {% if processo.tempo_reacao is not None %}
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Tempo de reação</div>
+            <div class="fw-semibold">{{ processo.tempo_reacao }} dia{{ processo.tempo_reacao|pluralize }}</div>
+          </div>
+          {% endif %}
+          {% if processo.tempo_execucao is not None %}
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Tempo de execução</div>
+            <div class="fw-semibold">{{ processo.tempo_execucao }} dia{{ processo.tempo_execucao|pluralize }}</div>
+          </div>
+          {% endif %}
+          {% if processo.tempo_solucao is not None %}
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Tempo de solução</div>
+            <div class="fw-semibold">{{ processo.tempo_solucao }} dia{{ processo.tempo_solucao|pluralize }}</div>
+          </div>
+          {% endif %}
+          {% if processo.tempo_analise is not None %}
+          <div class="col-6 col-md-3">
+            <div class="text-muted small">Em análise há</div>
+            <div class="fw-semibold text-warning">{{ processo.tempo_analise }} dia{{ processo.tempo_analise|pluralize }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Orçamentos #}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="section-title mb-0">
+          <i class="bi bi-cash-stack me-1"></i>Orçamentos
+          {% if processo.orcamentos.count %}
+            <span class="badge bg-secondary ms-1">{{ processo.orcamentos.count }}</span>
+          {% endif %}
+        </h3>
+        <span class="fw-semibold text-muted small">
+          Total: R$ {{ processo.valor_total_orcado|floatformat:2 }}
+        </span>
+      </div>
+      <div class="card-body p-0">
+        {% if processo.orcamentos.all %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:50px;">#</th>
+                <th>Descrição</th>
+                <th style="width:110px;">Valor</th>
+                <th style="width:90px;">Status</th>
+                <th style="width:90px;">Emissão</th>
+                <th style="width:50px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for orc in processo.orcamentos.all %}
+              <tr>
+                <td class="text-muted">{{ orc.numero_sequencial }}</td>
+                <td>{{ orc.descricao|default:"—"|truncatechars:60 }}</td>
+                <td>
+                  {% if orc.valor %}
+                    R$ {{ orc.valor|floatformat:2 }}
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  <span class="badge
+                    {% if orc.status == 'APROVADO' %}bg-success
+                    {% elif orc.status == 'REPROVADO' %}bg-danger
+                    {% elif orc.status == 'CANCELADO' %}bg-secondary
+                    {% else %}bg-warning text-dark{% endif %}">
+                    {{ orc.get_status_display }}
+                  </span>
+                </td>
+                <td><small>{{ orc.data_emissao|date:"d/m/Y"|default:"—" }}</small></td>
+                <td>
+                  <form method="post"
+                        action="{% url 'processos:orcamento-delete' processo.pk orc.pk %}"
+                        onsubmit="return confirm('Remover orçamento {{ orc.numero_sequencial }}?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" title="Remover">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3 small">Nenhum orçamento cadastrado.</div>
+        {% endif %}
+      </div>
+
+      {# Formulário de adição de orçamento #}
+      <div class="card-footer bg-light">
+        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1"></i>Adicionar orçamento</p>
+        <form method="post" action="{% url 'processos:orcamento-add' processo.pk %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label form-label-sm">{{ orcamento_form.descricao.label }}</label>
+              {{ orcamento_form.descricao }}
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label form-label-sm">{{ orcamento_form.valor.label }}</label>
+              {{ orcamento_form.valor }}
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label form-label-sm">{{ orcamento_form.status.label }}</label>
+              {{ orcamento_form.status }}
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label form-label-sm">{{ orcamento_form.data_emissao.label }}</label>
+              {{ orcamento_form.data_emissao }}
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+              <button type="submit" class="btn btn-sm btn-primary" style="background:#7A2632;border-color:#7A2632;">
+                <i class="bi bi-plus-lg me-1"></i>Adicionar orçamento
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# Requisições vinculadas #}
+    {% if processo.requisicoes.all %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0">
+          <i class="bi bi-clipboard2-check me-1"></i>Requisições Vinculadas
+          <span class="badge bg-secondary ms-1">{{ processo.requisicoes.count }}</span>
+        </h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Código</th>
+                <th>Assunto</th>
+                <th style="width:100px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in processo.requisicoes.all %}
+              <tr>
+                <td class="fw-semibold">
+                  <a href="{% url 'public-requisicao-detail' req.pk %}" class="text-decoration-none">
+                    {{ req.codigo }}
+                  </a>
+                </td>
+                <td>{{ req.assunto|truncatechars:60 }}</td>
+                <td><small>{{ req.status_sipac }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>{# /col-xl-8 #}
+
+  {# ── Coluna direita: sidebar de detalhe ───────────────────────────── #}
+  <div class="col-12 col-xl-4">
+
+    {# Solicitantes #}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-people me-1"></i>Solicitantes</h3>
+      </div>
+      <div class="card-body">
+        {% if processo.solicitantes.all %}
+          <ul class="list-unstyled mb-0">
+            {% for sol in processo.solicitantes.all %}
+              <li class="py-1 border-bottom">
+                <div class="fw-semibold small">{{ sol.nome }}</div>
+                {% if sol.email %}<div class="text-muted" style="font-size:.75rem;">{{ sol.email }}</div>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted small mb-0">Nenhum solicitante vinculado.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Acompanhamento CT #}
+    {% if processo.acompanhamento_ct %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-journal-text me-1"></i>Acompanhamento CT</h3>
+      </div>
+      <div class="card-body">
+        <p class="small mb-0" style="white-space:pre-wrap;">{{ processo.acompanhamento_ct }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Observação #}
+    {% if processo.observacao %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-chat-left-text me-1"></i>Observação</h3>
+      </div>
+      <div class="card-body">
+        <p class="small mb-0" style="white-space:pre-wrap;">{{ processo.observacao }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Metadados #}
+    <div class="card">
+      <div class="card-body text-muted" style="font-size:.75rem;">
+        <div>Cadastrado: {{ processo.criado_em|date:"d/m/Y H:i" }}</div>
+        <div>Atualizado: {{ processo.atualizado_em|date:"d/m/Y H:i" }}</div>
+      </div>
+    </div>
+
+  </div>{# /col-xl-4 #}
+
+</div>{# /row #}
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    /* Aplica classes Bootstrap ao form de orçamento inline */
+    document.querySelectorAll(
+      '.card-footer input:not([type=hidden]):not([type=submit]),' +
+      '.card-footer select:not([multiple]),' +
+      '.card-footer textarea'
+    ).forEach(function (el) {
+      if (el.tagName === 'SELECT') {
+        el.classList.add('form-select', 'form-select-sm');
+      } else {
+        el.classList.add('form-control', 'form-control-sm');
+      }
+    });
+  });
+</script>
+{% endblock %}

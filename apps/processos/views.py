@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.core.models import (
@@ -12,8 +14,8 @@ from apps.core.models import (
     StatusProcesso,
 )
 
-from .forms import ProcessoForm
-from .models import Processo
+from .forms import OrcamentoForm, ProcessoForm
+from .models import Orcamento, Processo
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -111,8 +113,42 @@ class ProcessoDetalheView(LoginRequiredMixin, DetailView):
         return (
             Processo.objects
             .select_related("status", "gerencia", "situacao_sipac", "servico", "predio", "empresa")
-            .prefetch_related("solicitantes", "orcamentos", "requisicoes")
+            .prefetch_related("solicitantes", "orcamentos__orcamento_empenhos__empenho", "requisicoes")
         )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["orcamento_form"] = OrcamentoForm()
+        return ctx
+
+
+# ── Orçamento CRUD (HTMX) ─────────────────────────────────────────────────────
+
+def orcamento_add(request, processo_pk):
+    """POST: adiciona orçamento ao processo; retorna redirect para o detalhe."""
+    processo = get_object_or_404(Processo, pk=processo_pk)
+    if request.method == "POST":
+        form = OrcamentoForm(request.POST, request.FILES)
+        if form.is_valid():
+            orc = form.save(commit=False)
+            orc.processo = processo
+            # Atribui número sequencial automático
+            ultimo = processo.orcamentos.order_by("-numero_sequencial").first()
+            orc.numero_sequencial = (ultimo.numero_sequencial + 1) if ultimo else 1
+            orc.save()
+            messages.success(request, f"Orçamento {orc.numero_sequencial} adicionado.")
+        else:
+            messages.error(request, "Erro ao salvar orçamento. Verifique os dados.")
+    return redirect(reverse("processos:detalhe", kwargs={"pk": processo_pk}))
+
+
+def orcamento_delete(request, processo_pk, orcamento_pk):
+    """POST: remove orçamento do processo."""
+    orc = get_object_or_404(Orcamento, pk=orcamento_pk, processo_id=processo_pk)
+    if request.method == "POST":
+        orc.delete()
+        messages.success(request, "Orçamento removido.")
+    return redirect(reverse("processos:detalhe", kwargs={"pk": processo_pk}))
 
 
 # ── Priorização A-Z ───────────────────────────────────────────────────────────

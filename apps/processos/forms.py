@@ -13,7 +13,7 @@ from apps.core.models import (
     Empresa,
 )
 
-from .models import Processo
+from .models import Orcamento, Processo
 
 DATE_INPUT_FORMAT = "%Y-%m-%d"
 DATE_INPUT_FORMATS = [DATE_INPUT_FORMAT, "%d/%m/%Y"]
@@ -100,3 +100,44 @@ class ProcessoForm(forms.ModelForm):
             if len(val) > 1 or not val.isalpha():
                 raise forms.ValidationError("Informe uma única letra (A–Z).")
         return val
+
+
+# ── OrcamentoForm ─────────────────────────────────────────────────────────────
+
+class OrcamentoForm(forms.ModelForm):
+    """Formulário de cadastro/edição de Orçamento (inline no detalhe do Processo)."""
+
+    data_emissao = forms.DateField(
+        required=False,
+        input_formats=DATE_INPUT_FORMATS,
+        widget=forms.DateInput(format=DATE_INPUT_FORMAT, attrs={"type": "date"}),
+        label="Data de emissão",
+    )
+    data_validade = forms.DateField(
+        required=False,
+        input_formats=DATE_INPUT_FORMATS,
+        widget=forms.DateInput(format=DATE_INPUT_FORMAT, attrs={"type": "date"}),
+        label="Data de validade",
+    )
+
+    class Meta:
+        model = Orcamento
+        fields = [
+            "numero_sequencial",
+            "descricao",
+            "valor",
+            "status",
+            "data_emissao",
+            "data_validade",
+            "arquivo_planilha",
+            "historico_negociacao",
+        ]
+        widgets = {
+            "descricao": forms.Textarea(attrs={"rows": 2}),
+            "historico_negociacao": forms.Textarea(attrs={"rows": 3}),
+            "valor": forms.TextInput(attrs={
+                "placeholder": "0,00",
+                "inputmode": "decimal",
+                "autocomplete": "off",
+            }),
+        }
