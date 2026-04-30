@@ -15,4 +15,5 @@ urlpatterns = [
     path('<int:processo_pk>/orcamento/<int:orcamento_pk>/delete/', views.orcamento_delete, name='orcamento-delete'),
     path('<int:pk>/az/', views.priorizacao_az_update, name='priorizacao-az-update'),
     path('public/consulta/', views.public_consulta_processos, name='public-consulta'),
+    path('publico/<int:pk>/', views.ProcessoPublicoDetalheView.as_view(), name='detalhe-publico'),
 ]

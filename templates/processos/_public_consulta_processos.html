@@ -32,6 +32,7 @@
           <th style="width:165px;">Status</th>
           <th style="width:155px;">Gerência</th>
           <th style="width:90px;">Abertura</th>
+          <th style="width:80px;"></th>
         </tr>
       </thead>
       <tbody>
@@ -56,6 +57,13 @@
           </td>
           <td><small>{{ proc.gerencia.nome|default:"—"|truncatechars:24 }}</small></td>
           <td><small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small></td>
+          <td>
+            <a href="{% url 'processos:detalhe-publico' proc.pk %}"
+               class="btn btn-xs btn-outline-secondary py-0 px-2"
+               style="font-size:.75rem;white-space:nowrap;">
+              Ver detalhes
+            </a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

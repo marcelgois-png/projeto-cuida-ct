@@ -253,6 +253,71 @@ def public_processos_metrics():
     }
 
 
+# ── Página pública de Processo ────────────────────────────────────────────────
+
+def montar_timeline(processo):
+    """Monta lista cronológica de eventos a partir das datas do processo."""
+    eventos = []
+    if processo.data_abertura:
+        eventos.append({"data": processo.data_abertura, "texto": "Processo aberto", "atual": False})
+    if processo.data_os:
+        eventos.append({"data": processo.data_os, "texto": "Ordem de serviço emitida", "atual": False})
+    if processo.data_conclusao:
+        eventos.append({"data": processo.data_conclusao, "texto": "Serviço concluído", "atual": False})
+    if processo.data_arquivamento:
+        eventos.append({"data": processo.data_arquivamento, "texto": "Processo arquivado", "atual": False})
+    eventos = sorted(eventos, key=lambda e: e["data"])
+    # Marca o último evento como atual
+    if eventos:
+        eventos[-1]["atual"] = True
+    return eventos
+
+
+class ProcessoPublicoDetalheView(DetailView):
+    """Página pública (sem login) de detalhes de um Processo."""
+    model = Processo
+    template_name = "processos/detalhe_publico.html"
+    context_object_name = "processo"
+
+    def get_queryset(self):
+        # Processos APENSADOS não são exibidos publicamente
+        return (
+            Processo.objects
+            .exclude(situacao_sipac__nome="APENSADO")
+            .select_related(
+                "status", "situacao_sipac", "predio", "tipo_ambiente",
+                "empresa", "gerencia", "servico",
+            )
+            .prefetch_related("orcamentos", "requisicoes")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        processo = self.object
+
+        # Orçamentos visíveis publicamente: apenas APROVADO
+        ctx["orcamentos_publicos"] = processo.orcamentos.filter(
+            status=Orcamento.Status.APROVADO
+        ).order_by("numero_sequencial")
+
+        # Total orçado público
+        from decimal import Decimal
+        ctx["total_orcado"] = sum(
+            (o.valor for o in ctx["orcamentos_publicos"] if o.valor),
+            Decimal("0.00"),
+        )
+
+        # Requisições de origem (dados mínimos para o público)
+        ctx["requisicoes_origem"] = processo.requisicoes.values(
+            "id", "codigo", "assunto"
+        )
+
+        # Timeline derivada das datas
+        ctx["timeline"] = montar_timeline(processo)
+
+        return ctx
+
+
 # ── Empenhos ──────────────────────────────────────────────────────────────────
 
 class EmpenhoProcessosView(LoginRequiredMixin, ListView):
