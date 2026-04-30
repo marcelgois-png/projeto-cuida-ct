@@ -1,0 +1,71 @@
+<div class="home-consulta-proc-wrap">
+  <form hx-get="{% url 'processos:public-consulta' %}"
+        hx-target="#home-consulta-area"
+        hx-swap="innerHTML"
+        class="d-flex gap-2 mb-3">
+    <input type="text" name="busca" value="{{ busca }}"
+           class="form-control form-control-sm"
+           placeholder="Nº processo ou assunto..."
+           style="max-width:340px;">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-search"></i>
+    </button>
+    {% if busca %}
+    <a href="{% url 'processos:public-consulta' %}"
+       hx-get="{% url 'processos:public-consulta' %}"
+       hx-target="#home-consulta-area"
+       hx-swap="innerHTML"
+       class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+  </form>
+
+  {% if processos %}
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0 align-middle" style="font-size:.875rem;">
+      <thead class="table-light">
+        <tr>
+          <th style="width:140px;">Nº Processo</th>
+          <th>Assunto</th>
+          <th style="width:90px;">A-Z</th>
+          <th style="width:165px;">Status</th>
+          <th style="width:155px;">Gerência</th>
+          <th style="width:90px;">Abertura</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for proc in processos %}
+        <tr>
+          <td class="fw-semibold" style="color:#7A2632;">{{ proc.numero_processo }}</td>
+          <td class="text-truncate" style="max-width:260px;" title="{{ proc.assunto }}">
+            {{ proc.assunto|default:"—" }}
+          </td>
+          <td class="text-center">
+            {% if proc.classificacao_az %}
+              <span class="badge rounded-pill" style="background:#7A2632;min-width:1.8rem;">
+                {{ proc.classificacao_az }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if proc.status %}
+              <span class="badge bg-secondary">{{ proc.status.codigo }}</span>
+              <small class="text-muted ms-1 d-none d-xl-inline">{{ proc.status.nome|truncatechars:22 }}</small>
+            {% else %}—{% endif %}
+          </td>
+          <td><small>{{ proc.gerencia.nome|default:"—"|truncatechars:24 }}</small></td>
+          <td><small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="text-muted small mt-2 mb-0">Exibindo até 100 processos. Use a busca para filtrar.</p>
+  {% else %}
+  <div class="text-center text-muted py-4">
+    <i class="bi bi-folder2-open" style="font-size:2rem;opacity:.3;"></i>
+    <p class="mt-2 mb-0 small">Nenhum processo encontrado{% if busca %} para "{{ busca }}"{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>

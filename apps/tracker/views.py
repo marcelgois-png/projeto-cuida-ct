@@ -1087,6 +1087,15 @@ def _control_panel_shell_context(request: HttpRequest) -> dict[str, Any]:
     }
 
 
+def _processos_metrics() -> dict:
+    """Métricas de processos para o painel público."""
+    try:
+        from apps.processos.views import public_processos_metrics
+        return public_processos_metrics()
+    except Exception:
+        return {"enviados": 0, "ativos": 0, "executados": 0, "investimento": 0}
+
+
 def _public_dashboard_context(request: HttpRequest) -> dict[str, Any]:
     queryset = filtered_queryset(request, public=True)
     selected_divisao = request.GET.get("divisao", "").strip()
@@ -1097,13 +1106,8 @@ def _public_dashboard_context(request: HttpRequest) -> dict[str, Any]:
         "service_panel": service_panel_for_queryset(queryset, selected_divisao=selected_divisao),
         "filters": filter_options(public=True, request=request, queryset=base_queryset(public=True)),
         **table_context(request, public=True),
-        "processos_metrics": {
-            "enviados": 0,
-            "ativos": 0,
-            "executados": 0,
-            "investimento": 0,
-        },
-        "modulo_processos_disponivel": False,
+        "processos_metrics": _processos_metrics(),
+        "modulo_processos_disponivel": True,
         "today": date.today(),
     }
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.core.models import (
@@ -211,6 +212,45 @@ def priorizacao_az_update(request, pk):
         )
     )
     return HttpResponse(badge)
+
+
+# ── Painel Público de Processos ───────────────────────────────────────────────
+
+@require_http_methods(["GET"])
+def public_consulta_processos(request):
+    """HTMX partial: tabela pública de processos (sem autenticação)."""
+    qs = (
+        Processo.objects
+        .select_related("status", "gerencia", "predio")
+        .order_by("-data_abertura", "numero_processo")
+    )
+    busca = request.GET.get("busca", "").strip()
+    if busca:
+        qs = qs.filter(numero_processo__icontains=busca) | qs.filter(assunto__icontains=busca)
+    return render(request, "processos/_public_consulta_processos.html", {
+        "processos": qs[:100],
+        "busca": busca,
+    })
+
+
+def public_processos_metrics():
+    """Retorna dict de métricas de processos para o painel público."""
+    from django.db.models import Sum
+    total = Processo.objects.count()
+    ativos = Processo.objects.filter(data_conclusao__isnull=True, data_arquivamento__isnull=True).count()
+    executados = Processo.objects.filter(data_conclusao__isnull=False).count()
+    from .models import Orcamento
+    investimento = (
+        Orcamento.objects
+        .filter(status=Orcamento.Status.APROVADO, valor__isnull=False)
+        .aggregate(total=Sum("valor"))["total"] or 0
+    )
+    return {
+        "enviados": total,
+        "ativos": ativos,
+        "executados": executados,
+        "investimento": investimento,
+    }
 
 
 # ── Empenhos ──────────────────────────────────────────────────────────────────

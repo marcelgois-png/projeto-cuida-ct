@@ -157,14 +157,14 @@
       <span>Consultar Processos</span>
     </button>
 
-    <!-- Painel de Processos (placeholder) -->
+    <!-- Painel de Processos -->
     <button type="button"
-            class="home-action-card home-action-card-proc home-action-card-disabled"
-            disabled
-            title="Em breve">
+            class="home-action-card home-action-card-proc"
+            onclick="window.open('{% url 'processos:lista' %}', '_blank')"
+            title="Abrir lista de processos">
       <i class="bi bi-bar-chart-line"></i>
-      <span>Painel de Processos</span>
-      <span class="home-action-badge-soon">Em breve</span>
+      <span>Lista de Processos</span>
+      <i class="bi bi-arrow-up-right-square home-action-external-icon"></i>
     </button>
 
   </div>
@@ -210,13 +210,10 @@
         swap: 'innerHTML'
       });
     } else {
-      area.innerHTML = [
-        '<div class="home-processos-placeholder">',
-        '  <i class="bi bi-clock-history home-placeholder-icon"></i>',
-        '  <p class="home-placeholder-title">Módulo de Processos em desenvolvimento</p>',
-        '  <p class="home-placeholder-sub">Em breve você poderá consultar os processos de manutenção predial aqui.</p>',
-        '</div>'
-      ].join('');
+      htmx.ajax('GET', '{% url "processos:public-consulta" %}', {
+        target: '#home-consulta-area',
+        swap: 'innerHTML'
+      });
     }
   };
 }());
