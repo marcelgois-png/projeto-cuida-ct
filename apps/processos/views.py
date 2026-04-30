@@ -167,6 +167,52 @@ class PriorizacaoAZView(LoginRequiredMixin, ListView):
         )
 
 
+def priorizacao_az_update(request, pk):
+    """HTMX GET → retorna form inline; POST → salva e retorna badge atualizado."""
+    processo = get_object_or_404(Processo, pk=pk)
+
+    if request.method == "GET" and request.GET.get("edit"):
+        # Retorna mini-formulário inline
+        url_post = reverse("processos:priorizacao-az-update", kwargs={"pk": pk})
+        html = (
+            f'<form hx-post="{url_post}" hx-target="#az-cell-{pk}" hx-swap="innerHTML"'
+            f' class="d-flex align-items-center gap-1 justify-content-center">'
+            f'<input type="hidden" name="csrfmiddlewaretoken"'
+            f' value="{{{{ csrf_token }}}}">'
+            f'<input name="classificacao_az" type="text" maxlength="1"'
+            f' value="{processo.classificacao_az}"'
+            f' style="width:2.2rem;text-align:center;text-transform:uppercase;'
+            f'font-size:.9rem;padding:.1rem .2rem;" class="form-control form-control-sm">'
+            f'<button type="submit" class="btn btn-xs btn-primary py-0 px-1"'
+            f' style="background:#7A2632;border-color:#7A2632;">'
+            f'<i class="bi bi-check-lg"></i></button>'
+            f'</form>'
+        )
+        return HttpResponse(html)
+
+    if request.method == "POST":
+        from django.middleware.csrf import CsrfViewMiddleware
+        val = request.POST.get("classificacao_az", "").upper().strip()
+        if val and (len(val) != 1 or not val.isalpha()):
+            return HttpResponse('<span class="text-danger small">Letra inválida</span>', status=422)
+        processo.classificacao_az = val
+        processo.save(update_fields=["classificacao_az", "atualizado_em"])
+
+    badge = (
+        f'<span class="az-badge-wrap" hx-get="{reverse("processos:priorizacao-az-update", kwargs={"pk": pk})}?edit=1"'
+        f' hx-target="#az-cell-{pk}" hx-swap="innerHTML" style="cursor:pointer;" title="Clique para editar">'
+        f'<span class="badge rounded-pill" style="background:#7A2632;min-width:1.8rem;">{processo.classificacao_az}</span>'
+        f'</span>'
+        if processo.classificacao_az
+        else (
+            f'<span class="az-badge-wrap" hx-get="{reverse("processos:priorizacao-az-update", kwargs={"pk": pk})}?edit=1"'
+            f' hx-target="#az-cell-{pk}" hx-swap="innerHTML" style="cursor:pointer;" title="Clique para editar">'
+            f'<span class="text-muted">—</span></span>'
+        )
+    )
+    return HttpResponse(badge)
+
+
 # ── Empenhos ──────────────────────────────────────────────────────────────────
 
 class EmpenhoProcessosView(LoginRequiredMixin, ListView):

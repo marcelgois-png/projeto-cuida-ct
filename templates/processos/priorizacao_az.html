@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Priorização A-Z | Cuida CT{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-sort-alpha-down page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">Priorização A-Z</h1>
+      <div class="page-subtitle">
+        Defina a letra de prioridade de cada processo. Clique na letra para editar.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="section-title mb-0">
+      <i class="bi bi-sort-alpha-down me-1"></i>Processos Ativos
+      <span class="badge bg-secondary ms-1">{{ processos|length }}</span>
+    </h3>
+    <small class="text-muted">Clique na coluna A-Z para editar inline</small>
+  </div>
+
+  <div class="card-body p-0">
+    {% if processos %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="width:130px;">Nº Processo</th>
+            <th>Assunto</th>
+            <th style="width:155px;">Status</th>
+            <th style="width:155px;">Gerência</th>
+            <th style="width:90px;">Abertura</th>
+            <th style="width:90px;" class="text-center">A-Z</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proc in processos %}
+          <tr>
+            <td class="fw-semibold">
+              <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
+                {{ proc.numero_processo }}
+              </a>
+            </td>
+            <td class="text-truncate" style="max-width:240px;" title="{{ proc.assunto }}">
+              {{ proc.assunto|default:"—" }}
+            </td>
+            <td>
+              {% if proc.status %}
+                <span class="badge bg-secondary">{{ proc.status.codigo }}</span>
+                <small class="text-muted ms-1 d-none d-xl-inline">{{ proc.status.nome|truncatechars:20 }}</small>
+              {% else %}—{% endif %}
+            </td>
+            <td><small>{{ proc.gerencia.nome|default:"—"|truncatechars:25 }}</small></td>
+            <td><small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small></td>
+
+            {# ── Célula A-Z editável inline via HTMX ─────────────────────── #}
+            <td class="text-center" id="az-cell-{{ proc.pk }}">
+              <span
+                class="az-badge-wrap"
+                hx-get="{% url 'processos:priorizacao-az-update' proc.pk %}?edit=1"
+                hx-target="#az-cell-{{ proc.pk }}"
+                hx-swap="innerHTML"
+                style="cursor:pointer;"
+                title="Clique para editar">
+                {% if proc.classificacao_az %}
+                  <span class="badge rounded-pill" style="background:#7A2632;min-width:1.8rem;">
+                    {{ proc.classificacao_az }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-sort-alpha-down" style="font-size:2.5rem;opacity:.3;"></i>
+      <p class="mt-2 mb-0">Nenhum processo ativo encontrado.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+  /* ── Edição inline A-Z via HTMX ─────────────────────────────────────
+     Quando o servidor retorna o formulário de edição (GET ?edit=1),
+     substituímos a célula por um <input> + botão salvar.
+     Ao salvar (POST), o servidor retorna o badge atualizado.
+  ────────────────────────────────────────────────────────────────────── */
+  document.body.addEventListener('htmx:afterSwap', function (evt) {
+    var cell = evt.target;
+    if (!cell.id || !cell.id.startsWith('az-cell-')) return;
+
+    /* Se o conteúdo trocado for um <form> de edição, foca o input */
+    var inp = cell.querySelector('input[name="classificacao_az"]');
+    if (inp) {
+      inp.focus();
+      inp.select();
+    }
+  });
+</script>
+{% endblock %}

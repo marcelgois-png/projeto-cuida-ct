@@ -13,4 +13,5 @@ urlpatterns = [
     path('empenhos/', views.EmpenhoProcessosView.as_view(), name='empenhos'),
     path('<int:processo_pk>/orcamento/add/', views.orcamento_add, name='orcamento-add'),
     path('<int:processo_pk>/orcamento/<int:orcamento_pk>/delete/', views.orcamento_delete, name='orcamento-delete'),
+    path('<int:pk>/az/', views.priorizacao_az_update, name='priorizacao-az-update'),
 ]

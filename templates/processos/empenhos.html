@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Empenhos de Processos | Cuida CT{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-cash-stack page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">Empenhos de Processos</h1>
+      <div class="page-subtitle">
+        Visão consolidada dos empenhos vinculados aos processos de manutenção predial.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if processos %}
+  {% for proc in processos %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="section-title mb-0">
+        <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
+          {{ proc.numero_processo }}
+        </a>
+        <small class="text-muted fw-normal ms-2">{{ proc.assunto|truncatechars:60 }}</small>
+      </h3>
+      <span class="fw-semibold small text-muted">
+        Total orçado: R$ {{ proc.valor_total_orcado|floatformat:2 }}
+      </span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:50px;">Orc.</th>
+              <th>Descrição</th>
+              <th style="width:110px;">Valor</th>
+              <th style="width:80px;">Status</th>
+              <th>Nota de Empenho</th>
+              <th style="width:110px;">Valor Alocado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for orc in proc.orcamentos.all %}
+              {% if orc.orcamento_empenhos.all %}
+                {% for oe in orc.orcamento_empenhos.all %}
+                <tr>
+                  <td class="text-muted">{{ orc.numero_sequencial }}</td>
+                  <td>{{ orc.descricao|default:"—"|truncatechars:40 }}</td>
+                  <td>{% if orc.valor %}R$ {{ orc.valor|floatformat:2 }}{% else %}—{% endif %}</td>
+                  <td>
+                    <span class="badge
+                      {% if orc.status == 'APROVADO' %}bg-success
+                      {% elif orc.status == 'REPROVADO' %}bg-danger
+                      {% elif orc.status == 'CANCELADO' %}bg-secondary
+                      {% else %}bg-warning text-dark{% endif %}">
+                      {{ orc.get_status_display }}
+                    </span>
+                  </td>
+                  <td class="fw-semibold">{{ oe.empenho.nota_empenho }}</td>
+                  <td>{% if oe.valor_alocado %}R$ {{ oe.valor_alocado|floatformat:2 }}{% else %}—{% endif %}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td class="text-muted">{{ orc.numero_sequencial }}</td>
+                  <td>{{ orc.descricao|default:"—"|truncatechars:40 }}</td>
+                  <td>{% if orc.valor %}R$ {{ orc.valor|floatformat:2 }}{% else %}—{% endif %}</td>
+                  <td>
+                    <span class="badge
+                      {% if orc.status == 'APROVADO' %}bg-success
+                      {% elif orc.status == 'REPROVADO' %}bg-danger
+                      {% elif orc.status == 'CANCELADO' %}bg-secondary
+                      {% else %}bg-warning text-dark{% endif %}">
+                      {{ orc.get_status_display }}
+                    </span>
+                  </td>
+                  <td colspan="2" class="text-muted small">Sem empenho vinculado</td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card">
+    <div class="card-body text-center text-muted py-5">
+      <i class="bi bi-cash-stack" style="font-size:2.5rem;opacity:.3;"></i>
+      <p class="mt-2 mb-0">Nenhum processo com orçamentos cadastrados.</p>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
