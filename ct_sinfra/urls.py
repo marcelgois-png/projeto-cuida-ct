@@ -16,6 +16,7 @@ urlpatterns = [
     path("auth/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.tracker.urls")),
+    path("processos/", include("apps.processos.urls")),
 ]
 
 if settings.DEBUG:

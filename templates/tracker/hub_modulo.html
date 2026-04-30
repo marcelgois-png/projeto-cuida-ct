@@ -64,11 +64,17 @@
   }
 
   .hub-card--req  { border-color: #283E4C; }
-  .hub-card--proc { border-color: #7A2632; opacity: .65; cursor: not-allowed; }
+  .hub-card--proc { border-color: #7A2632; }
 
   .hub-card--req:hover {
     box-shadow: 0 6px 24px rgba(40,62,76,.18);
     border-color: #1a2d38;
+    transform: translateY(-3px);
+  }
+
+  .hub-card--proc:hover {
+    box-shadow: 0 6px 24px rgba(122,38,50,.18);
+    border-color: #5c1d26;
     transform: translateY(-3px);
   }
 
@@ -122,7 +128,7 @@
   }
 
   .hub-card--req  .hub-card__btn { background: #283E4C; color: #fff; }
-  .hub-card--proc .hub-card__btn { background: #c0c7cc; color: #fff; cursor: not-allowed; }
+  .hub-card--proc .hub-card__btn { background: #7A2632; color: #fff; }
 </style>
 {% endblock %}
 
@@ -149,9 +155,8 @@
       </span>
     </a>
 
-    <!-- Card: Módulo de Processos (desabilitado — Etapa 3) -->
-    <div class="hub-card hub-card--proc" title="Módulo em desenvolvimento — disponível na Etapa 3">
-      <span class="hub-card__badge">Em breve</span>
+    <!-- Card: Módulo de Processos -->
+    <a href="{% url 'processos:lista' %}" class="hub-card hub-card--proc">
       <i class="bi bi-folder2-open hub-card__icon"></i>
       <div class="hub-card__title">Processos</div>
       <p class="hub-card__desc">
@@ -159,9 +164,9 @@
         empenhos e acompanhamento SIPAC.
       </p>
       <span class="hub-card__btn">
-        Em desenvolvimento
+        Acessar <i class="bi bi-arrow-right-short"></i>
       </span>
-    </div>
+    </a>
 
   </div>
 </div>

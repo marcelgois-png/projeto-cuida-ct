@@ -100,92 +100,153 @@
       <span class="sb-txt">Trocar m&oacute;dulo</span>
     </a>
 
-    {% if request.user.is_operator %}
-      <div class="sb-section">Gestão de requisições</div>
+    {# ── Sidebar do Módulo de Processos ─────────────────────────────── #}
+    {% if request.resolver_match.app_name == 'processos' %}
 
-    <a href="{% url 'internal-cadastro' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'internal-cadastro' or request.resolver_match.url_name == 'importacao-upload' %}active{% endif %}"
-       data-sb-label="Cadastro">
-      <i class="bi bi-plus-square"></i>
-      <span class="sb-txt">Cadastro</span>
-    </a>
+      <div class="sb-section">Gestão de Processos</div>
 
-    <a href="{% url 'internal-lista' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'internal-lista' or request.resolver_match.url_name == 'internal-requisicoes-table' or request.resolver_match.url_name == 'requisicao-create' or request.resolver_match.url_name == 'requisicao-update' %}active{% endif %}"
-       data-sb-label="Requisições">
-      <i class="bi bi-clipboard2-check"></i>
-      <span class="sb-txt">Requisições</span>
-    </a>
-
-    <a href="{% url 'internal-priorizacao' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'internal-priorizacao' %}active{% endif %}"
-       data-sb-label="Priorização">
-      <i class="bi bi-sort-numeric-down"></i>
-      <span class="sb-txt">Priorização</span>
-    </a>
-
-    <a href="{% url 'internal-visitas' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'internal-visitas' %}active{% endif %}"
-       data-sb-label="Visitas Programadas">
-      <i class="bi bi-calendar-week"></i>
-      <span class="sb-txt">Visitas Programadas</span>
-    </a>
-
-    <a href="{% url 'internal-orcamento' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'internal-orcamento' %}active{% endif %}"
-       data-sb-label="Orçamento">
-      <i class="bi bi-cash-stack"></i>
-      <span class="sb-txt">Orçamento</span>
-    </a>
-    {% endif %}
-
-    {% if request.user.is_director %}
-      <div class="sb-section">Gestão de Decisões</div>
-
-      <a href="{% url 'internal-decisoes' %}"
-         class="sb-link {% if request.resolver_match.url_name == 'internal-decisoes' %}active{% endif %}"
-         data-sb-label="Mesa da Direção">
-        <i class="bi bi-briefcase"></i>
-        <span class="sb-txt">Mesa da Direção</span>
-        {% if sidebar_decisoes_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_decisoes_count }}</span>{% endif %}
+      <a href="{% url 'processos:lista' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}"
+         data-sb-label="Lista de Processos">
+        <i class="bi bi-folder2-open"></i>
+        <span class="sb-txt">Lista de Processos</span>
       </a>
 
-      <a href="{% url 'internal-encaminhamentos' %}"
-         class="sb-link {% if request.resolver_match.url_name == 'internal-encaminhamentos' %}active{% endif %}"
-         data-sb-label="Mesa da Assessoria">
-        <i class="bi bi-send-check"></i>
-        <span class="sb-txt">Mesa da Assessoria</span>
-        {% if sidebar_assessoria_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_assessoria_count }}</span>{% endif %}
-      </a>
-    {% endif %}
-
-    <div class="sb-section">Acompanhamento</div>
-
-    <a href="{% url 'public-dashboard' %}"
-       class="sb-link {% if request.resolver_match.url_name == 'public-dashboard' or request.resolver_match.url_name == 'public-requisicoes-table' or request.resolver_match.url_name == 'public-control-panel' or request.resolver_match.url_name == 'public-control-panel-content' %}active{% endif %}"
-       data-sb-label="Painel público">
-      <i class="bi bi-globe-americas"></i>
-      <span class="sb-txt">Painel público</span>
-    </a>
-
-    {% if request.user.is_admin %}
-      <div class="sb-section">Administração do Sistema</div>
-
-      <a href="{% url 'user-list' %}" class="sb-link {% if request.resolver_match.url_name == 'user-list' or request.resolver_match.url_name == 'user-create' or request.resolver_match.url_name == 'user-update' %}active{% endif %}" data-sb-label="Usuários">
-        <i class="bi bi-people"></i>
-        <span class="sb-txt">Usuários</span>
+      <a href="{% url 'processos:cadastro' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'cadastro' %}active{% endif %}"
+         data-sb-label="Cadastrar Processo">
+        <i class="bi bi-folder-plus"></i>
+        <span class="sb-txt">Cadastrar Processo</span>
       </a>
 
-      <a href="{% url 'internal-gestao-listas' %}" class="sb-link {% if request.resolver_match.url_name == 'internal-gestao-listas' %}active{% endif %}" data-sb-label="Gestão de Listas">
-        <i class="bi bi-list-check"></i>
-        <span class="sb-txt">Gestão de Listas</span>
+      <a href="{% url 'processos:priorizacao-az' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'priorizacao-az' %}active{% endif %}"
+         data-sb-label="Priorização A-Z">
+        <i class="bi bi-sort-alpha-down"></i>
+        <span class="sb-txt">Priorização A-Z</span>
       </a>
 
-      <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
-        <i class="bi bi-shield-lock"></i>
-        <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
+      <a href="{% url 'processos:empenhos' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'empenhos' %}active{% endif %}"
+         data-sb-label="Empenhos">
+        <i class="bi bi-cash-stack"></i>
+        <span class="sb-txt">Empenhos</span>
       </a>
-    {% endif %}
+
+      <div class="sb-section">Acompanhamento</div>
+
+      <a href="{% url 'public-dashboard' %}"
+         class="sb-link"
+         data-sb-label="Painel público">
+        <i class="bi bi-globe-americas"></i>
+        <span class="sb-txt">Painel público</span>
+      </a>
+
+      {% if request.user.is_admin %}
+        <div class="sb-section">Administração do Sistema</div>
+
+        <a href="{% url 'internal-gestao-listas' %}" class="sb-link" data-sb-label="Gestão de Listas">
+          <i class="bi bi-list-check"></i>
+          <span class="sb-txt">Gestão de Listas</span>
+        </a>
+
+        <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
+          <i class="bi bi-shield-lock"></i>
+          <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
+        </a>
+      {% endif %}
+
+    {# ── Sidebar do Módulo de Requisições (padrão) ──────────────────── #}
+    {% else %}
+
+      {% if request.user.is_operator %}
+        <div class="sb-section">Gestão de requisições</div>
+
+        <a href="{% url 'internal-cadastro' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-cadastro' or request.resolver_match.url_name == 'importacao-upload' %}active{% endif %}"
+           data-sb-label="Cadastro">
+          <i class="bi bi-plus-square"></i>
+          <span class="sb-txt">Cadastro</span>
+        </a>
+
+        <a href="{% url 'internal-lista' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-lista' or request.resolver_match.url_name == 'internal-requisicoes-table' or request.resolver_match.url_name == 'requisicao-create' or request.resolver_match.url_name == 'requisicao-update' %}active{% endif %}"
+           data-sb-label="Requisições">
+          <i class="bi bi-clipboard2-check"></i>
+          <span class="sb-txt">Requisições</span>
+        </a>
+
+        <a href="{% url 'internal-priorizacao' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-priorizacao' %}active{% endif %}"
+           data-sb-label="Priorização">
+          <i class="bi bi-sort-numeric-down"></i>
+          <span class="sb-txt">Priorização</span>
+        </a>
+
+        <a href="{% url 'internal-visitas' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-visitas' %}active{% endif %}"
+           data-sb-label="Visitas Programadas">
+          <i class="bi bi-calendar-week"></i>
+          <span class="sb-txt">Visitas Programadas</span>
+        </a>
+
+        <a href="{% url 'internal-orcamento' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-orcamento' %}active{% endif %}"
+           data-sb-label="Orçamento">
+          <i class="bi bi-cash-stack"></i>
+          <span class="sb-txt">Orçamento</span>
+        </a>
+      {% endif %}
+
+      {% if request.user.is_director %}
+        <div class="sb-section">Gestão de Decisões</div>
+
+        <a href="{% url 'internal-decisoes' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-decisoes' %}active{% endif %}"
+           data-sb-label="Mesa da Direção">
+          <i class="bi bi-briefcase"></i>
+          <span class="sb-txt">Mesa da Direção</span>
+          {% if sidebar_decisoes_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_decisoes_count }}</span>{% endif %}
+        </a>
+
+        <a href="{% url 'internal-encaminhamentos' %}"
+           class="sb-link {% if request.resolver_match.url_name == 'internal-encaminhamentos' %}active{% endif %}"
+           data-sb-label="Mesa da Assessoria">
+          <i class="bi bi-send-check"></i>
+          <span class="sb-txt">Mesa da Assessoria</span>
+          {% if sidebar_assessoria_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_assessoria_count }}</span>{% endif %}
+        </a>
+      {% endif %}
+
+      <div class="sb-section">Acompanhamento</div>
+
+      <a href="{% url 'public-dashboard' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'public-dashboard' or request.resolver_match.url_name == 'public-requisicoes-table' or request.resolver_match.url_name == 'public-control-panel' or request.resolver_match.url_name == 'public-control-panel-content' %}active{% endif %}"
+         data-sb-label="Painel público">
+        <i class="bi bi-globe-americas"></i>
+        <span class="sb-txt">Painel público</span>
+      </a>
+
+      {% if request.user.is_admin %}
+        <div class="sb-section">Administração do Sistema</div>
+
+        <a href="{% url 'user-list' %}" class="sb-link {% if request.resolver_match.url_name == 'user-list' or request.resolver_match.url_name == 'user-create' or request.resolver_match.url_name == 'user-update' %}active{% endif %}" data-sb-label="Usuários">
+          <i class="bi bi-people"></i>
+          <span class="sb-txt">Usuários</span>
+        </a>
+
+        <a href="{% url 'internal-gestao-listas' %}" class="sb-link {% if request.resolver_match.url_name == 'internal-gestao-listas' %}active{% endif %}" data-sb-label="Gestão de Listas">
+          <i class="bi bi-list-check"></i>
+          <span class="sb-txt">Gestão de Listas</span>
+        </a>
+
+        <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
+          <i class="bi bi-shield-lock"></i>
+          <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
+        </a>
+      {% endif %}
+
+    {% endif %}{# fim if app_name == 'processos' #}
 
   </div>
 </nav>
