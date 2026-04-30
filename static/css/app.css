@@ -2774,54 +2774,85 @@ a:hover {
 .home-steps-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px 20px;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
 .home-step {
+  border-radius: 12px;
+  padding: 1.05rem 1rem 1rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
 }
+
+/* Detalhe decorativo */
+.home-step::before {
+  content: '';
+  position: absolute;
+  top: -28px; right: -28px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  pointer-events: none;
+}
+.home-step::after {
+  content: '';
+  position: absolute;
+  bottom: -18px; left: -10px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  pointer-events: none;
+}
+
+.home-step-1 { background: #283E4C; }
+.home-step-2 { background: #3B5C72; }
+.home-step-3 { background: #C6543C; }
+.home-step-4 { background: #A8432D; }
 
 .home-step-num {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--cuida-azul-escuro);
+  background: rgba(255,255,255,.22);
   color: #fff;
   font-weight: 800;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-bottom: 0.6rem;
 }
 
 .home-step strong {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.83rem;
   font-weight: 700;
-  color: #243243;
+  color: #fff;
   margin-bottom: 4px;
 }
 
 .home-step p {
   margin: 0;
   font-size: 0.74rem;
-  color: #6b7a90;
+  color: rgba(255,255,255,.82);
   line-height: 1.5;
 }
 
 .home-step a {
-  color: var(--cuida-laranja-tijolo);
-  text-decoration: none;
+  color: rgba(255,255,255,.92);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,.4);
 }
 
 .home-step a:hover {
-  color: var(--cuida-azul-escuro);
-  text-decoration: underline;
+  color: #fff;
+  text-decoration-color: rgba(255,255,255,.85);
 }
 
 .home-explainer-hr {
