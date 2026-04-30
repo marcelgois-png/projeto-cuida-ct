@@ -1,8 +1,200 @@
 {% extends "base.html" %}
-{% block title %}Processos | Cuida CT{% endblock %}
+{% load static %}
+
+{% block title %}Lista de Processos | Cuida CT{% endblock %}
+
 {% block content %}
-<div class="p-4">
-  <h2 class="fw-bold mb-1" style="color:#7A2632;">Módulo de Processos</h2>
-  <p class="text-muted">Em construção — disponível no Bloco D.</p>
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-folder2-open page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">Lista de Processos</h1>
+      <div class="page-subtitle">
+        Acompanhe e gerencie os processos administrativos de manutenção predial.
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'processos:cadastro' %}" style="background:#7A2632;border-color:#7A2632;">
+      <i class="bi bi-folder-plus me-1"></i>Novo Processo
+    </a>
+  </div>
+</div>
+
+{# ── Filtros ──────────────────────────────────────────────────────────────── #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="form-label form-label-sm mb-1">Busca</label>
+        <input type="text" name="busca" value="{{ filtros.busca|default:'' }}"
+               class="form-control form-control-sm"
+               placeholder="Nº processo ou assunto">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label form-label-sm mb-1">Status</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          {% for s in status_list %}
+            <option value="{{ s.id }}" {% if filtros.status == s.id|stringformat:"s" %}selected{% endif %}>
+              {{ s.codigo }} — {{ s.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label form-label-sm mb-1">Gerência</label>
+        <select name="gerencia" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for g in gerencia_list %}
+            <option value="{{ g.id }}" {% if filtros.gerencia == g.id|stringformat:"s" %}selected{% endif %}>
+              {{ g.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label form-label-sm mb-1">Situação SIPAC</label>
+        <select name="situacao" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for sit in situacao_list %}
+            <option value="{{ sit.id }}" {% if filtros.situacao == sit.id|stringformat:"s" %}selected{% endif %}>
+              {{ sit.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label form-label-sm mb-1">Serviço</label>
+        <select name="servico" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          {% for sv in servico_list %}
+            <option value="{{ sv.id }}" {% if filtros.servico == sv.id|stringformat:"s" %}selected{% endif %}>
+              {{ sv.nome }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-1 d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-primary flex-fill" style="background:#7A2632;border-color:#7A2632;">
+          <i class="bi bi-search"></i>
+        </button>
+        <a href="{% url 'processos:lista' %}" class="btn btn-sm btn-outline-secondary flex-fill">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tabela ───────────────────────────────────────────────────────────────── #}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="section-title mb-0">
+      <i class="bi bi-folder2-open me-1"></i>
+      Processos
+      <span class="badge bg-secondary ms-1" style="font-size:.75rem;">{{ total }}</span>
+    </h3>
+  </div>
+  <div class="card-body p-0">
+    {% if processos %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="width:130px;">Nº Processo</th>
+            <th>Assunto</th>
+            <th style="width:90px;">A-Z</th>
+            <th style="width:170px;">Status</th>
+            <th style="width:155px;">Gerência</th>
+            <th style="width:90px;">Abertura</th>
+            <th style="width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proc in processos %}
+          <tr>
+            <td class="fw-semibold">
+              <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
+                {{ proc.numero_processo }}
+              </a>
+            </td>
+            <td class="text-truncate" style="max-width:280px;" title="{{ proc.assunto }}">
+              {{ proc.assunto|default:"—" }}
+            </td>
+            <td class="text-center">
+              {% if proc.classificacao_az %}
+                <span class="badge rounded-pill" style="background:#7A2632;font-size:.85rem;min-width:1.8rem;">
+                  {{ proc.classificacao_az }}
+                </span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if proc.status %}
+                <span class="badge bg-secondary" title="{{ proc.status.nome }}">
+                  {{ proc.status.codigo }}
+                </span>
+                <small class="text-muted ms-1 d-none d-xl-inline">{{ proc.status.nome|truncatechars:30 }}</small>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <small>{{ proc.gerencia.nome|default:"—"|truncatechars:25 }}</small>
+            </td>
+            <td>
+              <small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small>
+            </td>
+            <td>
+              <a href="{% url 'processos:detalhe' proc.pk %}"
+                 class="btn btn-xs btn-outline-secondary py-0 px-1"
+                 title="Ver detalhe">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Paginação #}
+    {% if is_paginated %}
+    <div class="d-flex justify-content-center py-3">
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for k,v in filtros.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                &laquo;
+              </a>
+            </li>
+          {% endif %}
+          <li class="page-item active">
+            <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+          </li>
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for k,v in filtros.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
+                &raquo;
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-folder2-open" style="font-size:2.5rem;opacity:.3;"></i>
+      <p class="mt-2 mb-0">Nenhum processo encontrado.</p>
+      <a href="{% url 'processos:cadastro' %}" class="btn btn-sm btn-outline-secondary mt-2">
+        <i class="bi bi-folder-plus me-1"></i>Cadastrar o primeiro processo
+      </a>
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if object %}Editar Processo{% else %}Cadastrar Processo{% endif %} | Cuida CT{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-folder-plus page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">{% if object %}Editar Processo{% else %}Cadastrar Processo{% endif %}</h1>
+      <div class="page-subtitle">
+        {% if object %}
+          Atualize os dados do processo {{ object.numero_processo }}.
+        {% else %}
+          Registre um novo processo administrativo de manutenção predial.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'processos:lista' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar à lista
+    </a>
+  </div>
+</div>
+
+<form method="post" class="row g-4">
+  {% csrf_token %}
+
+  {# ── Identificação ────────────────────────────────────────────────────── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-card-heading me-1"></i>Identificação</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ form.numero_processo.label }} <span class="text-danger">*</span></label>
+            {{ form.numero_processo }}
+            {% if form.numero_processo.errors %}
+              <div class="invalid-feedback d-block">{{ form.numero_processo.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.classificacao_az.label }}</label>
+            {{ form.classificacao_az }}
+            {% if form.classificacao_az.errors %}
+              <div class="invalid-feedback d-block">{{ form.classificacao_az.errors|join:", " }}</div>
+            {% endif %}
+            <div class="form-text">{{ form.classificacao_az.help_text }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.link_sipac.label }}</label>
+            {{ form.link_sipac }}
+            {% if form.link_sipac.errors %}
+              <div class="invalid-feedback d-block">{{ form.link_sipac.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.assunto.label }}</label>
+            {{ form.assunto }}
+            {% if form.assunto.errors %}
+              <div class="invalid-feedback d-block">{{ form.assunto.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Datas ────────────────────────────────────────────────────────────── #}
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-calendar3 me-1"></i>Datas</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label">{{ form.data_abertura.label }}</label>
+            {{ form.data_abertura }}
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ form.data_os.label }}</label>
+            {{ form.data_os }}
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ form.data_conclusao.label }}</label>
+            {{ form.data_conclusao }}
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ form.data_arquivamento.label }}</label>
+            {{ form.data_arquivamento }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Classificação ────────────────────────────────────────────────────── #}
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-tags me-1"></i>Classificação</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">{{ form.servico.label }}</label>
+            {{ form.servico }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.gerencia.label }}</label>
+            {{ form.gerencia }}
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ form.status.label }}</label>
+            {{ form.status }}
+          </div>
+          <div class="col-6">
+            <label class="form-label">{{ form.situacao_sipac.label }}</label>
+            {{ form.situacao_sipac }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Localização e Solicitantes ───────────────────────────────────────── #}
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-geo-alt me-1"></i>Localização</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">{{ form.predio.label }}</label>
+            {{ form.predio }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.tipo_ambiente.label }}</label>
+            {{ form.tipo_ambiente }}
+          </div>
+          <div class="col-12">
+            <label class="form-label">{{ form.empresa.label }}</label>
+            {{ form.empresa }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-people me-1"></i>Solicitantes</h3>
+      </div>
+      <div class="card-body">
+        <label class="form-label">{{ form.solicitantes.label }}</label>
+        {{ form.solicitantes }}
+        <div class="form-text">Segure Ctrl (ou Cmd) para selecionar múltiplos.</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Observações ──────────────────────────────────────────────────────── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-chat-left-text me-1"></i>Observações e Acompanhamento</h3>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label">{{ form.observacao.label }}</label>
+            {{ form.observacao }}
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">{{ form.acompanhamento_ct.label }}</label>
+            {{ form.acompanhamento_ct }}
+            <div class="form-text">{{ form.acompanhamento_ct.help_text }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Botões ───────────────────────────────────────────────────────────── #}
+  <div class="col-12 d-flex gap-2 justify-content-end pb-4">
+    <a href="{% url 'processos:lista' %}" class="btn btn-outline-secondary">
+      Cancelar
+    </a>
+    <button type="submit" class="btn btn-primary" style="background:#7A2632;border-color:#7A2632;">
+      <i class="bi bi-floppy me-1"></i>
+      {% if object %}Salvar alterações{% else %}Cadastrar processo{% endif %}
+    </button>
+  </div>
+
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+  /* Aplica classes Bootstrap a todos os inputs/selects do formulário */
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll(
+      'form input:not([type=hidden]):not([type=submit]):not([type=checkbox]),' +
+      'form select:not([multiple]),' +
+      'form textarea'
+    ).forEach(function (el) {
+      el.classList.add('form-control', 'form-control-sm');
+    });
+    document.querySelectorAll('form select[multiple]').forEach(function (el) {
+      el.classList.add('form-select', 'form-select-sm');
+    });
+    document.querySelectorAll('form select:not([multiple])').forEach(function (el) {
+      el.classList.remove('form-control', 'form-control-sm');
+      el.classList.add('form-select', 'form-select-sm');
+    });
+  });
+</script>
+{% endblock %}
