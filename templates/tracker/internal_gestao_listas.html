@@ -422,6 +422,162 @@
   </div>
 </div>
 
+{# ══ SEÇÃO: MÓDULO DE PROCESSOS ══════════════════════════════════════════════ #}
+<div class="row g-4 mt-2">
+  <div class="col-12">
+    <h2 class="section-title" style="font-size:1rem;color:#7A2632;border-bottom:2px solid #7A2632;padding-bottom:.4rem;margin-bottom:0;">
+      <i class="bi bi-folder2-open me-1"></i>Módulo de Processos
+    </h2>
+  </div>
+
+  {# Status de Processo #}
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-tag"></i>Status de Processo</h3>
+        <span class="badge bg-secondary">{{ status_processo_list|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-scroll-container">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width:60px;">Código</th>
+                <th>Nome</th>
+                <th style="width:60px;" class="text-center">Ordem</th>
+                <th style="width:60px;" class="text-center">Ativo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sp in status_processo_list %}
+              <tr>
+                <td class="fw-semibold">{{ sp.codigo }}</td>
+                <td>{{ sp.nome }}</td>
+                <td class="text-center text-muted">{{ sp.ordem }}</td>
+                <td class="text-center">
+                  {% if sp.ativo %}<i class="bi bi-check-circle text-success"></i>
+                  {% else %}<i class="bi bi-x-circle text-secondary"></i>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-muted text-center py-3">Nenhum status cadastrado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Gerências SINFRA #}
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-building"></i>Gerências SINFRA</h3>
+        <span class="badge bg-secondary">{{ gerencia_sinfra_list|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-scroll-container">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Nome</th>
+                <th style="width:60px;" class="text-center">Ativa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in gerencia_sinfra_list %}
+              <tr>
+                <td>{{ g.nome }}</td>
+                <td class="text-center">
+                  {% if g.ativa %}<i class="bi bi-check-circle text-success"></i>
+                  {% else %}<i class="bi bi-x-circle text-secondary"></i>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" class="text-muted text-center py-3">Nenhuma gerência cadastrada.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Situações SIPAC #}
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-archive"></i>Situações SIPAC</h3>
+        <span class="badge bg-secondary">{{ situacao_sipac_list|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-scroll-container">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Nome</th>
+                <th style="width:60px;" class="text-center">Ativa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sit in situacao_sipac_list %}
+              <tr>
+                <td>{{ sit.nome }}</td>
+                <td class="text-center">
+                  {% if sit.ativa %}<i class="bi bi-check-circle text-success"></i>
+                  {% else %}<i class="bi bi-x-circle text-secondary"></i>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="2" class="text-muted text-center py-3">Nenhuma situação cadastrada.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Serviços de Processo #}
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="gestao-card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-tools"></i>Serviços de Processo</h3>
+        <span class="badge bg-secondary">{{ servico_processo_list|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-scroll-container">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Nome</th>
+                <th style="width:60px;" class="text-center">Ordem</th>
+                <th style="width:60px;" class="text-center">Ativo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sv in servico_processo_list %}
+              <tr>
+                <td>{{ sv.nome }}</td>
+                <td class="text-center text-muted">{{ sv.ordem|default:"—" }}</td>
+                <td class="text-center">
+                  {% if sv.ativo %}<i class="bi bi-check-circle text-success"></i>
+                  {% else %}<i class="bi bi-x-circle text-secondary"></i>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted text-center py-3">Nenhum serviço cadastrado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <script>
   function toggleAllStatus(master) {
     const checkboxes = document.querySelectorAll('.status-checkbox');

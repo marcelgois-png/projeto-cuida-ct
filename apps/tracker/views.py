@@ -68,7 +68,7 @@ class HubModuloView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         ctx = super().get_context_data(**kwargs)
-        ctx["modulo_processos_disponivel"] = False  # Etapa 3 habilita
+        ctx["modulo_processos_disponivel"] = True
         return ctx
 
 
@@ -2169,6 +2169,7 @@ class InternalGestaoListasView(AdminRequiredMixin, TemplateView):
     template_name = "tracker/internal_gestao_listas.html"
 
     def get_context_data(self, **kwargs):
+        from apps.core.models import GerenciaSINFRA, ServicoProcesso, SituacaoSIPAC, StatusProcesso
         context = super().get_context_data(**kwargs)
         context["status_list"] = _annotate_status_list(StatusRequisicao.objects.all())
         context["taxonomia_list"] = TaxonomiaServico.objects.all()
@@ -2178,6 +2179,11 @@ class InternalGestaoListasView(AdminRequiredMixin, TemplateView):
         context["setores"] = Setor.objects.all().order_by("nome")
         context["tipos_ambiente"] = TipoAmbiente.objects.all().order_by("nome")
         context["solicitantes"] = Solicitante.objects.all().order_by("nome")
+        # Listas do módulo Processos
+        context["status_processo_list"] = StatusProcesso.objects.order_by("ordem")
+        context["gerencia_sinfra_list"] = GerenciaSINFRA.objects.order_by("nome")
+        context["situacao_sipac_list"] = SituacaoSIPAC.objects.order_by("nome")
+        context["servico_processo_list"] = ServicoProcesso.objects.order_by("ordem", "nome")
         return context
 
 
