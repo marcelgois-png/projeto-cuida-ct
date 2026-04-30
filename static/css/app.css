@@ -2809,10 +2809,10 @@ a:hover {
   pointer-events: none;
 }
 
-.home-step-1 { background: #283E4C; }
-.home-step-2 { background: #3B5C72; }
-.home-step-3 { background: #C6543C; }
-.home-step-4 { background: #A8432D; }
+.home-step-1,
+.home-step-2,
+.home-step-3,
+.home-step-4 { background: #3B5C72; }
 
 .home-step-num {
   display: inline-flex;
