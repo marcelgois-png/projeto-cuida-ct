@@ -3156,3 +3156,51 @@ a:hover {
   .home-metric-val   { font-size: 1.5rem; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   TEMA: Módulo de Processos (laranja tijolo)
+   Ativado via class="modulo-processos" no <body>
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.modulo-processos #topbar {
+  background: #7A3520;
+}
+
+.modulo-processos #btn-hamburger {
+  color: rgba(255,255,255,.85);
+}
+.modulo-processos #btn-hamburger:hover {
+  background: rgba(255,255,255,.1);
+}
+
+.modulo-processos #sidebar {
+  background: #3d1a0c;
+  border-right-color: #5c2816;
+}
+
+.modulo-processos .sb-trocar-modulo {
+  border-bottom-color: rgba(198, 84, 60, 0.2);
+  color: rgba(255,255,255,.7);
+}
+.modulo-processos .sb-trocar-modulo:hover {
+  background: rgba(255,255,255,.07);
+  color: #fff;
+}
+
+.modulo-processos .sb-section {
+  color: rgba(234, 152, 130, 0.75);
+}
+
+.modulo-processos .sb-link.active {
+  background: rgba(198, 84, 60, 0.30);
+  border-left-color: #C6543C;
+  color: #fff;
+}
+
+.modulo-processos .sb-link:hover {
+  background: rgba(255,255,255,.07);
+  color: #fff;
+}
+
+.modulo-processos .sb-nav::-webkit-scrollbar-thumb {
+  background: rgba(198, 84, 60, 0.3);
+}

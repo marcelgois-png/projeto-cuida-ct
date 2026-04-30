@@ -18,7 +18,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% if request.resolver_match.app_name == 'processos' %} class="modulo-processos"{% endif %}>
 
 <!-- ── TOPBAR ──────────────────────────────────────────────────────── -->
 <header id="topbar">
@@ -70,6 +70,15 @@
               <i class="bi bi-key me-2"></i>Alterar Senha
             </a>
           </li>
+          {% if request.user.is_admin %}
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <a class="dropdown-item py-2" href="/admin/" target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-shield-lock me-2"></i>Admin Django
+              <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5;"></i>
+            </a>
+          </li>
+          {% endif %}
           <li><hr class="dropdown-divider my-1"></li>
           <li>
             <form method="post" action="{% url 'logout' %}">
@@ -148,11 +157,6 @@
         <a href="{% url 'internal-gestao-listas' %}" class="sb-link" data-sb-label="Gestão de Listas">
           <i class="bi bi-list-check"></i>
           <span class="sb-txt">Gestão de Listas</span>
-        </a>
-
-        <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
-          <i class="bi bi-shield-lock"></i>
-          <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
         </a>
       {% endif %}
 
@@ -238,11 +242,6 @@
         <a href="{% url 'internal-gestao-listas' %}" class="sb-link {% if request.resolver_match.url_name == 'internal-gestao-listas' %}active{% endif %}" data-sb-label="Gestão de Listas">
           <i class="bi bi-list-check"></i>
           <span class="sb-txt">Gestão de Listas</span>
-        </a>
-
-        <a href="/admin/" class="sb-link" data-sb-label="Admin Django">
-          <i class="bi bi-shield-lock"></i>
-          <span class="sb-txt">Admin Django <i class="bi bi-box-arrow-up-right" style="font-size:.7rem;opacity:.5"></i></span>
         </a>
       {% endif %}
 
