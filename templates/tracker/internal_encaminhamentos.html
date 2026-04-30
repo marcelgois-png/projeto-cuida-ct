@@ -38,15 +38,20 @@
               {{ encaminhamento.get_status_display }}
             </span>
             {% if encaminhamento.tipo == 'abrir_processo' %}
-              <button
-                type="button"
-                class="btn btn-sm btn-success"
-                disabled
-                title="Dispon&iacute;vel na Etapa 3 &mdash; m&oacute;dulo de Processos"
-                data-bs-toggle="tooltip"
-              >
-                <i class="bi bi-check-lg me-1"></i>Abrir processo
-              </button>
+              {% with processo_vinculado=encaminhamento.processos.first %}
+                {% if processo_vinculado %}
+                  <a href="{% url 'processos:detalhe' processo_vinculado.pk %}"
+                     class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-folder2-open me-1"></i>Ver processo
+                  </a>
+                {% else %}
+                  <a href="{% url 'processos:cadastro' %}"
+                     class="btn btn-sm btn-success"
+                     title="Cadastrar processo no m&oacute;dulo de Processos">
+                    <i class="bi bi-folder-plus me-1"></i>Abrir processo
+                  </a>
+                {% endif %}
+              {% endwith %}
             {% endif %}
             <form method="post" action="{% url 'internal-cancel-encaminhamento' encaminhamento.pk %}">
               {% csrf_token %}
