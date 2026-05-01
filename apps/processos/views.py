@@ -318,6 +318,32 @@ class ProcessoPublicoDetalheView(DetailView):
         return ctx
 
 
+# ── Exclusão individual e em lote ────────────────────────────────────────────
+
+@require_http_methods(["POST"])
+def processo_delete(request, pk):
+    """POST: exclui um processo."""
+    processo = get_object_or_404(Processo, pk=pk)
+    numero = processo.numero_processo
+    processo.delete()
+    messages.success(request, f"Processo {numero} excluído.")
+    return redirect(reverse("processos:lista"))
+
+
+@require_http_methods(["POST"])
+def processos_bulk_delete(request):
+    """POST: exclui múltiplos processos selecionados."""
+    ids = request.POST.getlist("processo_ids")
+    if not ids:
+        messages.warning(request, "Nenhum processo selecionado.")
+        return redirect(reverse("processos:lista"))
+    qs = Processo.objects.filter(pk__in=ids)
+    count = qs.count()
+    qs.delete()
+    messages.success(request, f"{count} processo(s) excluído(s).")
+    return redirect(reverse("processos:lista"))
+
+
 # ── Importação em lote ───────────────────────────────────────────────────────
 
 @require_http_methods(["GET"])

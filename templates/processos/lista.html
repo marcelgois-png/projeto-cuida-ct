@@ -3,85 +3,76 @@
 
 {% block title %}Lista de Processos | Cuida CT{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* Botões de ação estilo ícone (igual às requisições) */
+  .proc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: 1.5px solid #d1d9e2;
+    background: #fff;
+    color: #4a5a6e;
+    font-size: .85rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color .13s, background .13s, color .13s;
+    padding: 0;
+  }
+  .proc-action-btn:hover           { border-color: #7a96b2; background: #f0f4f8; color: #283E4C; }
+  .proc-action-btn.btn-edit:hover  { border-color: #283E4C; background: #e8eef6; color: #283E4C; }
+  .proc-action-btn.btn-del         { border-color: #f0c4c4; color: #c0392b; }
+  .proc-action-btn.btn-del:hover   { border-color: #e74c3c; background: #fdf0ee; color: #c0392b; }
+  .proc-action-btn.btn-sipac       { color: #6c7f98; }
+  .proc-action-btn.btn-sipac:hover { border-color: #283E4C; color: #283E4C; background: #e8eef6; }
+  .proc-action-btn.btn-sipac.disabled { opacity: .35; pointer-events: none; }
+
+  /* Botão "Apagar selecionados" (oculto por padrão) */
+  #btn-apagar-lote { display: none; }
+</style>
+{% endblock %}
+
 {% block content %}
+
+{# ── Toolbar ──────────────────────────────────────────────────────────────── #}
 <div class="page-toolbar">
   <div class="page-title-wrap">
     <i class="bi bi-folder2-open page-icon" style="color:#7A2632;"></i>
     <div>
       <span class="page-kicker">Módulo de Processos</span>
       <h1 class="page-title">Lista de Processos</h1>
-      <div class="page-subtitle">
-        Acompanhe e gerencie os processos administrativos de manutenção predial.
-      </div>
+      <div class="page-subtitle">Acompanhe e gerencie os processos administrativos de manutenção predial.</div>
     </div>
   </div>
   <div class="d-flex gap-2 flex-wrap align-items-center">
 
-    {# ── Gerar modelo ─────────────────────────────────── #}
     <a href="{% url 'processos:modelo-planilha' %}"
        class="btn btn-sm btn-outline-secondary"
-       title="Baixar planilha modelo para preenchimento">
+       title="Baixar planilha modelo">
       <i class="bi bi-file-earmark-arrow-down me-1"></i>Gerar modelo
     </a>
 
-    {# ── Importar planilha ────────────────────────────── #}
     <button type="button"
             class="btn btn-sm btn-outline-secondary"
-            title="Importar processos via planilha Excel"
+            title="Importar processos via planilha"
             data-bs-toggle="modal" data-bs-target="#modalImportar">
       <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
     </button>
 
-    {# ── Novo processo ────────────────────────────────── #}
-    <a class="btn btn-primary" href="{% url 'processos:cadastro' %}" style="background:#7A2632;border-color:#7A2632;">
+    {# Apagar selecionados — aparece via JS quando há checkboxes marcados #}
+    <button type="button" id="btn-apagar-lote"
+            class="btn btn-sm btn-outline-danger"
+            data-bs-toggle="modal" data-bs-target="#modalApagarLote">
+      <i class="bi bi-trash me-1"></i>Apagar <span id="lote-count"></span>
+    </button>
+
+    <a class="btn btn-primary" href="{% url 'processos:cadastro' %}"
+       style="background:#7A2632;border-color:#7A2632;">
       <i class="bi bi-folder-plus me-1"></i>Novo Processo
     </a>
 
-  </div>
-</div>
-
-{# ── Modal de importação ───────────────────────────────────────────────────── #}
-<div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalImportarLabel">
-          <i class="bi bi-file-earmark-arrow-up me-2" style="color:#7A2632;"></i>Importar Processos
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form method="post" action="{% url 'processos:importar' %}" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="modal-body">
-          <p class="text-muted small mb-3">
-            Selecione uma planilha Excel (<code>.xlsx</code>) no formato do modelo.
-            Processos já existentes (mesmo número) serão <strong>atualizados</strong>;
-            os demais serão <strong>criados</strong>.
-          </p>
-          <div class="mb-3">
-            <label for="importArquivo" class="form-label form-label-sm fw-semibold">
-              Arquivo <span class="text-danger">*</span>
-            </label>
-            <input class="form-control form-control-sm" type="file"
-                   id="importArquivo" name="arquivo" accept=".xlsx" required>
-            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos.</div>
-          </div>
-          <div class="alert alert-info d-flex gap-2 py-2 mb-0" style="font-size:.82rem;">
-            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
-            <span>
-              Não tem o modelo? <a href="{% url 'processos:modelo-planilha' %}" class="alert-link">Baixe aqui</a>
-              antes de preencher.
-            </span>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-sm btn-primary" style="background:#7A2632;border-color:#7A2632;">
-            <i class="bi bi-upload me-1"></i>Importar
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 </div>
 
@@ -166,24 +157,31 @@
       <table class="table table-hover table-sm mb-0 align-middle">
         <thead class="table-light">
           <tr>
+            <th style="width:36px;" class="text-center ps-3">
+              <input type="checkbox" class="form-check-input" id="proc-sel-all" title="Selecionar todos">
+            </th>
             <th style="width:130px;">Nº Processo</th>
             <th>Assunto</th>
             <th style="width:90px;">A-Z</th>
             <th style="width:170px;">Status</th>
             <th style="width:155px;">Gerência</th>
             <th style="width:90px;">Abertura</th>
-            <th style="width:60px;"></th>
+            <th style="width:116px;" class="text-center">Ações</th>
           </tr>
         </thead>
         <tbody>
           {% for proc in processos %}
           <tr>
+            <td class="text-center ps-3">
+              <input type="checkbox" class="form-check-input proc-checkbox"
+                     name="processo_ids" value="{{ proc.pk }}">
+            </td>
             <td class="fw-semibold">
               <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
                 {{ proc.numero_processo }}
               </a>
             </td>
-            <td class="text-truncate" style="max-width:280px;" title="{{ proc.assunto }}">
+            <td class="text-truncate" style="max-width:260px;" title="{{ proc.assunto }}">
               {{ proc.assunto|default:"—" }}
             </td>
             <td class="text-center">
@@ -197,24 +195,50 @@
             </td>
             <td>
               {% if proc.status %}
-                <span class="badge bg-secondary" title="{{ proc.status.nome }}">
-                  {{ proc.status.codigo }}
-                </span>
+                <span class="badge bg-secondary" title="{{ proc.status.nome }}">{{ proc.status.codigo }}</span>
                 <small class="text-muted ms-1 d-none d-xl-inline">{{ proc.status.nome|truncatechars:30 }}</small>
               {% else %}—{% endif %}
             </td>
+            <td><small>{{ proc.gerencia.nome|default:"—"|truncatechars:25 }}</small></td>
+            <td><small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small></td>
             <td>
-              <small>{{ proc.gerencia.nome|default:"—"|truncatechars:25 }}</small>
-            </td>
-            <td>
-              <small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small>
-            </td>
-            <td>
-              <a href="{% url 'processos:detalhe' proc.pk %}"
-                 class="btn btn-xs btn-outline-secondary py-0 px-1"
-                 title="Ver detalhe">
-                <i class="bi bi-eye"></i>
-              </a>
+              <div class="d-flex gap-1 justify-content-center">
+
+                {# Ver #}
+                <a href="{% url 'processos:detalhe' proc.pk %}"
+                   class="proc-action-btn" title="Ver detalhes">
+                  <i class="bi bi-eye"></i>
+                </a>
+
+                {# Editar #}
+                <a href="{% url 'processos:edicao' proc.pk %}"
+                   class="proc-action-btn btn-edit" title="Editar">
+                  <i class="bi bi-pencil-square"></i>
+                </a>
+
+                {# Excluir #}
+                <form method="post" action="{% url 'processos:apagar' proc.pk %}"
+                      class="d-inline"
+                      onsubmit="return confirm('Excluir o processo {{ proc.numero_processo|escapejs }}? Esta ação não pode ser desfeita.')">
+                  {% csrf_token %}
+                  <button type="submit" class="proc-action-btn btn-del" title="Excluir">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+
+                {# Link SIPAC #}
+                {% if proc.link_sipac %}
+                  <a href="{{ proc.link_sipac }}" target="_blank" rel="noopener noreferrer"
+                     class="proc-action-btn btn-sipac" title="Abrir no SIPAC">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </a>
+                {% else %}
+                  <span class="proc-action-btn btn-sipac disabled" title="Link SIPAC não informado">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                  </span>
+                {% endif %}
+
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -260,4 +284,148 @@
     {% endif %}
   </div>
 </div>
+
+{# ── Modal importar ───────────────────────────────────────────────────────── #}
+<div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalImportarLabel">
+          <i class="bi bi-file-earmark-arrow-up me-2" style="color:#7A2632;"></i>Importar Processos
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'processos:importar' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p class="text-muted small mb-3">
+            Selecione uma planilha Excel (<code>.xlsx</code>) no formato do modelo.
+            Processos já existentes (mesmo número) serão <strong>atualizados</strong>;
+            os demais serão <strong>criados</strong>.
+          </p>
+          <div class="mb-3">
+            <label for="importArquivo" class="form-label form-label-sm fw-semibold">
+              Arquivo <span class="text-danger">*</span>
+            </label>
+            <input class="form-control form-control-sm" type="file"
+                   id="importArquivo" name="arquivo" accept=".xlsx" required>
+            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos.</div>
+          </div>
+          <div class="alert alert-info d-flex gap-2 py-2 mb-0" style="font-size:.82rem;">
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+            <span>Não tem o modelo?
+              <a href="{% url 'processos:modelo-planilha' %}" class="alert-link">Baixe aqui</a>
+              antes de preencher.
+            </span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-primary" style="background:#7A2632;border-color:#7A2632;">
+            <i class="bi bi-upload me-1"></i>Importar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal apagar lote ────────────────────────────────────────────────────── #}
+<div class="modal fade" id="modalApagarLote" tabindex="-1" aria-labelledby="modalApagarLoteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="modalApagarLoteLabel">
+          <i class="bi bi-trash me-2"></i>Confirmar exclusão
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'processos:apagar-lote' %}" id="form-apagar-lote">
+        {% csrf_token %}
+        <div id="lote-hidden-inputs"></div>
+        <div class="modal-body">
+          <p class="mb-0">
+            Você está prestes a excluir
+            <strong id="lote-confirm-count" class="text-danger"></strong>
+            processo(s). Esta ação <strong>não pode ser desfeita</strong>.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-danger">
+            <i class="bi bi-trash me-1"></i>Excluir
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+(function () {
+  var selAll   = document.getElementById('proc-sel-all');
+  var btnLote  = document.getElementById('btn-apagar-lote');
+  var loteCount     = document.getElementById('lote-count');
+  var loteConfirm   = document.getElementById('lote-confirm-count');
+  var loteInputs    = document.getElementById('lote-hidden-inputs');
+
+  function getChecked() {
+    return Array.from(document.querySelectorAll('.proc-checkbox:checked'));
+  }
+
+  function syncToolbar() {
+    var checked = getChecked();
+    var n = checked.length;
+    if (n > 0) {
+      btnLote.style.display = '';
+      loteCount.textContent = '(' + n + ')';
+    } else {
+      btnLote.style.display = 'none';
+      loteCount.textContent = '';
+    }
+    /* Atualiza estado do "selecionar todos" */
+    var all = document.querySelectorAll('.proc-checkbox');
+    selAll.indeterminate = n > 0 && n < all.length;
+    selAll.checked = n > 0 && n === all.length;
+  }
+
+  /* Selecionar / desselecionar todos */
+  if (selAll) {
+    selAll.addEventListener('change', function () {
+      document.querySelectorAll('.proc-checkbox').forEach(function (cb) {
+        cb.checked = selAll.checked;
+      });
+      syncToolbar();
+    });
+  }
+
+  /* Monitorar checkboxes individuais */
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.classList.contains('proc-checkbox')) {
+      syncToolbar();
+    }
+  });
+
+  /* Antes de abrir o modal de exclusão em lote, preenche os inputs ocultos */
+  var modalEl = document.getElementById('modalApagarLote');
+  if (modalEl) {
+    modalEl.addEventListener('show.bs.modal', function () {
+      var checked = getChecked();
+      loteConfirm.textContent = checked.length;
+      loteInputs.innerHTML = '';
+      checked.forEach(function (cb) {
+        var inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = 'processo_ids';
+        inp.value = cb.value;
+        loteInputs.appendChild(inp);
+      });
+    });
+  }
+}());
+</script>
 {% endblock %}
