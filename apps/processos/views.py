@@ -374,15 +374,21 @@ def importar_processos(request):
         messages.error(request, f"Erro ao processar o arquivo: {exc}")
         return redirect(reverse("processos:lista"))
 
-    criados = resultado.get("criados", 0)
+    criados    = resultado.get("criados", 0)
     atualizados = resultado.get("atualizados", 0)
-    erros = resultado.get("erros", [])
+    erros      = resultado.get("erros", [])
+    col_info   = resultado.get("colunas", [])
+
+    # Colunas não mapeadas (aviso único)
+    nao_mapeadas = [c["original"] for c in col_info if not c["mapeado"] and c["original"]]
+    if nao_mapeadas:
+        messages.warning(request, "Colunas não reconhecidas (ignoradas): " + ", ".join(nao_mapeadas))
 
     if erros:
         for erro in erros[:10]:
             messages.warning(request, erro)
         if len(erros) > 10:
-            messages.warning(request, f"… e mais {len(erros) - 10} erro(s) omitido(s).")
+            messages.warning(request, f"… e mais {len(erros) - 10} aviso(s) omitido(s).")
 
     if criados or atualizados:
         partes = []
@@ -395,6 +401,29 @@ def importar_processos(request):
         messages.info(request, "Nenhum processo foi importado (planilha vazia ou sem dados novos).")
 
     return redirect(reverse("processos:lista"))
+
+
+@require_http_methods(["POST"])
+def diagnosticar_planilha(request):
+    """POST: analisa planilha sem importar — retorna mapeamento de colunas."""
+    from .importers import ProcessoImporter, HEADER_NAMES
+    arquivo = request.FILES.get("arquivo")
+    if not arquivo:
+        return render(request, "processos/_diagnostico.html", {"erro": "Nenhum arquivo enviado."})
+    try:
+        importer = ProcessoImporter()
+        _, col_info = importer._sheet_to_dicts(
+            __import__("openpyxl").load_workbook(arquivo, read_only=True, data_only=True).active
+        )
+    except Exception as exc:
+        return render(request, "processos/_diagnostico.html", {"erro": str(exc)})
+
+    return render(request, "processos/_diagnostico.html", {
+        "col_info": col_info,
+        "campos_esperados": HEADER_NAMES,
+        "mapeadas": [c for c in col_info if c["mapeado"]],
+        "nao_mapeadas": [c for c in col_info if not c["mapeado"] and c["original"]],
+    })
 
 
 # ── Empenhos ──────────────────────────────────────────────────────────────────

@@ -281,10 +281,21 @@
             <label for="importArquivo" class="form-label form-label-sm fw-semibold">
               Arquivo <span class="text-danger">*</span>
             </label>
-            <input class="form-control form-control-sm" type="file"
-                   id="importArquivo" name="arquivo" accept=".xlsx" required>
-            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos.</div>
+            <div class="d-flex gap-2 align-items-center">
+              <input class="form-control form-control-sm" type="file"
+                     id="importArquivo" name="arquivo" accept=".xlsx" required
+                     onchange="document.getElementById('diag-area').innerHTML=''">
+              <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                      id="btn-diagnosticar"
+                      onclick="diagnosticarPlanilha()">
+                <i class="bi bi-search me-1"></i>Diagnosticar
+              </button>
+            </div>
+            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos. Use "Diagnosticar" para verificar o mapeamento de colunas antes de importar.</div>
           </div>
+
+          <div id="diag-area" class="mb-3"></div>
+
           <div class="alert alert-info d-flex gap-2 py-2 mb-0" style="font-size:.82rem;">
             <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
             <span>Não tem o modelo?
@@ -340,6 +351,36 @@
 {% block extra_scripts %}
 {{ block.super }}
 <script>
+/* Diagnóstico de planilha */
+function diagnosticarPlanilha() {
+  var input = document.getElementById('importArquivo');
+  var area  = document.getElementById('diag-area');
+  if (!input.files || !input.files[0]) {
+    area.innerHTML = '<div class="alert alert-warning py-2 small mb-0">Selecione um arquivo primeiro.</div>';
+    return;
+  }
+  var btn = document.getElementById('btn-diagnosticar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Analisando…';
+
+  var fd = new FormData();
+  fd.append('arquivo', input.files[0]);
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+  fetch('{% url "processos:diagnosticar" %}', { method: 'POST', body: fd })
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      area.innerHTML = html;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search me-1"></i>Diagnosticar';
+    })
+    .catch(function() {
+      area.innerHTML = '<div class="alert alert-danger py-2 small mb-0">Erro ao analisar o arquivo.</div>';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search me-1"></i>Diagnosticar';
+    });
+}
+
 (function () {
   var selAll   = document.getElementById('proc-sel-all');
   var btnLote  = document.getElementById('btn-apagar-lote');

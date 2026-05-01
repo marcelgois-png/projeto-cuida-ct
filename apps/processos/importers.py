@@ -49,6 +49,139 @@ COLUNAS = [
 
 HEADER_NAMES = [c[0] for c in COLUNAS]
 
+# Mapeamento de variações de cabeçalho → campo canônico
+# Chaves já normalizadas (minúsculas, sem acentos, underscores)
+COLUMN_ALIASES: dict[str, str] = {
+    # numero_processo
+    "numero_processo": "numero_processo",
+    "n_processo": "numero_processo",
+    "num_processo": "numero_processo",
+    "numero": "numero_processo",
+    "processo": "numero_processo",
+    "n_do_processo": "numero_processo",
+    "numero_do_processo": "numero_processo",
+    "n_sipac": "numero_processo",
+    "num_sipac": "numero_processo",
+    "no_processo": "numero_processo",
+    "n": "numero_processo",
+
+    # assunto
+    "assunto": "assunto",
+    "descricao": "assunto",
+    "objeto": "assunto",
+    "titulo": "assunto",
+
+    # datas
+    "data_abertura": "data_abertura",
+    "abertura": "data_abertura",
+    "dt_abertura": "data_abertura",
+    "data_de_abertura": "data_abertura",
+    "data_abertura_processo": "data_abertura",
+
+    "data_os": "data_os",
+    "os": "data_os",
+    "ordem_servico": "data_os",
+    "data_ordem_servico": "data_os",
+    "dt_os": "data_os",
+    "data_emissao_os": "data_os",
+    "emissao_os": "data_os",
+
+    "data_conclusao": "data_conclusao",
+    "conclusao": "data_conclusao",
+    "dt_conclusao": "data_conclusao",
+    "data_de_conclusao": "data_conclusao",
+    "data_encerramento": "data_conclusao",
+
+    "data_arquivamento": "data_arquivamento",
+    "arquivamento": "data_arquivamento",
+    "dt_arquivamento": "data_arquivamento",
+    "data_de_arquivamento": "data_arquivamento",
+
+    # status
+    "status": "status",
+    "status_processo": "status",
+    "cod_status": "status",
+    "codigo_status": "status",
+    "situacao_status": "status",
+    "status_sipac": "status",
+
+    # situacao_sipac
+    "situacao_sipac": "situacao_sipac",
+    "situacao": "situacao_sipac",
+    "sit_sipac": "situacao_sipac",
+    "situacao_no_sipac": "situacao_sipac",
+    "situacao_processo": "situacao_sipac",
+
+    # gerencia
+    "gerencia": "gerencia",
+    "gerencia_sinfra": "gerencia",
+    "gerencia_responsavel": "gerencia",
+    "divisao": "gerencia",
+    "setor_sinfra": "gerencia",
+
+    # servico
+    "servico": "servico",
+    "servico_processo": "servico",
+    "tipo_servico": "servico",
+    "servico_contratado": "servico",
+    "natureza_servico": "servico",
+
+    # predio
+    "predio": "predio",
+    "edificio": "predio",
+    "bloco": "predio",
+    "local": "predio",
+    "localizacao": "predio",
+    "nome_predio": "predio",
+    "nome_edificio": "predio",
+
+    # tipo_ambiente
+    "tipo_ambiente": "tipo_ambiente",
+    "ambiente": "tipo_ambiente",
+    "tipo_de_ambiente": "tipo_ambiente",
+    "tipo_local": "tipo_ambiente",
+
+    # empresa
+    "empresa": "empresa",
+    "empresa_executora": "empresa",
+    "contratada": "empresa",
+    "empresa_contratada": "empresa",
+    "prestadora": "empresa",
+    "fornecedor": "empresa",
+
+    # classificacao_az
+    "classificacao_az": "classificacao_az",
+    "az": "classificacao_az",
+    "prioridade_az": "classificacao_az",
+    "classificacao": "classificacao_az",
+    "prioridade": "classificacao_az",
+    "classe": "classificacao_az",
+    "categoria": "classificacao_az",
+
+    # link_sipac
+    "link_sipac": "link_sipac",
+    "link": "link_sipac",
+    "sipac": "link_sipac",
+    "url_sipac": "link_sipac",
+    "link_do_sipac": "link_sipac",
+    "url": "link_sipac",
+    "endereco_sipac": "link_sipac",
+
+    # observacao
+    "observacao": "observacao",
+    "obs": "observacao",
+    "observacoes": "observacao",
+    "notas": "observacao",
+    "nota": "observacao",
+
+    # acompanhamento_ct
+    "acompanhamento_ct": "acompanhamento_ct",
+    "acompanhamento": "acompanhamento_ct",
+    "historico": "acompanhamento_ct",
+    "historico_ct": "acompanhamento_ct",
+    "andamento": "acompanhamento_ct",
+}
+
 # Cor do cabeçalho: vinho do módulo
 COR_HEADER_FG = "FFFFFF"
 COR_HEADER_BG = "7A2632"
@@ -217,24 +350,48 @@ class ProcessoImporter:
         if sheet is None:
             sheet = wb.active
 
-        rows = self._sheet_to_dicts(sheet)
+        rows, col_info = self._sheet_to_dicts(sheet)
         with transaction.atomic():
-            return self._upsert_processos(rows)
+            resultado = self._upsert_processos(rows)
+        resultado["colunas"] = col_info
+        return resultado
 
     # ── Conversão de planilha ─────────────────────────────────────────────────
 
-    def _sheet_to_dicts(self, sheet) -> list[dict[str, str]]:
+    def _sheet_to_dicts(self, sheet) -> tuple[list[dict], list[dict]]:
+        """Retorna (linhas_como_dicts, info_colunas).
+        info_colunas: lista de {original, normalizado, canonico, mapeado}."""
         rows = list(sheet.iter_rows(values_only=True))
         if not rows:
-            return []
-        # Normaliza cabeçalhos
-        headers = [self._norm(str(h)) if h is not None else "" for h in rows[0]]
+            return [], []
+
+        # Mapeia cada cabeçalho original → chave canônica
+        col_info = []
+        headers_canonical = []
+        for h in rows[0]:
+            original = str(h).strip() if h is not None else ""
+            norm = self._norm(original) if original else ""
+            canonical = COLUMN_ALIASES.get(norm, norm)
+            mapeado = canonical in HEADER_NAMES
+            col_info.append({
+                "original": original,
+                "normalizado": norm,
+                "canonico": canonical,
+                "mapeado": mapeado,
+            })
+            headers_canonical.append(canonical)
+
         result = []
         for row in rows[1:]:
             if all(v is None or str(v).strip() == "" for v in row):
                 continue
-            result.append({headers[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)})
-        return result
+            d = {}
+            for i, v in enumerate(row):
+                if i < len(headers_canonical):
+                    d[headers_canonical[i]] = str(v).strip() if v is not None else ""
+            result.append(d)
+
+        return result, col_info
 
     @staticmethod
     def _norm(text: str) -> str:

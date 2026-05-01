@@ -16,6 +16,7 @@ urlpatterns = [
     path('<int:pk>/az/', views.priorizacao_az_update, name='priorizacao-az-update'),
     path('<int:pk>/apagar/', views.processo_delete, name='apagar'),
     path('apagar-lote/', views.processos_bulk_delete, name='apagar-lote'),
+    path('diagnosticar/', views.diagnosticar_planilha, name='diagnosticar'),
     path('modelo/', views.modelo_planilha_processos, name='modelo-planilha'),
     path('importar/', views.importar_processos, name='importar'),
     path('public/consulta/', views.public_consulta_processos, name='public-consulta'),
