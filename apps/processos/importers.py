@@ -259,12 +259,14 @@ class ProcessoImporter:
             num = num.strip()
             try:
                 processo, is_new = Processo.objects.get_or_create(numero_processo=num)
-                self._fill_processo(processo, row)
+                avisos = self._fill_processo(processo, row)
                 processo.save()
                 if is_new:
                     created += 1
                 else:
                     updated += 1
+                for av in avisos:
+                    erros.append(f"Linha {i} ({num}): {av}")
             except Exception as exc:
                 erros.append(f"Linha {i} ({num}): {exc}")
 
@@ -276,17 +278,32 @@ class ProcessoImporter:
             "total_linhas": len(rows),
         }
 
-    def _fill_processo(self, processo: Processo, row: dict) -> None:
-        """Preenche campos do processo a partir da linha da planilha."""
+    def _fill_processo(self, processo: Processo, row: dict) -> list[str]:
+        """Preenche campos do processo a partir da linha da planilha.
+        Retorna lista de avisos (valores não encontrados etc.)."""
+        avisos: list[str] = []
+
         def set_if(attr, *keys):
             val = self._get(row, *keys)
             if val:
                 setattr(processo, attr, val)
 
+        def set_fk(attr, resolver, *keys):
+            """Só toca no campo FK se a célula tiver valor."""
+            val = self._get(row, *keys)
+            if val is None:
+                return  # célula vazia → não sobrescreve
+            obj = resolver(val)
+            if obj is not None:
+                setattr(processo, attr, obj)
+            else:
+                avisos.append(f"{keys[0]}='{val}' não encontrado")
+                setattr(processo, attr, None)  # valor fornecido mas não resolveu → limpa
+
         # Texto livre
-        set_if("assunto", "assunto")
-        set_if("link_sipac", "link_sipac", "link", "sipac")
-        set_if("observacao", "observacao", "obs")
+        set_if("assunto",           "assunto")
+        set_if("link_sipac",        "link_sipac", "link", "sipac")
+        set_if("observacao",        "observacao", "obs")
         set_if("acompanhamento_ct", "acompanhamento_ct", "acompanhamento")
 
         # Classificação A-Z
@@ -308,15 +325,19 @@ class ProcessoImporter:
                 parsed = self._parse_date(val)
                 if parsed:
                     setattr(processo, attr, parsed)
+                else:
+                    avisos.append(f"{attr}='{val}' não reconhecido como data")
 
-        # FK por nome/código
-        processo.status        = self._resolve_status(self._get(row, "status", "status_processo"))
-        processo.gerencia      = self._resolve_gerencia(self._get(row, "gerencia", "gerencia_sinfra"))
-        processo.servico       = self._resolve_servico(self._get(row, "servico", "servico_processo", "tipo_servico"))
-        processo.situacao_sipac = self._resolve_situacao(self._get(row, "situacao_sipac", "situacao", "sit_sipac"))
-        processo.predio        = self._resolve_predio(self._get(row, "predio", "edificio", "bloco"))
-        processo.tipo_ambiente = self._resolve_ambiente(self._get(row, "tipo_ambiente", "ambiente"))
-        processo.empresa       = self._resolve_empresa(self._get(row, "empresa", "empresa_executora"))
+        # FK por nome/código — só altera se célula tiver valor
+        set_fk("status",         self._resolve_status,   "status",        "status_processo")
+        set_fk("gerencia",       self._resolve_gerencia, "gerencia",      "gerencia_sinfra")
+        set_fk("servico",        self._resolve_servico,  "servico",       "servico_processo", "tipo_servico")
+        set_fk("situacao_sipac", self._resolve_situacao, "situacao_sipac","situacao", "sit_sipac")
+        set_fk("predio",         self._resolve_predio,   "predio",        "edificio", "bloco")
+        set_fk("tipo_ambiente",  self._resolve_ambiente, "tipo_ambiente", "ambiente")
+        set_fk("empresa",        self._resolve_empresa,  "empresa",       "empresa_executora")
+
+        return avisos
 
     # ── Resolvers de FK ───────────────────────────────────────────────────────
 
@@ -325,8 +346,10 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._status_cache:
+            # Tenta código exato, depois início do código, depois nome
             obj = (
-                StatusProcesso.objects.filter(codigo=key).first()
+                StatusProcesso.objects.filter(codigo__iexact=key).first()
+                or StatusProcesso.objects.filter(codigo__istartswith=key).first()
                 or StatusProcesso.objects.filter(nome__icontains=key).first()
             )
             self._status_cache[key] = obj
@@ -337,7 +360,10 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._gerencia_cache:
-            self._gerencia_cache[key] = GerenciaSINFRA.objects.filter(nome__icontains=key).first()
+            self._gerencia_cache[key] = (
+                GerenciaSINFRA.objects.filter(nome__iexact=key).first()
+                or GerenciaSINFRA.objects.filter(nome__icontains=key).first()
+            )
         return self._gerencia_cache[key]
 
     def _resolve_servico(self, val: str | None) -> ServicoProcesso | None:
@@ -345,7 +371,10 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._servico_cache:
-            self._servico_cache[key] = ServicoProcesso.objects.filter(nome__icontains=key).first()
+            self._servico_cache[key] = (
+                ServicoProcesso.objects.filter(nome__iexact=key).first()
+                or ServicoProcesso.objects.filter(nome__icontains=key).first()
+            )
         return self._servico_cache[key]
 
     def _resolve_situacao(self, val: str | None) -> SituacaoSIPAC | None:
@@ -353,7 +382,10 @@ class ProcessoImporter:
             return None
         key = val.strip().upper()
         if key not in self._situacao_cache:
-            self._situacao_cache[key] = SituacaoSIPAC.objects.filter(nome__iexact=key).first()
+            self._situacao_cache[key] = (
+                SituacaoSIPAC.objects.filter(nome__iexact=key).first()
+                or SituacaoSIPAC.objects.filter(nome__icontains=key).first()
+            )
         return self._situacao_cache[key]
 
     def _resolve_predio(self, val: str | None) -> Predio | None:
@@ -372,7 +404,10 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._ambiente_cache:
-            self._ambiente_cache[key] = TipoAmbiente.objects.filter(nome__icontains=key).first()
+            self._ambiente_cache[key] = (
+                TipoAmbiente.objects.filter(nome__iexact=key).first()
+                or TipoAmbiente.objects.filter(nome__icontains=key).first()
+            )
         return self._ambiente_cache[key]
 
     def _resolve_empresa(self, val: str | None) -> Empresa | None:
@@ -380,7 +415,13 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._empresa_cache:
-            obj, _ = Empresa.objects.get_or_create(nome=key, defaults={"ativa": True})
+            # Busca exata primeiro, depois parcial; cria se não existir
+            obj = (
+                Empresa.objects.filter(nome__iexact=key).first()
+                or Empresa.objects.filter(nome__icontains=key).first()
+            )
+            if obj is None:
+                obj = Empresa.objects.create(nome=key, ativa=True)
             self._empresa_cache[key] = obj
         return self._empresa_cache[key]
 
@@ -395,16 +436,25 @@ class ProcessoImporter:
                 return str(val).strip()
         return None
 
-    def _parse_date(self, val: str) -> date | None:
+    def _parse_date(self, val) -> date | None:
         if not val:
             return None
-        # openpyxl pode retornar datetime direto
-        if isinstance(val, (date, datetime)):
-            return val if isinstance(val, date) else val.date()
-        val = str(val).strip()
+        # openpyxl pode retornar datetime/date direto (antes da conversão para string)
+        if isinstance(val, datetime):
+            return val.date()
+        if isinstance(val, date):
+            return val
+        val_str = str(val).strip()
+        if not val_str or val_str.lower() in ("none", "nan", "nat"):
+            return None
+        # openpyxl serializado como string traz "AAAA-MM-DD HH:MM:SS" — descarta horário
+        if " " in val_str:
+            val_str = val_str.split(" ")[0]
+        # Remove frações de segundo se presentes (ex: "2024-03-10T00:00:00")
+        val_str = val_str.replace("T", " ").split(" ")[0]
         for fmt in self.DATE_FORMATS:
             try:
-                return datetime.strptime(val, fmt).date()
+                return datetime.strptime(val_str, fmt).date()
             except ValueError:
                 continue
         return None
