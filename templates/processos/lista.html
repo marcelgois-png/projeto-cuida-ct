@@ -29,8 +29,9 @@
   .proc-action-btn.btn-sipac:hover { border-color: #283E4C; color: #283E4C; background: #e8eef6; }
   .proc-action-btn.btn-sipac.disabled { opacity: .35; pointer-events: none; }
 
-  /* Botão "Apagar selecionados" (oculto por padrão) */
-  #btn-apagar-lote { display: none; }
+  /* Botão "Apagar selecionados" (oculto por padrão via classe) */
+  #btn-apagar-lote { display: none !important; }
+  #btn-apagar-lote.ativo { display: inline-flex !important; }
 </style>
 {% endblock %}
 
@@ -153,7 +154,7 @@
   </div>
   <div class="card-body p-0">
     {% if processos %}
-    <div class="table-responsive">
+    <div class="table-responsive" style="max-height:calc(100vh - 340px); overflow-y:auto;">
       <table class="table table-hover table-sm mb-0 align-middle">
         <thead class="table-light">
           <tr>
@@ -245,33 +246,6 @@
         </tbody>
       </table>
     </div>
-
-    {# Paginação #}
-    {% if is_paginated %}
-    <div class="d-flex justify-content-center py-3">
-      <nav>
-        <ul class="pagination pagination-sm mb-0">
-          {% if page_obj.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for k,v in filtros.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
-                &laquo;
-              </a>
-            </li>
-          {% endif %}
-          <li class="page-item active">
-            <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-          </li>
-          {% if page_obj.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for k,v in filtros.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">
-                &raquo;
-              </a>
-            </li>
-          {% endif %}
-        </ul>
-      </nav>
-    </div>
-    {% endif %}
 
     {% else %}
     <div class="text-center text-muted py-5">
@@ -381,10 +355,10 @@
     var checked = getChecked();
     var n = checked.length;
     if (n > 0) {
-      btnLote.style.display = '';
+      btnLote.classList.add('ativo');
       loteCount.textContent = '(' + n + ')';
     } else {
-      btnLote.style.display = 'none';
+      btnLote.classList.remove('ativo');
       loteCount.textContent = '';
     }
     /* Atualiza estado do "selecionar todos" */

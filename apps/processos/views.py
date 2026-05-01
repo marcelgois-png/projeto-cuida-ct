@@ -37,7 +37,7 @@ class ProcessosListaView(LoginRequiredMixin, ListView):
     model = Processo
     template_name = "processos/lista.html"
     context_object_name = "processos"
-    paginate_by = 50
+    paginate_by = None
 
     def get_queryset(self):
         qs = (
