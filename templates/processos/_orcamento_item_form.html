@@ -1,0 +1,49 @@
+{% load tracker_tags %}
+<div class="border rounded bg-light p-2 mt-2">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <span class="fw-semibold small text-primary">
+      <i class="bi bi-{% if item %}pencil{% else %}plus-circle{% endif %} me-1"></i>
+      {% if item %}Editar item{% else %}Novo item{% endif %}
+    </span>
+    <button type="button"
+            class="btn-close btn-sm"
+            onclick="document.getElementById('item-form-orc-{{ orcamento.pk }}').innerHTML=''"
+            title="Fechar"></button>
+  </div>
+  <form hx-post="{% if item %}{% url 'processos:orcamento-item-edit' orcamento.pk item.pk %}{% else %}{% url 'processos:orcamento-item-add' orcamento.pk %}{% endif %}"
+        hx-target="#itens-orc-{{ orcamento.pk }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label form-label-sm fw-semibold small mb-1">Nº</label>
+        <input type="text" name="numero" class="form-control form-control-sm"
+               placeholder="1.0" value="{{ item.numero|default:'' }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label form-label-sm fw-semibold small mb-1">
+          Descrição do serviço / grupo <span class="text-danger">*</span>
+        </label>
+        <input type="text" name="descricao" class="form-control form-control-sm"
+               placeholder="Ex: Serviços preliminares"
+               value="{{ item.descricao|default:'' }}" required autofocus>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label form-label-sm fw-semibold small mb-1">Valor base (R$)</label>
+        <input type="text" name="valor" class="form-control form-control-sm"
+               placeholder="5.609,93"
+               value="{% if item.valor %}{{ item.valor|brl }}{% endif %}">
+      </div>
+      <div class="col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-success flex-grow-1">
+          <i class="bi bi-check-lg me-1"></i>{% if item %}Atualizar{% else %}Adicionar{% endif %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="document.getElementById('item-form-orc-{{ orcamento.pk }}').innerHTML=''"
+                title="Cancelar">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

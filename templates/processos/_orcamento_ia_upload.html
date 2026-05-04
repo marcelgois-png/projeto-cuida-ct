@@ -1,0 +1,60 @@
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="orcamento-ia-modal">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-robot me-2 text-primary"></i>Importar Orçamento via IA
+        </h5>
+        <button type="button" class="btn-close" onclick="fecharOrcamentoIA()"></button>
+      </div>
+
+      {% if erro %}
+      <div class="alert alert-danger d-flex align-items-center gap-2 m-3 mb-0">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+        <span>{{ erro }}</span>
+      </div>
+      {% endif %}
+
+      <form hx-post="{% url 'processos:orcamento-ia-extrair' processo.pk %}"
+            hx-target="#orcamento-ia-modal-container"
+            hx-swap="innerHTML"
+            hx-encoding="multipart/form-data"
+            hx-indicator="#ia-spinner">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="upload">
+        <div class="modal-body">
+          <p class="text-muted small mb-3">
+            Envie a planilha orçamentária em PDF. A IA irá extrair automaticamente a descrição, valor,
+            data e número de empenho para pré-preencher o formulário de cadastro.
+          </p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Arquivo PDF <span class="text-danger">*</span></label>
+            <input type="file" name="pdf_file" class="form-control form-control-sm"
+                   accept=".pdf,application/pdf" required>
+            <div class="form-text">Apenas arquivos .pdf — máximo 10 MB</div>
+          </div>
+          <div id="ia-spinner" class="htmx-indicator text-center py-2 text-primary small d-none">
+            <span class="spinner-border spinner-border-sm me-2"></span>Analisando com IA, aguarde…
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fecharOrcamentoIA()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm" style="background:#7A2632;border-color:#7A2632;">
+            <i class="bi bi-magic me-1"></i>Extrair com IA
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('orcamento-ia-modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharOrcamentoIA();
+  });
+  // Mostra spinner enquanto o HTMX processa
+  document.querySelector('#orcamento-ia-modal form').addEventListener('htmx:beforeRequest', function() {
+    document.getElementById('ia-spinner').classList.remove('d-none');
+  });
+</script>

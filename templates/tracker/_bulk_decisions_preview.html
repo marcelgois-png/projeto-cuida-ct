@@ -1,4 +1,4 @@
-<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="bulk-decisions-modal">
+<div class="modal fade show d-block bulk-decisions-modal" tabindex="-1" style="background:rgba(0,0,0,.45);" id="bulk-decisions-modal">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow">
       <div class="modal-header">
@@ -10,6 +10,7 @@
       </div>
 
       <form
+        class="bulk-decisions-form"
         hx-post="{% url 'lista-bulk-decisions' %}"
         hx-target="#bulk-decisions-modal-container"
         hx-swap="innerHTML"

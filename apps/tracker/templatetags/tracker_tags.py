@@ -33,6 +33,32 @@ def intdot(value):
 
 
 @register.filter
+def brl_k(value):
+    """Formata valor BRL com abreviação de milhar/milhão para uso em KPIs.
+    Ex: 125631.40 → '125,6 mil' | 1234567 → '1,2 mi' | 850 → '850,00'"""
+    if value is None or value == "":
+        return "-"
+    try:
+        v = Decimal(str(value))
+    except InvalidOperation:
+        return str(value)
+
+    abs_v = abs(v)
+    sign = "-" if v < 0 else ""
+
+    if abs_v >= Decimal("1000000"):
+        abbr = (abs_v / Decimal("1000000")).quantize(Decimal("0.1"))
+        formatted = f"{abbr:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{sign}{formatted}mi"
+    elif abs_v >= Decimal("1000"):
+        abbr = (abs_v / Decimal("1000")).quantize(Decimal("0.1"))
+        formatted = f"{abbr:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"{sign}{formatted}k"
+    else:
+        return brl(value)
+
+
+@register.filter
 def get_item(mapping, key):
     if mapping is None:
         return None

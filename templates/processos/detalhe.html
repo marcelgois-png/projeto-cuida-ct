@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static tracker_tags %}
 
 {% block title %}Processo {{ processo.numero_processo }} | Cuida CT{% endblock %}
 
@@ -26,7 +26,7 @@
 <div class="row g-4">
 
   {# ── Coluna esquerda: dados principais ─────────────────────────────── #}
-  <div class="col-12 col-xl-8">
+  <div class="col-12">
 
     {# Dados gerais #}
     <div class="card mb-3">
@@ -39,54 +39,86 @@
         {% endif %}
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-6 col-md-3">
+        <div class="row row-cols-1 row-cols-lg-5 g-3">
+          <div class="col">
             <div class="text-muted small">Status</div>
             <div class="fw-semibold">
               {% if processo.status %}
-                <span class="badge bg-secondary">{{ processo.status.codigo }}</span>
                 {{ processo.status.nome }}
               {% else %}—{% endif %}
             </div>
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col">
             <div class="text-muted small">Situação SIPAC</div>
             <div class="fw-semibold">{{ processo.situacao_sipac.nome|default:"—" }}</div>
           </div>
-          <div class="col-6 col-md-3">
-            <div class="text-muted small">Gerência SINFRA</div>
-            <div class="fw-semibold">{{ processo.gerencia.nome|default:"—" }}</div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="text-muted small">Serviço</div>
-            <div class="fw-semibold">{{ processo.servico.nome|default:"—" }}</div>
-          </div>
-          <div class="col-6 col-md-3">
+          <div class="col">
             <div class="text-muted small">Prédio</div>
             <div class="fw-semibold">{{ processo.predio.nome|default:"—" }}</div>
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col">
             <div class="text-muted small">Tipo de ambiente</div>
             <div class="fw-semibold">{{ processo.tipo_ambiente.nome|default:"—" }}</div>
           </div>
-          <div class="col-6 col-md-3">
-            <div class="text-muted small">Empresa</div>
-            <div class="fw-semibold">{{ processo.empresa.nome|default:"—" }}</div>
-          </div>
-          {% if processo.link_sipac %}
-          <div class="col-6 col-md-3">
+          <div class="col">
             <div class="text-muted small">Link SIPAC</div>
-            <a href="{{ processo.link_sipac }}" target="_blank" rel="noopener" class="small">
-              <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no SIPAC
-            </a>
+            {% if processo.link_sipac %}
+              <a href="{{ processo.link_sipac }}" target="_blank" rel="noopener" class="small">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Abrir no SIPAC
+              </a>
+            {% else %}
+              <span class="fw-semibold">—</span>
+            {% endif %}
           </div>
-          {% endif %}
         </div>
 
         {% if processo.assunto %}
         <hr class="my-3">
         <div class="text-muted small mb-1">Assunto</div>
         <p class="mb-0">{{ processo.assunto }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Solicitantes #}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h3 class="section-title mb-0"><i class="bi bi-people me-1"></i>Solicitantes</h3>
+      </div>
+      <div class="card-body pb-2">
+        <div class="text-muted small">Unidade de origem</div>
+        <div class="fw-semibold">{{ processo.unidade_origem|default:"—" }}</div>
+      </div>
+      <div class="card-body p-0">
+        <div class="px-3 pb-2 d-flex align-items-center gap-2">
+          <span class="text-muted small text-uppercase fw-semibold">Interessado(s)</span>
+          {% if processo.interessados.count %}
+            <span class="badge bg-secondary">{{ processo.interessados.count }}</span>
+          {% endif %}
+        </div>
+        {% if processo.interessados.all %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Tipo</th>
+                <th>Identificador</th>
+                <th>Nome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for interessado in processo.interessados.all %}
+              <tr>
+                <td><small>{{ interessado.tipo|default:"—" }}</small></td>
+                <td><small>{{ interessado.identificador|default:"—" }}</small></td>
+                <td class="small fw-semibold">{{ interessado.nome }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <p class="text-muted small mb-0 p-3">Nenhum interessado importado.</p>
         {% endif %}
       </div>
     </div>
@@ -145,6 +177,10 @@
       </div>
     </div>
 
+    {# Modais de orçamento #}
+    <div id="orcamento-ia-modal-container"></div>
+    <div id="orcamento-modal-container"></div>
+
     {# Orçamentos #}
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -154,9 +190,25 @@
             <span class="badge bg-secondary ms-1">{{ processo.orcamentos.count }}</span>
           {% endif %}
         </h3>
-        <span class="fw-semibold text-muted small">
-          Total: R$ {{ processo.valor_total_orcado|floatformat:2 }}
-        </span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="fw-semibold text-muted small">
+            Total: R$ {{ processo.valor_total_orcado|floatformat:2 }}
+          </span>
+          <button class="btn btn-sm btn-outline-secondary d-none"
+                  hx-get="{% url 'processos:orcamento-ia-extrair' processo.pk %}"
+                  hx-target="#orcamento-ia-modal-container"
+                  hx-swap="innerHTML"
+                  title="Importar orçamento a partir de um PDF com ajuda da IA">
+            <i class="bi bi-robot me-1"></i>Importar via IA
+          </button>
+          <button class="btn btn-sm btn-primary d-none"
+                  hx-get="{% url 'processos:orcamento-add' processo.pk %}"
+                  hx-target="#orcamento-modal-container"
+                  hx-swap="innerHTML"
+                  title="Adicionar novo orçamento">
+            <i class="bi bi-plus-lg me-1"></i>Novo orçamento
+          </button>
+        </div>
       </div>
       <div class="card-body p-0">
         {% if processo.orcamentos.all %}
@@ -169,18 +221,24 @@
                 <th style="width:110px;">Valor</th>
                 <th style="width:90px;">Status</th>
                 <th style="width:90px;">Emissão</th>
-                <th style="width:50px;"></th>
+                <th class="d-none" style="width:50px;"></th>
               </tr>
             </thead>
             <tbody>
               {% for orc in processo.orcamentos.all %}
+              {# Linha principal do orçamento #}
               <tr>
                 <td class="text-muted">{{ orc.numero_sequencial }}</td>
-                <td>{{ orc.descricao|default:"—"|truncatechars:60 }}</td>
                 <td>
-                  {% if orc.valor %}
-                    R$ {{ orc.valor|floatformat:2 }}
-                  {% else %}—{% endif %}
+                  <div class="small">{{ orc.descricao|default:"—"|truncatechars:80 }}</div>
+                  {% if orc.itens.count %}
+                  <span class="text-muted" style="font-size:.72rem">
+                    <i class="bi bi-list-ul me-1"></i>{{ orc.itens.count }} item{{ orc.itens.count|pluralize }}
+                  </span>
+                  {% endif %}
+                </td>
+                <td id="orc-valor-{{ orc.pk }}">
+                  {% if orc.valor_final_calculado %}R$ {{ orc.valor_final_calculado|brl }}{% else %}—{% endif %}
                 </td>
                 <td>
                   <span class="badge
@@ -192,15 +250,24 @@
                   </span>
                 </td>
                 <td><small>{{ orc.data_emissao|date:"d/m/Y"|default:"—" }}</small></td>
-                <td>
-                  <form method="post"
-                        action="{% url 'processos:orcamento-delete' processo.pk orc.pk %}"
-                        onsubmit="return confirm('Remover orçamento {{ orc.numero_sequencial }}?')">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" title="Remover">
-                      <i class="bi bi-trash"></i>
+                <td class="d-none">
+                  <div class="d-flex gap-1 justify-content-end">
+                    <button class="btn btn-xs btn-outline-primary py-0 px-1"
+                            hx-get="{% url 'processos:orcamento-edit' processo.pk orc.pk %}"
+                            hx-target="#orcamento-modal-container"
+                            hx-swap="innerHTML"
+                            title="Ver / editar orçamento">
+                      <i class="bi bi-pencil"></i>
                     </button>
-                  </form>
+                    <form method="post"
+                          action="{% url 'processos:orcamento-delete' processo.pk orc.pk %}"
+                          onsubmit="return confirm('Remover orçamento {{ orc.numero_sequencial }}?')">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" title="Remover">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% endfor %}
@@ -212,36 +279,6 @@
         {% endif %}
       </div>
 
-      {# Formulário de adição de orçamento #}
-      <div class="card-footer bg-light">
-        <p class="fw-semibold small mb-2"><i class="bi bi-plus-circle me-1"></i>Adicionar orçamento</p>
-        <form method="post" action="{% url 'processos:orcamento-add' processo.pk %}" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="row g-2">
-            <div class="col-12 col-md-6">
-              <label class="form-label form-label-sm">{{ orcamento_form.descricao.label }}</label>
-              {{ orcamento_form.descricao }}
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label form-label-sm">{{ orcamento_form.valor.label }}</label>
-              {{ orcamento_form.valor }}
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label form-label-sm">{{ orcamento_form.status.label }}</label>
-              {{ orcamento_form.status }}
-            </div>
-            <div class="col-6 col-md-2">
-              <label class="form-label form-label-sm">{{ orcamento_form.data_emissao.label }}</label>
-              {{ orcamento_form.data_emissao }}
-            </div>
-            <div class="col-12 d-flex justify-content-end">
-              <button type="submit" class="btn btn-sm btn-primary" style="background:#7A2632;border-color:#7A2632;">
-                <i class="bi bi-plus-lg me-1"></i>Adicionar orçamento
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
     </div>
 
     {# Requisições vinculadas #}
@@ -282,32 +319,6 @@
     </div>
     {% endif %}
 
-  </div>{# /col-xl-8 #}
-
-  {# ── Coluna direita: sidebar de detalhe ───────────────────────────── #}
-  <div class="col-12 col-xl-4">
-
-    {# Solicitantes #}
-    <div class="card mb-3">
-      <div class="card-header">
-        <h3 class="section-title mb-0"><i class="bi bi-people me-1"></i>Solicitantes</h3>
-      </div>
-      <div class="card-body">
-        {% if processo.solicitantes.all %}
-          <ul class="list-unstyled mb-0">
-            {% for sol in processo.solicitantes.all %}
-              <li class="py-1 border-bottom">
-                <div class="fw-semibold small">{{ sol.nome }}</div>
-                {% if sol.email %}<div class="text-muted" style="font-size:.75rem;">{{ sol.email }}</div>{% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted small mb-0">Nenhum solicitante vinculado.</p>
-        {% endif %}
-      </div>
-    </div>
-
     {# Acompanhamento CT #}
     {% if processo.acompanhamento_ct %}
     <div class="card mb-3">
@@ -332,15 +343,7 @@
     </div>
     {% endif %}
 
-    {# Metadados #}
-    <div class="card">
-      <div class="card-body text-muted" style="font-size:.75rem;">
-        <div>Cadastrado: {{ processo.criado_em|date:"d/m/Y H:i" }}</div>
-        <div>Atualizado: {{ processo.atualizado_em|date:"d/m/Y H:i" }}</div>
-      </div>
-    </div>
-
-  </div>{# /col-xl-4 #}
+  </div>{# /col-12 #}
 
 </div>{# /row #}
 {% endblock %}
@@ -348,19 +351,16 @@
 {% block extra_scripts %}
 {{ block.super }}
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    /* Aplica classes Bootstrap ao form de orçamento inline */
-    document.querySelectorAll(
-      '.card-footer input:not([type=hidden]):not([type=submit]),' +
-      '.card-footer select:not([multiple]),' +
-      '.card-footer textarea'
-    ).forEach(function (el) {
-      if (el.tagName === 'SELECT') {
-        el.classList.add('form-select', 'form-select-sm');
-      } else {
-        el.classList.add('form-control', 'form-control-sm');
-      }
-    });
-  });
+  function fecharOrcamentoIA() {
+    const el = document.getElementById('orcamento-ia-modal-container');
+    if (el) el.innerHTML = '';
+  }
+
+  function fecharOrcamentoModal() {
+    const el = document.getElementById('orcamento-modal-container');
+    if (el) el.innerHTML = '';
+    window.location.reload();
+  }
+
 </script>
 {% endblock %}

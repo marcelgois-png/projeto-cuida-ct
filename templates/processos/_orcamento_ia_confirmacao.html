@@ -1,0 +1,181 @@
+{% load tracker_tags %}
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="orcamento-ia-modal">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-check2-circle me-2 text-success"></i>Confirmar Orçamento Extraído
+        </h5>
+        <button type="button" class="btn-close" onclick="fecharOrcamentoIA()"></button>
+      </div>
+
+      <form hx-post="{% url 'processos:orcamento-ia-extrair' processo.pk %}"
+            hx-target="#orcamento-ia-modal-container"
+            hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="step" value="confirmar">
+
+        <div class="modal-body">
+
+          {# Cabeçalho informativo #}
+          <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-3">
+            <i class="bi bi-robot flex-shrink-0 mt-1"></i>
+            <span class="small">
+              Dados extraídos pelo assistente IA. Revise e ajuste conforme necessário antes de salvar.
+              {% if dados.numero_processo %}
+                <br><strong>Processo identificado no PDF:</strong> {{ dados.numero_processo }}
+              {% endif %}
+            </span>
+          </div>
+
+          <div class="row g-3">
+
+            {# Descrição #}
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Descrição <span class="text-danger">*</span></label>
+              <textarea name="descricao" class="form-control form-control-sm" rows="3"
+                        required>{{ dados.descricao|default:'' }}</textarea>
+            </div>
+
+            {# Valor #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Valor (R$)</label>
+              <input type="text" name="valor" class="form-control form-control-sm"
+                     placeholder="Ex: 80.564,50"
+                     value="{% if dados.valor %}{{ dados.valor|floatformat:2 }}{% endif %}">
+              <div class="form-text">Use vírgula como decimal: 80.564,50</div>
+            </div>
+
+            {# Data de emissão #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Data de emissão</label>
+              <input type="date" name="data_emissao" class="form-control form-control-sm"
+                     value="{{ dados.data_emissao|default:'' }}">
+            </div>
+
+            {# Status #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="PENDENTE" selected>Pendente</option>
+                <option value="APROVADO">Aprovado</option>
+                <option value="REPROVADO">Reprovado</option>
+                <option value="CANCELADO">Cancelado</option>
+              </select>
+            </div>
+
+            {# Vincular a Empenho #}
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Vincular à Nota de Empenho</label>
+              <select name="empenho_pk" class="form-select form-select-sm">
+                <option value="">(Não vincular)</option>
+                {% for emp in empenhos %}
+                  <option value="{{ emp.pk }}"
+                    {% if dados.nota_empenho and dados.nota_empenho == emp.nota_empenho %}selected{% endif %}>
+                    {{ emp.nota_empenho }}{% if emp.empresa %} — {{ emp.empresa }}{% endif %}
+                    (saldo: R$ {{ emp.saldo_processo|brl }})
+                  </option>
+                {% endfor %}
+              </select>
+              {% if dados.nota_empenho %}
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                A IA identificou o empenho <strong>{{ dados.nota_empenho }}</strong> no PDF.
+                {% if not empenhos %}Nenhuma nota cadastrada ainda.{% endif %}
+              </div>
+              {% endif %}
+            </div>
+
+            {# Ajustes extraídos (descontos / acréscimos) #}
+            {% if dados.ajustes %}
+            <div class="col-12">
+              <label class="form-label fw-semibold small">
+                <i class="bi bi-columns-gap me-1"></i>Colunas de ajuste identificadas
+              </label>
+              <div class="d-flex flex-wrap gap-2">
+                {% for aj in dados.ajustes %}
+                <span class="badge {% if aj.percentual < 0 %}bg-danger{% else %}bg-success{% endif %} fs-6 px-3">
+                  {{ aj.rotulo|default:"Ajuste" }}
+                  {% if aj.percentual > 0 %}+{% endif %}{{ aj.percentual }}%
+                </span>
+                {% endfor %}
+              </div>
+              <div class="form-text">Serão aplicadas em cadeia sobre os valores base dos itens.</div>
+              <input type="hidden" name="ajustes_json" id="ajustes-json-input">
+            </div>
+            {% endif %}
+
+            {# Itens extraídos #}
+            {% if dados.itens %}
+            <div class="col-12">
+              <label class="form-label fw-semibold small">
+                <i class="bi bi-list-ul me-1"></i>Grupos de serviço extraídos
+                <span class="badge bg-secondary ms-1">{{ dados.itens|length }}</span>
+              </label>
+              <div class="border rounded p-2 bg-white">
+                <table class="table table-sm mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width:55px" class="small">Nº</th>
+                      <th class="small">Serviço</th>
+                      <th class="text-end small" style="width:120px">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itens-preview-tbody">
+                    {% for item in dados.itens %}
+                    <tr>
+                      <td class="text-muted small">{{ item.numero|default:"" }}</td>
+                      <td class="small">{{ item.descricao|default:"" }}</td>
+                      <td class="text-end small">
+                        {% if item.valor %}{{ item.valor|floatformat:2 }}{% else %}—{% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                <p class="text-muted small mb-0 mt-1">
+                  <i class="bi bi-info-circle me-1"></i>
+                  Os itens serão salvos junto com o orçamento e poderão ser editados depois.
+                </p>
+              </div>
+              {# Passa itens como JSON para o backend #}
+              <input type="hidden" name="itens_json" id="itens-json-input">
+            </div>
+            {% endif %}
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fecharOrcamentoIA()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm"
+                  hx-get="{% url 'processos:orcamento-ia-extrair' processo.pk %}"
+                  hx-target="#orcamento-ia-modal-container"
+                  hx-swap="innerHTML">
+            <i class="bi bi-arrow-left me-1"></i>Enviar outro PDF
+          </button>
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-lg me-1"></i>Salvar Orçamento
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('orcamento-ia-modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharOrcamentoIA();
+  });
+
+  // Preenche campos hidden com os dados extraídos pela IA
+  (function () {
+    var itens   = {{ dados.itens|default:"[]"|safe }};
+    var ajustes = {{ dados.ajustes|default:"[]"|safe }};
+    var elItens = document.getElementById('itens-json-input');
+    if (elItens) elItens.value = JSON.stringify(itens);
+    var elAjustes = document.getElementById('ajustes-json-input');
+    if (elAjustes) elAjustes.value = JSON.stringify(ajustes);
+  })();
+</script>

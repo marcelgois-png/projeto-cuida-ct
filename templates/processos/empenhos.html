@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static tracker_tags %}
 
 {% block title %}Empenhos de Processos | Cuida CT{% endblock %}
 
@@ -10,91 +10,127 @@
     <div>
       <span class="page-kicker">Módulo de Processos</span>
       <h1 class="page-title">Empenhos de Processos</h1>
-      <div class="page-subtitle">
-        Visão consolidada dos empenhos vinculados aos processos de manutenção predial.
+      <div class="page-subtitle">Gerencie as notas de empenho e acompanhe o saldo orçamentário dos processos finalizados.</div>
+    </div>
+  </div>
+</div>
+
+{# ── Cards de resumo ───────────────────────────────────────────────────────── #}
+<div class="row g-3 mb-4 orcamento-summary-row">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-primary">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-primary bg-opacity-10 text-primary fs-4 orcamento-summary-icon">
+            <i class="bi bi-receipt"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">{{ total_notas }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Notas de Empenho</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-success">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-success bg-opacity-10 text-success fs-4 orcamento-summary-icon">
+            <i class="bi bi-cash-coin"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">R$ {{ valor_total|brl }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Valor Total Empenhado</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card {% if saldo_total >= 0 %}orcamento-summary-card-info{% else %}orcamento-summary-card-danger{% endif %}">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 {% if saldo_total >= 0 %}bg-info bg-opacity-10 text-info{% else %}bg-danger bg-opacity-10 text-danger{% endif %} fs-4 orcamento-summary-icon">
+            <i class="bi bi-wallet2"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value {% if saldo_total < 0 %}text-danger{% endif %}">R$ {{ saldo_total|brl }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Saldo Total</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 border-0 shadow-sm orcamento-summary-card orcamento-summary-card-secondary">
+      <div class="card-body orcamento-summary-body">
+        <div class="orcamento-summary-head">
+          <div class="rounded-3 p-3 bg-secondary bg-opacity-10 text-secondary fs-4 orcamento-summary-icon">
+            <i class="bi bi-check2-circle"></i>
+          </div>
+          <div class="fw-bold fs-5 orcamento-summary-value">{{ total_processos_pagos }}</div>
+        </div>
+        <div class="text-muted small orcamento-summary-label">Processos Finalizados e Pagos</div>
       </div>
     </div>
   </div>
 </div>
 
-{% if processos %}
-  {% for proc in processos %}
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h3 class="section-title mb-0">
-        <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
-          {{ proc.numero_processo }}
-        </a>
-        <small class="text-muted fw-normal ms-2">{{ proc.assunto|truncatechars:60 }}</small>
-      </h3>
-      <span class="fw-semibold small text-muted">
-        Total orçado: R$ {{ proc.valor_total_orcado|floatformat:2 }}
-      </span>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th style="width:50px;">Orc.</th>
-              <th>Descrição</th>
-              <th style="width:110px;">Valor</th>
-              <th style="width:80px;">Status</th>
-              <th>Nota de Empenho</th>
-              <th style="width:110px;">Valor Alocado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for orc in proc.orcamentos.all %}
-              {% if orc.orcamento_empenhos.all %}
-                {% for oe in orc.orcamento_empenhos.all %}
-                <tr>
-                  <td class="text-muted">{{ orc.numero_sequencial }}</td>
-                  <td>{{ orc.descricao|default:"—"|truncatechars:40 }}</td>
-                  <td>{% if orc.valor %}R$ {{ orc.valor|floatformat:2 }}{% else %}—{% endif %}</td>
-                  <td>
-                    <span class="badge
-                      {% if orc.status == 'APROVADO' %}bg-success
-                      {% elif orc.status == 'REPROVADO' %}bg-danger
-                      {% elif orc.status == 'CANCELADO' %}bg-secondary
-                      {% else %}bg-warning text-dark{% endif %}">
-                      {{ orc.get_status_display }}
-                    </span>
-                  </td>
-                  <td class="fw-semibold">{{ oe.empenho.nota_empenho }}</td>
-                  <td>{% if oe.valor_alocado %}R$ {{ oe.valor_alocado|floatformat:2 }}{% else %}—{% endif %}</td>
-                </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td class="text-muted">{{ orc.numero_sequencial }}</td>
-                  <td>{{ orc.descricao|default:"—"|truncatechars:40 }}</td>
-                  <td>{% if orc.valor %}R$ {{ orc.valor|floatformat:2 }}{% else %}—{% endif %}</td>
-                  <td>
-                    <span class="badge
-                      {% if orc.status == 'APROVADO' %}bg-success
-                      {% elif orc.status == 'REPROVADO' %}bg-danger
-                      {% elif orc.status == 'CANCELADO' %}bg-secondary
-                      {% else %}bg-warning text-dark{% endif %}">
-                      {{ orc.get_status_display }}
-                    </span>
-                  </td>
-                  <td colspan="2" class="text-muted small">Sem empenho vinculado</td>
-                </tr>
-              {% endif %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+{# ── Notas de Empenho ──────────────────────────────────────────────────────── #}
+<div class="card mb-4 shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <h3 class="section-title mb-0"><i class="bi bi-receipt me-2"></i>Notas de Empenho</h3>
+    <button class="btn btn-sm btn-primary"
+            style="background:#7A2632;border-color:#7A2632;"
+            hx-get="{% url 'processos:empenho-nota-add' %}"
+            hx-target="#nota-form-container"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus-lg me-1"></i>Nova Nota de Empenho
+    </button>
+  </div>
+
+  <div id="nota-form-container" class="px-3 pt-3"></div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive orcamento-table-scroll">
+      <table class="table align-middle requisicoes-table mb-0">
+        <thead>
+          <tr>
+            <th>Nota de Empenho</th>
+            <th class="text-end">Valor (R$)</th>
+            <th>Empresa</th>
+            <th class="text-end">Saldo do Empenho</th>
+            <th class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="nota-empenho-tbody">
+          {% include "processos/_nota_empenho_rows.html" %}
+        </tbody>
+      </table>
     </div>
   </div>
-  {% endfor %}
-{% else %}
-  <div class="card">
-    <div class="card-body text-center text-muted py-5">
-      <i class="bi bi-cash-stack" style="font-size:2.5rem;opacity:.3;"></i>
-      <p class="mt-2 mb-0">Nenhum processo com orçamentos cadastrados.</p>
-    </div>
-  </div>
-{% endif %}
+</div>
+
+<div id="reforco-modal-container"></div>
+
+<script>
+  function fecharFormNota() {
+    const el = document.getElementById('nota-form-container');
+    if (el) el.innerHTML = '';
+  }
+
+  function fecharModalReforco() {
+    const el = document.getElementById('reforco-modal-container');
+    if (el) el.innerHTML = '';
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) backdrop.remove();
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+  }
+
+  document.addEventListener('htmx:afterSwap', function (event) {
+    if (event.detail.target && event.detail.target.id === 'nota-empenho-tbody') {
+      window.location.reload();
+    }
+  });
+</script>
 {% endblock %}

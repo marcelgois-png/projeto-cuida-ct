@@ -45,7 +45,7 @@
                     <i class="bi bi-folder2-open me-1"></i>Ver processo
                   </a>
                 {% else %}
-                  <a href="{% url 'processos:cadastro' %}"
+                  <a href="{% url 'processos:cadastro-novo' %}?encaminhamento={{ encaminhamento.pk }}"
                      class="btn btn-sm btn-success"
                      title="Cadastrar processo no m&oacute;dulo de Processos">
                     <i class="bi bi-folder-plus me-1"></i>Abrir processo

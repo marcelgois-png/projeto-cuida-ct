@@ -5,39 +5,97 @@
 
 {% block extra_head %}
 <style>
-  /* Botões de ação estilo ícone (igual às requisições) */
-  .proc-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px; height: 30px;
-    border-radius: 7px;
-    border: 1.5px solid #d1d9e2;
-    background: #fff;
-    color: #4a5a6e;
-    font-size: .85rem;
-    cursor: pointer;
-    text-decoration: none;
-    transition: border-color .13s, background .13s, color .13s;
-    padding: 0;
+  /* ── Reutilizados de internal_gestao_listas ────────────────────────── */
+  .listas-tema        { margin-bottom: 2rem; }
+  .listas-tema-titulo {
+    font-size: .72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .1em; color: #8a96a6;
+    margin-bottom: .75rem; padding-bottom: .4rem;
+    border-bottom: 1px solid #e8eef6;
+    display: flex; align-items: center; gap: .5rem;
   }
-  .proc-action-btn:hover           { border-color: #7a96b2; background: #f0f4f8; color: #283E4C; }
-  .proc-action-btn.btn-edit:hover  { border-color: #283E4C; background: #e8eef6; color: #283E4C; }
-  .proc-action-btn.btn-del         { border-color: #f0c4c4; color: #c0392b; }
-  .proc-action-btn.btn-del:hover   { border-color: #e74c3c; background: #fdf0ee; color: #c0392b; }
-  .proc-action-btn.btn-sipac       { color: #6c7f98; }
-  .proc-action-btn.btn-sipac:hover { border-color: #283E4C; color: #283E4C; background: #e8eef6; }
+  .lista-panel {
+    background: #fff;
+    border: 1px solid #dbe5ef;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .lista-panel + .lista-panel { margin-top: 14px; }
+  .lista-panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .5rem; flex-wrap: wrap;
+    padding: .55rem .9rem;
+    background: var(--ct-block-title-bg, #f4f7fb);
+    border-bottom: 1px solid var(--ct-block-title-border, #dbe5ef);
+  }
+  .lista-panel-header .section-title { color: var(--ct-text, #283E4C); font-size: .82rem; }
+
+  /* ── Tema Processos (laranja) ──────────────────────────────────────── */
+  .listas-tema-titulo.proc {
+    color: #b84e37; border-bottom-color: #f5d5cb;
+  }
+  .listas-tema--proc .lista-panel-header {
+    background: #fff8f6;
+    border-bottom-color: #f5d5cb;
+  }
+
+  /* ── Altura e scroll da tabela ─────────────────────────────────────── */
+  .proc-table-wrap { max-height: calc(100vh - 155px); overflow-y: auto; }
+  body.filtros-visiveis .proc-table-wrap { max-height: calc(100vh - 340px); }
+
+  /* ── Fonte reduzida globalmente na tabela ─────────────────────────── */
+  .proc-table-wrap table { font-size: .79rem; }
+
+  /* Linha dupla nas células Nº Processo e Assunto */
+  .proc-num-link   { color: #7A2632; font-weight: 600; line-height: 1.2; font-size: .74rem; white-space: nowrap; }
+  .proc-sub-text   { font-size: .67rem; color: #8a96a6; line-height: 1.2; margin-top: 2px; display: block; }
+  .proc-assunto-main { font-size: .73rem; line-height: 1.2; }
+
+  /* ── Cabeçalho travado na rolagem ──────────────────────────────────── */
+  .proc-table-wrap thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: #f8f9fa;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+  }
+
+  /* ── Colunas ordenáveis ────────────────────────────────────────────── */
+  .proc-sort-th { cursor: pointer; user-select: none; white-space: nowrap; }
+  .proc-sort-th:hover { background: #e9ecef !important; }
+  .proc-sort-th .sort-icon {
+    font-size: .68rem; opacity: .4;
+    margin-left: 3px; vertical-align: middle;
+  }
+  .proc-sort-th.sort-asc  .sort-icon,
+  .proc-sort-th.sort-desc .sort-icon { opacity: 1; color: #C6543C; }
+
+  /* ── Botões de ação por linha ──────────────────────────────────────── */
+  .proc-action-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 7px;
+    border: 1.5px solid #d1d9e2; background: #fff; color: #4a5a6e;
+    font-size: .85rem; cursor: pointer; text-decoration: none;
+    transition: border-color .13s, background .13s, color .13s; padding: 0;
+  }
+  .proc-action-btn:hover          { border-color: #7a96b2; background: #f0f4f8; color: #283E4C; }
+  .proc-action-btn.btn-edit:hover { border-color: #283E4C; background: #e8eef6; color: #283E4C; }
+  .proc-action-btn.btn-del        { border-color: #f0c4c4; color: #c0392b; }
+  .proc-action-btn.btn-del:hover  { border-color: #e74c3c; background: #fdf0ee; color: #c0392b; }
+  .proc-action-btn.btn-sipac      { color: #6c7f98; }
+  .proc-action-btn.btn-sipac:hover { border-color: #C6543C; color: #C6543C; background: #fff8f6; }
   .proc-action-btn.btn-sipac.disabled { opacity: .35; pointer-events: none; }
 
-  /* Botão "Apagar selecionados" (oculto por padrão via classe) */
+  /* ── Botão apagar lote ─────────────────────────────────────────────── */
   #btn-apagar-lote { display: none !important; }
   #btn-apagar-lote.ativo { display: inline-flex !important; }
+
+  /* ── Chevron filtros ───────────────────────────────────────────────── */
+  .filtros-chevron { transition: transform .2s; font-size: .85rem; color: #b84e37; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# ── Toolbar ──────────────────────────────────────────────────────────────── #}
+{# ── Toolbar ───────────────────────────────────────────────────────────── #}
 <div class="page-toolbar">
   <div class="page-title-wrap">
     <i class="bi bi-folder2-open page-icon" style="color:#7A2632;"></i>
@@ -47,177 +105,124 @@
       <div class="page-subtitle">Acompanhe e gerencie os processos administrativos de manutenção predial.</div>
     </div>
   </div>
-  <div class="d-flex gap-2 flex-wrap align-items-center">
-
-    <a href="{% url 'processos:modelo-planilha' %}"
-       class="btn btn-sm btn-outline-secondary"
-       title="Baixar planilha modelo">
-      <i class="bi bi-file-earmark-arrow-down me-1"></i>Gerar modelo
-    </a>
-
-    <button type="button"
-            class="btn btn-sm btn-outline-secondary"
-            title="Importar processos via planilha"
-            data-bs-toggle="modal" data-bs-target="#modalImportar">
-      <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
-    </button>
-
-    {# Apagar selecionados — aparece via JS quando há checkboxes marcados #}
-    <button type="button" id="btn-apagar-lote"
-            class="btn btn-sm btn-outline-danger"
-            data-bs-toggle="modal" data-bs-target="#modalApagarLote">
-      <i class="bi bi-trash me-1"></i>Apagar <span id="lote-count"></span>
-    </button>
-
-    <a class="btn btn-primary" href="{% url 'processos:cadastro' %}"
-       style="background:#7A2632;border-color:#7A2632;">
-      <i class="bi bi-folder-plus me-1"></i>Novo Processo
-    </a>
-
-  </div>
 </div>
 
-{# ── Filtros ──────────────────────────────────────────────────────────────── #}
-<div class="card mb-3">
-  <div class="card-body py-2">
-    <form method="get" class="row g-2 align-items-end">
-      <div class="col-12 col-md-3">
-        <label class="form-label form-label-sm mb-1">Busca</label>
-        <input type="text" name="busca" value="{{ filtros.busca|default:'' }}"
-               class="form-control form-control-sm"
-               placeholder="Nº processo ou assunto">
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label form-label-sm mb-1">Status</label>
-        <select name="status" class="form-select form-select-sm">
-          <option value="">Todos</option>
-          {% for s in status_list %}
-            <option value="{{ s.id }}" {% if filtros.status == s.id|stringformat:"s" %}selected{% endif %}>
-              {{ s.codigo }} — {{ s.nome }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label form-label-sm mb-1">Gerência</label>
-        <select name="gerencia" class="form-select form-select-sm">
-          <option value="">Todas</option>
-          {% for g in gerencia_list %}
-            <option value="{{ g.id }}" {% if filtros.gerencia == g.id|stringformat:"s" %}selected{% endif %}>
-              {{ g.nome }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label form-label-sm mb-1">Situação SIPAC</label>
-        <select name="situacao" class="form-select form-select-sm">
-          <option value="">Todas</option>
-          {% for sit in situacao_list %}
-            <option value="{{ sit.id }}" {% if filtros.situacao == sit.id|stringformat:"s" %}selected{% endif %}>
-              {{ sit.nome }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-md-2">
-        <label class="form-label form-label-sm mb-1">Serviço</label>
-        <select name="servico" class="form-select form-select-sm">
-          <option value="">Todos</option>
-          {% for sv in servico_list %}
-            <option value="{{ sv.id }}" {% if filtros.servico == sv.id|stringformat:"s" %}selected{% endif %}>
-              {{ sv.nome }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-md-1 d-flex gap-1">
-        <button type="submit" class="btn btn-sm btn-primary flex-fill" style="background:#7A2632;border-color:#7A2632;">
-          <i class="bi bi-search"></i>
-        </button>
-        <a href="{% url 'processos:lista' %}" class="btn btn-sm btn-outline-secondary flex-fill">
-          <i class="bi bi-x-lg"></i>
+{# ── Conteúdo principal ────────────────────────────────────────────────── #}
+<div class="listas-tema listas-tema--proc">
+
+  <div class="listas-tema-titulo proc">
+    <i class="bi bi-folder2-open"></i>Processos
+    <span class="badge ms-1" style="background:#f5d5cb;color:#7A2632;font-size:.68rem;font-weight:700;">{{ total }}</span>
+  </div>
+
+  {# ── Painel de filtros ─────────────────────────────────────────────── #}
+  {% with clear_url="processos:lista" %}
+    {% include "processos/_filtros.html" %}
+  {% endwith %}
+
+  {# ── Painel da tabela ──────────────────────────────────────────────── #}
+  <div class="lista-panel">
+    <div class="lista-panel-header">
+      <h3 class="section-title mb-0">
+        <i class="bi bi-table me-1"></i>Processos
+      </h3>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+
+        <a href="{% url 'processos:modelo-planilha' %}"
+           class="btn btn-sm btn-outline-secondary"
+           title="Baixar planilha modelo">
+          <i class="bi bi-file-earmark-arrow-down me-1"></i>Gerar modelo
         </a>
-      </div>
-    </form>
-  </div>
-</div>
 
-{# ── Tabela ───────────────────────────────────────────────────────────────── #}
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h3 class="section-title mb-0">
-      <i class="bi bi-folder2-open me-1"></i>
-      Processos
-      <span class="badge bg-secondary ms-1" style="font-size:.75rem;">{{ total }}</span>
-    </h3>
-  </div>
-  <div class="card-body p-0">
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="modal" data-bs-target="#modalImportar"
+                title="Importar processos via planilha">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar
+        </button>
+
+        <button type="button" id="btn-apagar-lote"
+                class="btn btn-sm btn-outline-danger"
+                data-bs-toggle="modal" data-bs-target="#modalApagarLote">
+          <i class="bi bi-trash me-1"></i>Apagar <span id="lote-count"></span>
+        </button>
+
+        <a class="btn btn-sm btn-primary" href="{% url 'processos:cadastro-novo' %}"
+           style="background:#7A2632;border-color:#7A2632;">
+          <i class="bi bi-folder-plus me-1"></i>Novo Processo
+        </a>
+
+      </div>
+    </div>
+
     {% if processos %}
-    <div class="table-responsive" style="max-height:calc(100vh - 340px); overflow-y:auto;">
+    <div class="table-responsive proc-table-wrap" id="proc-table-wrap">
       <table class="table table-hover table-sm mb-0 align-middle">
         <thead class="table-light">
           <tr>
             <th style="width:36px;" class="text-center ps-3">
               <input type="checkbox" class="form-check-input" id="proc-sel-all" title="Selecionar todos">
             </th>
-            <th style="width:130px;">Nº Processo</th>
-            <th>Assunto</th>
-            <th style="width:90px;">A-Z</th>
-            <th style="width:170px;">Status</th>
-            <th style="width:155px;">Gerência</th>
-            <th style="width:90px;">Abertura</th>
-            <th style="width:116px;" class="text-center">Ações</th>
+              <th style="width:220px;" class="proc-sort-th" data-col="1" data-type="text">
+              Nº Processo <i class="bi bi-arrow-down-up sort-icon"></i>
+            </th>
+            <th class="proc-sort-th" data-col="2" data-type="text">
+              Assunto <i class="bi bi-arrow-down-up sort-icon"></i>
+            </th>
+            <th style="width:60px;" class="proc-sort-th text-center" data-col="3" data-type="text">
+              A-Z <i class="bi bi-arrow-down-up sort-icon"></i>
+            </th>
+            <th style="width:160px;" class="proc-sort-th" data-col="4" data-type="text">
+              Status <i class="bi bi-arrow-down-up sort-icon"></i>
+            </th>
+            <th style="width:110px;" class="text-center">Ações</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="proc-tbody">
           {% for proc in processos %}
           <tr>
             <td class="text-center ps-3">
               <input type="checkbox" class="form-check-input proc-checkbox"
                      name="processo_ids" value="{{ proc.pk }}">
             </td>
-            <td class="fw-semibold">
-              <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none" style="color:#7A2632;">
+            <td data-sort="{{ proc.numero_processo }}">
+              <a href="{% url 'processos:detalhe' proc.pk %}" class="text-decoration-none proc-num-link d-block">
                 {{ proc.numero_processo }}
               </a>
+              <span class="proc-sub-text">{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</span>
             </td>
-            <td class="text-truncate" style="max-width:260px;" title="{{ proc.assunto }}">
-              {{ proc.assunto|default:"—" }}
+              <td style="max-width:300px;">
+              <span class="d-block text-truncate proc-assunto-main" title="{{ proc.assunto }}">{{ proc.assunto|default:"—" }}</span>
+              {% if proc.predio %}
+                <span class="proc-sub-text text-truncate d-block" title="{{ proc.predio.nome }}">{{ proc.predio.nome }}</span>
+              {% else %}
+                <span class="proc-sub-text">—</span>
+              {% endif %}
             </td>
-            <td class="text-center">
+            <td class="text-center" data-sort="{{ proc.classificacao_az|default:'ZZZZ' }}">
               {% if proc.classificacao_az %}
-                <span class="badge rounded-pill" style="background:#7A2632;font-size:.85rem;min-width:1.8rem;">
+                <span class="badge rounded-pill" style="background:#7A2632;font-size:.8rem;min-width:1.6rem;">
                   {{ proc.classificacao_az }}
                 </span>
               {% else %}
                 <span class="text-muted">—</span>
               {% endif %}
             </td>
-            <td>
+            <td data-sort="{{ proc.status.codigo|default:'ZZZ' }}">
               {% if proc.status %}
-                <span class="badge bg-secondary" title="{{ proc.status.nome }}">{{ proc.status.codigo }}</span>
-                <small class="text-muted ms-1 d-none d-xl-inline">{{ proc.status.nome|truncatechars:30 }}</small>
-              {% else %}—{% endif %}
+                <span class="badge bg-secondary">{{ proc.status.nome|truncatechars:28 }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
-            <td><small>{{ proc.gerencia.nome|default:"—"|truncatechars:25 }}</small></td>
-            <td><small>{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</small></td>
             <td>
               <div class="d-flex gap-1 justify-content-center">
-
-                {# Ver #}
                 <a href="{% url 'processos:detalhe' proc.pk %}"
                    class="proc-action-btn" title="Ver detalhes">
                   <i class="bi bi-eye"></i>
                 </a>
-
-                {# Editar #}
                 <a href="{% url 'processos:edicao' proc.pk %}"
                    class="proc-action-btn btn-edit" title="Editar">
                   <i class="bi bi-pencil-square"></i>
                 </a>
-
-                {# Excluir #}
                 <form method="post" action="{% url 'processos:apagar' proc.pk %}"
                       class="d-inline"
                       onsubmit="return confirm('Excluir o processo {{ proc.numero_processo|escapejs }}? Esta ação não pode ser desfeita.')">
@@ -226,8 +231,6 @@
                     <i class="bi bi-trash"></i>
                   </button>
                 </form>
-
-                {# Link SIPAC #}
                 {% if proc.link_sipac %}
                   <a href="{{ proc.link_sipac }}" target="_blank" rel="noopener noreferrer"
                      class="proc-action-btn btn-sipac" title="Abrir no SIPAC">
@@ -238,7 +241,6 @@
                     <i class="bi bi-box-arrow-up-right"></i>
                   </span>
                 {% endif %}
-
               </div>
             </td>
           </tr>
@@ -251,15 +253,17 @@
     <div class="text-center text-muted py-5">
       <i class="bi bi-folder2-open" style="font-size:2.5rem;opacity:.3;"></i>
       <p class="mt-2 mb-0">Nenhum processo encontrado.</p>
-      <a href="{% url 'processos:cadastro' %}" class="btn btn-sm btn-outline-secondary mt-2">
+      <a href="{% url 'processos:cadastro-novo' %}" class="btn btn-sm btn-outline-secondary mt-2">
         <i class="bi bi-folder-plus me-1"></i>Cadastrar o primeiro processo
       </a>
     </div>
     {% endif %}
-  </div>
-</div>
+  </div>{# /lista-panel tabela #}
 
-{# ── Modal importar ───────────────────────────────────────────────────────── #}
+</div>{# /listas-tema--proc #}
+
+
+{# ── Modal importar ────────────────────────────────────────────────────── #}
 <div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -291,11 +295,9 @@
                 <i class="bi bi-search me-1"></i>Diagnosticar
               </button>
             </div>
-            <div class="form-text">Apenas arquivos <code>.xlsx</code> são aceitos. Use "Diagnosticar" para verificar o mapeamento de colunas antes de importar.</div>
+            <div class="form-text">Use "Diagnosticar" para verificar o mapeamento de colunas antes de importar.</div>
           </div>
-
           <div id="diag-area" class="mb-3"></div>
-
           <div class="alert alert-info d-flex gap-2 py-2 mb-0" style="font-size:.82rem;">
             <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
             <span>Não tem o modelo?
@@ -315,7 +317,7 @@
   </div>
 </div>
 
-{# ── Modal apagar lote ────────────────────────────────────────────────────── #}
+{# ── Modal apagar lote ─────────────────────────────────────────────────── #}
 <div class="modal fade" id="modalApagarLote" tabindex="-1" aria-labelledby="modalApagarLoteLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -351,7 +353,68 @@
 {% block extra_scripts %}
 {{ block.super }}
 <script>
-/* Diagnóstico de planilha */
+/* ── Filtros retráteis ─────────────────────────────────────────────────── */
+(function () {
+  var filtrosBody = document.getElementById('filtros-body');
+  var chevron     = document.querySelector('.filtros-chevron');
+
+  function sync() {
+    var open = filtrosBody ? filtrosBody.classList.contains('show') : false;
+    document.body.classList.toggle('filtros-visiveis', open);
+    if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+  }
+
+  if (filtrosBody) {
+    filtrosBody.addEventListener('shown.bs.collapse',  sync);
+    filtrosBody.addEventListener('hidden.bs.collapse', sync);
+  }
+  sync();
+}());
+
+/* ── Ordenação de colunas ──────────────────────────────────────────────── */
+(function () {
+  var tbody = document.getElementById('proc-tbody');
+  if (!tbody) return;
+
+  var currentCol = null;
+  var currentDir = 'asc';
+
+  document.querySelectorAll('.proc-sort-th').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col  = parseInt(th.dataset.col);
+      var type = th.dataset.type || 'text';
+
+      if (currentCol === col) {
+        currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentCol = col;
+        currentDir = 'asc';
+      }
+
+      document.querySelectorAll('.proc-sort-th').forEach(function (t) {
+        t.classList.remove('sort-asc', 'sort-desc');
+        t.querySelector('.sort-icon').className = 'sort-icon bi bi-arrow-down-up';
+      });
+      th.classList.add('sort-' + currentDir);
+      th.querySelector('.sort-icon').className =
+        'sort-icon bi bi-caret-' + (currentDir === 'asc' ? 'up' : 'down') + '-fill';
+
+      var rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function (a, b) {
+        var aCell = a.cells[col];
+        var bCell = b.cells[col];
+        var aVal = aCell ? (aCell.dataset.sort !== undefined ? aCell.dataset.sort : aCell.textContent.trim()) : '';
+        var bVal = bCell ? (bCell.dataset.sort !== undefined ? bCell.dataset.sort : bCell.textContent.trim()) : '';
+        if (type === 'text') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }
+        var cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        return currentDir === 'asc' ? cmp : -cmp;
+      });
+      rows.forEach(function (row) { tbody.appendChild(row); });
+    });
+  });
+}());
+
+/* ── Diagnóstico de planilha ───────────────────────────────────────────── */
 function diagnosticarPlanilha() {
   var input = document.getElementById('importArquivo');
   var area  = document.getElementById('diag-area');
@@ -381,9 +444,10 @@ function diagnosticarPlanilha() {
     });
 }
 
+/* ── Checkboxes e apagar lote ──────────────────────────────────────────── */
 (function () {
-  var selAll   = document.getElementById('proc-sel-all');
-  var btnLote  = document.getElementById('btn-apagar-lote');
+  var selAll        = document.getElementById('proc-sel-all');
+  var btnLote       = document.getElementById('btn-apagar-lote');
   var loteCount     = document.getElementById('lote-count');
   var loteConfirm   = document.getElementById('lote-confirm-count');
   var loteInputs    = document.getElementById('lote-hidden-inputs');
@@ -402,13 +466,11 @@ function diagnosticarPlanilha() {
       btnLote.classList.remove('ativo');
       loteCount.textContent = '';
     }
-    /* Atualiza estado do "selecionar todos" */
     var all = document.querySelectorAll('.proc-checkbox');
     selAll.indeterminate = n > 0 && n < all.length;
     selAll.checked = n > 0 && n === all.length;
   }
 
-  /* Selecionar / desselecionar todos */
   if (selAll) {
     selAll.addEventListener('change', function () {
       document.querySelectorAll('.proc-checkbox').forEach(function (cb) {
@@ -418,14 +480,12 @@ function diagnosticarPlanilha() {
     });
   }
 
-  /* Monitorar checkboxes individuais */
   document.addEventListener('change', function (e) {
     if (e.target && e.target.classList.contains('proc-checkbox')) {
       syncToolbar();
     }
   });
 
-  /* Antes de abrir o modal de exclusão em lote, preenche os inputs ocultos */
   var modalEl = document.getElementById('modalApagarLote');
   if (modalEl) {
     modalEl.addEventListener('show.bs.modal', function () {

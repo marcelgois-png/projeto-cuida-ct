@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Cadastro e Importa&ccedil;&atilde;o de Processos | Cuida CT{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-folder-plus page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">M&oacute;dulo de Processos</span>
+      <h1 class="page-title">Cadastro e Importa&ccedil;&atilde;o de Processos</h1>
+      <div class="page-subtitle">
+        Cadastre novos processos, baixe o modelo de planilha e importe bases do m&oacute;dulo de processos.
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-primary" href="{% url 'processos:cadastro-novo' %}" style="background:#7A2632;border-color:#7A2632;">
+      <i class="bi bi-plus-lg me-1"></i>Novo Processo
+    </a>
+    <a class="btn btn-outline-secondary" href="{% url 'processos:modelo-planilha' %}">
+      <i class="bi bi-file-earmark-arrow-down me-1"></i>Gerar modelo
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 metrics-row">
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-primary">
+      <div class="metric-label">Processos cadastrados</div>
+      <div class="metric-value">{{ metrics.total|intdot }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-active">
+      <div class="metric-label">Processos ativos</div>
+      <div class="metric-value">{{ metrics.ativos|intdot }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-executed">
+      <div class="metric-label">Processos executados</div>
+      <div class="metric-value">{{ metrics.executados|intdot }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="metric-card metric-inactive">
+      <div class="metric-label">Processos arquivados</div>
+      <div class="metric-value">{{ metrics.arquivados|intdot }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-7">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="section-title"><i class="bi bi-upload"></i>Importa&ccedil;&atilde;o de base</h3>
+      </div>
+      <div class="card-body">
+        <p class="section-subtitle mb-3">
+          Use uma planilha <code>.xlsx</code> no formato do modelo. Processos j&aacute; existentes ser&atilde;o atualizados; novos n&uacute;meros ser&atilde;o cadastrados.
+        </p>
+        <form method="post" action="{% url 'processos:importar' %}" enctype="multipart/form-data" class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-8">
+            <label class="form-label">Arquivo de importa&ccedil;&atilde;o</label>
+            <input class="form-control" type="file" name="arquivo" accept=".xlsx" required>
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit" style="background:#7A2632;border-color:#7A2632;">
+              <i class="bi bi-cloud-upload me-1"></i>Importar arquivo
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-5">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="section-title"><i class="bi bi-clock-history"></i>&Uacute;ltimos processos</h3>
+        <a href="{% url 'processos:lista' %}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-table me-1"></i>Lista
+        </a>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          {% for proc in ultimos_processos %}
+            <a href="{% url 'processos:detalhe' proc.pk %}" class="list-group-item list-group-item-action px-0">
+              <div class="d-flex justify-content-between gap-2">
+                <div>
+                  <div class="fw-semibold">{{ proc.numero_processo }}</div>
+                  <div class="small text-muted">{{ proc.assunto|default:"Sem assunto"|truncatechars:80 }}</div>
+                  <div class="small text-muted">{% if proc.predio %}{{ proc.predio.nome }}{% else %}Pr&eacute;dio n&atilde;o informado{% endif %}</div>
+                </div>
+                <div class="small text-muted text-nowrap">
+                  {{ proc.data_abertura|date:"d/m/Y"|default:"-" }}
+                </div>
+              </div>
+            </a>
+          {% empty %}
+            <div class="text-muted small">Nenhum processo cadastrado ainda.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

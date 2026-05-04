@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% load tracker_tags %}
+
+{% block title %}Consulta de Processos | Cuida CT{% endblock %}
+
+{% block extra_head %}
+<style>
+  .proc-pub-lista-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* ── Filtros ── */
+  .proc-pub-filter-card {
+    background: #fff;
+    border: 1px solid #dbe5ef;
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem 1.1rem;
+    box-shadow: 0 2px 8px rgba(44,62,80,.06);
+  }
+
+  .proc-pub-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 1.5fr) repeat(3, minmax(130px, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+    margin-top: .85rem;
+  }
+
+  .proc-pub-filter-field label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7d92;
+    margin-bottom: .3rem;
+    display: block;
+  }
+
+  .proc-pub-filter-actions {
+    display: flex;
+    gap: .5rem;
+  }
+
+  /* ── Resultados ── */
+  .proc-pub-results-card {
+    background: #fff;
+    border: 1px solid #dbe5ef;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(44,62,80,.06);
+  }
+
+  .proc-pub-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .75rem 1.2rem;
+    background: #f7f9fc;
+    border-bottom: 1px solid #e4eaf3;
+  }
+
+  .proc-pub-results-title {
+    font-size: .82rem;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+
+  .proc-pub-count {
+    font-size: .75rem;
+    color: #6b7d92;
+  }
+
+  .proc-pub-table-wrap {
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+  }
+
+  .proc-pub-table {
+    font-size: .8rem;
+    margin: 0;
+  }
+
+  .proc-pub-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7d92;
+    padding: .55rem .85rem;
+    white-space: nowrap;
+  }
+
+  .proc-pub-table tbody td {
+    padding: .55rem .85rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f4f8;
+  }
+
+  .proc-pub-num {
+    font-weight: 700;
+    color: #7A2632;
+    font-size: .75rem;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .proc-pub-num:hover { color: #5e1d27; text-decoration: underline; }
+
+  .proc-pub-assunto {
+    color: #2c3e50;
+    line-height: 1.3;
+  }
+
+  .proc-pub-badge-az {
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .15rem .45rem;
+    border-radius: 20px;
+    background: #7A2632;
+    color: #fff;
+  }
+
+  .proc-pub-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #8a96a6;
+  }
+
+  @media (max-width: 991px) {
+    .proc-pub-filter-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .proc-pub-filter-actions { grid-column: span 2; }
+  }
+
+  @media (max-width: 640px) {
+    .proc-pub-filter-grid {
+      grid-template-columns: 1fr;
+    }
+    .proc-pub-filter-actions { grid-column: span 1; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div class="page-title-wrap">
+    <i class="bi bi-search page-icon" style="color:#7A2632;"></i>
+    <div>
+      <span class="page-kicker">Módulo de Processos</span>
+      <h1 class="page-title">Consulta de Processos</h1>
+      <div class="page-subtitle">Pesquise e filtre os processos de manutenção de infraestrutura do CT.</div>
+    </div>
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'processos:painel-controle' %}">
+    <i class="bi bi-bar-chart-line me-1"></i>Painel analítico
+  </a>
+</div>
+
+<div class="proc-pub-lista-shell">
+
+  {# ── Filtros ── #}
+  <div class="proc-pub-filter-card">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <i class="bi bi-funnel text-muted"></i>
+      <span class="fw-semibold" style="font-size:.82rem;color:#2c3e50;">Filtros</span>
+      {% if tem_filtro %}
+        <span class="badge bg-warning text-dark" style="font-size:.68rem;">Ativos</span>
+      {% endif %}
+    </div>
+
+    <form method="get" action="{% url 'processos:public-lista' %}">
+      <div class="proc-pub-filter-grid">
+
+        <div class="proc-pub-filter-field">
+          <label>Busca</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input type="search" name="busca" class="form-control"
+                   value="{{ filtros.busca }}"
+                   placeholder="Nº processo ou assunto...">
+          </div>
+        </div>
+
+        <div class="proc-pub-filter-field">
+          <label>Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for s in status_list %}
+              <option value="{{ s.id }}" {% if filtros.status == s.id|stringformat:"s" %}selected{% endif %}>{{ s.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="proc-pub-filter-field">
+          <label>Local</label>
+          <select name="predio" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for p in predio_list %}
+              <option value="{{ p.id }}" {% if filtros.predio == p.id|stringformat:"s" %}selected{% endif %}>{{ p.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="proc-pub-filter-field">
+          <label>Prioridade A-Z</label>
+          <select name="az" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            <option value="A" {% if filtros.az == "A" %}selected{% endif %}>A</option>
+            <option value="B" {% if filtros.az == "B" %}selected{% endif %}>B</option>
+            <option value="C" {% if filtros.az == "C" %}selected{% endif %}>C</option>
+            <option value="D" {% if filtros.az == "D" %}selected{% endif %}>D</option>
+            <option value="E" {% if filtros.az == "E" %}selected{% endif %}>E</option>
+            <option value="_vazio" {% if filtros.az == "_vazio" %}selected{% endif %}>Sem prioridade</option>
+          </select>
+        </div>
+
+        <div class="proc-pub-filter-actions">
+          <button type="submit" class="btn btn-primary btn-sm" style="background:#7A2632;border-color:#7A2632;white-space:nowrap;">
+            <i class="bi bi-search me-1"></i>Aplicar
+          </button>
+          <a href="{% url 'processos:public-lista' %}" class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Limpar
+          </a>
+        </div>
+
+      </div>
+    </form>
+  </div>
+
+  {# ── Resultados ── #}
+  <div class="proc-pub-results-card">
+    <div class="proc-pub-results-header">
+      <span class="proc-pub-results-title">
+        <i class="bi bi-folder2-open"></i>Processos
+      </span>
+      <span class="proc-pub-count">
+        {{ processos|length }} resultado{{ processos|length|pluralize }}{% if processos|length == 300 %} (limite de 300){% endif %}
+      </span>
+    </div>
+
+    {% if processos %}
+    <div class="proc-pub-table-wrap">
+      <table class="table table-hover align-middle mb-0 proc-pub-table">
+        <thead>
+          <tr>
+            <th style="width:145px;">Nº Processo</th>
+            <th>Assunto</th>
+            <th style="width:140px;">Status</th>
+            <th style="width:160px;">Local</th>
+            <th style="width:55px;">A-Z</th>
+            <th style="width:90px;">Abertura</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proc in processos %}
+          <tr>
+            <td>
+              <a href="{% url 'processos:detalhe-publico' proc.pk %}" class="proc-pub-num">
+                {{ proc.numero_processo }}
+              </a>
+            </td>
+            <td class="proc-pub-assunto">{{ proc.assunto|default:"—"|truncatechars:80 }}</td>
+            <td>
+              {% if proc.status %}
+                <span class="badge bg-secondary" style="font-size:.7rem;">{{ proc.status.nome }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-muted">{{ proc.predio.nome|default:"—" }}</td>
+            <td class="text-center">
+              {% if proc.classificacao_az %}
+                <span class="proc-pub-badge-az">{{ proc.classificacao_az }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-muted" style="white-space:nowrap;">{{ proc.data_abertura|date:"d/m/Y"|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="proc-pub-empty">
+      <i class="bi bi-folder2" style="font-size:2rem;opacity:.3;"></i>
+      <p class="mt-2 mb-0 small">Nenhum processo encontrado com os filtros atuais.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

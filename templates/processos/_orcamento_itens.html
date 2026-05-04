@@ -1,0 +1,150 @@
+{% load tracker_tags %}
+{# OOB: atualiza o valor exibido na linha principal do orçamento #}
+<td id="orc-valor-{{ orcamento.pk }}" hx-swap-oob="true"
+    class="{% if valor_final and ajustes %}fw-semibold text-primary{% endif %}">
+  {% if valor_final %}R$ {{ valor_final|brl }}
+  {% elif orcamento.valor %}R$ {{ orcamento.valor|brl }}
+  {% else %}—{% endif %}
+</td>
+
+<div id="itens-orc-{{ orcamento.pk }}">
+
+  {# ── Tabela de itens com colunas dinâmicas ── #}
+  <div class="table-responsive">
+    <table class="table table-sm mb-2 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="width:55px" class="small">Nº</th>
+          <th class="small">Serviço / Grupo</th>
+          <th class="text-end small" style="min-width:120px">Valor Base</th>
+
+          {% for aj in ajustes %}
+          <th class="text-end small" style="min-width:120px">
+            <div class="d-flex align-items-start justify-content-end gap-1">
+              <div class="text-end lh-sm">
+                <div>{{ aj.rotulo|default:"Ajuste" }}</div>
+                <div class="fw-normal {% if aj.percentual < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {% if aj.percentual > 0 %}+{% endif %}{{ aj.percentual }}%
+                </div>
+              </div>
+              <button class="btn btn-link text-danger p-0 ms-1 flex-shrink-0"
+                      style="font-size:.7rem;line-height:1"
+                      hx-post="{% url 'processos:orcamento-ajuste-delete' orcamento.pk aj.pk %}"
+                      hx-target="#itens-orc-{{ orcamento.pk }}"
+                      hx-swap="outerHTML"
+                      hx-confirm="Remover a coluna '{{ aj.rotulo|default:'Ajuste' }}'?"
+                      title="Remover coluna">
+                <i class="bi bi-x-circle"></i>
+              </button>
+            </div>
+          </th>
+          {% endfor %}
+
+          <th style="width:64px"></th>
+        </tr>
+      </thead>
+
+      {% if linhas %}
+      <tbody>
+        {% for linha in linhas %}
+        <tr>
+          <td class="text-muted small">{{ linha.item.numero }}</td>
+          <td class="small">{{ linha.item.descricao }}</td>
+          {% for v in linha.valores %}
+          <td class="text-end small {% if forloop.last and ajustes %}fw-semibold text-primary{% endif %}">
+            R$ {{ v|brl }}
+          </td>
+          {% endfor %}
+          <td class="text-center">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary py-0 px-1"
+                      hx-get="{% url 'processos:orcamento-item-edit' orcamento.pk linha.item.pk %}"
+                      hx-target="#item-form-orc-{{ orcamento.pk }}"
+                      hx-swap="innerHTML"
+                      title="Editar item">
+                <i class="bi bi-pencil" style="font-size:.7rem"></i>
+              </button>
+              <button class="btn btn-outline-danger py-0 px-1"
+                      hx-post="{% url 'processos:orcamento-item-delete' orcamento.pk linha.item.pk %}"
+                      hx-target="#itens-orc-{{ orcamento.pk }}"
+                      hx-swap="outerHTML"
+                      hx-confirm="Excluir o item '{{ linha.item.descricao }}'?"
+                      title="Excluir item">
+                <i class="bi bi-trash" style="font-size:.7rem"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light">
+          <td colspan="2" class="text-end fw-semibold small">Total</td>
+          {% for t in totais %}
+          <td class="text-end fw-semibold small {% if forloop.last and ajustes %}text-primary{% endif %}">
+            R$ {{ t|brl }}
+          </td>
+          {% endfor %}
+          <td></td>
+        </tr>
+      </tfoot>
+      {% else %}
+      <tbody>
+        <tr><td colspan="4" class="text-muted small fst-italic py-2 ps-1">Nenhum item cadastrado.</td></tr>
+      </tbody>
+      {% endif %}
+    </table>
+  </div>
+
+  {# ── Formulário inline (item ou ajuste) ── #}
+  <div id="item-form-orc-{{ orcamento.pk }}"></div>
+
+  {# ── Formulário de novo ajuste (coluna) ── #}
+  <div id="ajuste-form-orc-{{ orcamento.pk }}" class="d-none mb-2 p-2 border rounded bg-white">
+    <form hx-post="{% url 'processos:orcamento-ajuste-add' orcamento.pk %}"
+          hx-target="#itens-orc-{{ orcamento.pk }}"
+          hx-swap="outerHTML"
+          hx-on::after-request="document.getElementById('ajuste-form-orc-{{ orcamento.pk }}').classList.add('d-none'); this.reset()">
+      {% csrf_token %}
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold mb-1">Rótulo</label>
+          <input type="text" name="rotulo" class="form-control form-control-sm"
+                 placeholder="Ex: Desconto, BDI, ISS">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold mb-1">
+            Percentual (%) <span class="text-danger">*</span>
+          </label>
+          <input type="number" name="percentual" class="form-control form-control-sm"
+                 placeholder="-18.5 ou 25.0" step="0.0001" required>
+          <div class="form-text">Negativo = desconto · Positivo = acréscimo</div>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+          <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-check-lg me-1"></i>Adicionar
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary"
+                  onclick="document.getElementById('ajuste-form-orc-{{ orcamento.pk }}').classList.add('d-none')">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {# ── Botões de ação ── #}
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-outline-secondary btn-sm py-0 px-2"
+            hx-get="{% url 'processos:orcamento-item-add' orcamento.pk %}"
+            hx-target="#item-form-orc-{{ orcamento.pk }}"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus me-1"></i>Adicionar item
+    </button>
+    <button class="btn btn-outline-primary btn-sm py-0 px-2"
+            onclick="document.getElementById('ajuste-form-orc-{{ orcamento.pk }}').classList.toggle('d-none')">
+      <i class="bi bi-columns-gap me-1"></i>Adicionar coluna de ajuste
+    </button>
+  </div>
+
+</div>

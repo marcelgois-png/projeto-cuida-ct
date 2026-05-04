@@ -100,6 +100,7 @@ urlpatterns = [
     path("painel/listas/tipo-ambiente/add/", views.tipo_ambiente_crud, name="tipo-ambiente-add"),
     path("painel/listas/tipo-ambiente/<int:pk>/edit/", views.tipo_ambiente_crud, name="tipo-ambiente-edit"),
     path("painel/listas/tipo-ambiente/<int:pk>/delete/", views.tipo_ambiente_delete, name="tipo-ambiente-delete"),
+    path("painel/listas/tipo-ambiente/<int:pk>/toggle/", views.tipo_ambiente_toggle, name="tipo-ambiente-toggle"),
 
     # Gestão de Listas — Solicitantes
     path("painel/listas/solicitantes/add/", views.solicitante_crud, name="solicitante-add"),

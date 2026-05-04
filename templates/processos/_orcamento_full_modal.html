@@ -1,0 +1,83 @@
+{% load tracker_tags %}
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="orcamento-full-modal">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content shadow">
+
+      {# ── Cabeçalho ── #}
+      <div class="modal-header py-2">
+        <h5 class="modal-title">
+          <i class="bi bi-cash-stack me-2 text-primary"></i>
+          Orçamento {{ orcamento.numero_sequencial }}
+          {% if orcamento.descricao %}
+          <span class="text-muted fw-normal fs-6 ms-1">— {{ orcamento.descricao|truncatechars:60 }}</span>
+          {% endif %}
+        </h5>
+        <button type="button" class="btn-close" onclick="fecharOrcamentoModal()"></button>
+      </div>
+
+      <div class="modal-body">
+
+        {# ── Formulário de dados básicos ── #}
+        <form hx-post="{% url 'processos:orcamento-edit' processo.pk orcamento.pk %}"
+              hx-target="#orcamento-modal-container"
+              hx-swap="innerHTML"
+              class="mb-3 pb-3 border-bottom">
+          {% csrf_token %}
+          {# Linha 1: Descrição | Status | Data #}
+          <div class="row g-2 mb-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-semibold small mb-1">Descrição</label>
+              <textarea name="descricao" class="form-control form-control-sm" rows="2"
+                        style="resize:vertical">{{ orcamento.descricao }}</textarea>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small mb-1">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if orcamento.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold small mb-1">Data de emissão</label>
+              <input type="date" name="data_emissao" class="form-control form-control-sm"
+                     value="{{ orcamento.data_emissao|date:'Y-m-d'|default:'' }}">
+            </div>
+          </div>
+          {# Linha 2: Valor + botão salvar #}
+          <div class="row g-2 align-items-center">
+            <div class="col-auto">
+              <label class="form-label fw-semibold small mb-1">
+                Valor total (R$)
+                <span class="text-muted fw-normal">— calculado automaticamente pelos itens</span>
+              </label>
+              <input type="text" name="valor" class="form-control form-control-sm" style="width:160px"
+                     placeholder="0,00"
+                     value="{% if valor_final %}{{ valor_final|brl }}{% elif orcamento.valor %}{{ orcamento.valor|brl }}{% endif %}">
+            </div>
+            <div class="col-auto d-flex align-items-end" style="padding-top:1.4rem">
+              <button type="submit" class="btn btn-success btn-sm px-3" title="Salvar dados">
+                <i class="bi bi-check-lg me-1"></i>Salvar
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {# ── Itens e ajustes ── #}
+        {% include "processos/_orcamento_itens.html" %}
+
+      </div>
+
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-primary btn-sm" onclick="fecharOrcamentoModal()">
+          <i class="bi bi-check-lg me-1"></i>Concluir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('orcamento-full-modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharOrcamentoModal();
+  });
+</script>

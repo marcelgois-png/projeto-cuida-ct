@@ -1,0 +1,113 @@
+{# Painel de filtros compartilhado entre lista.html e priorizacao_az.html           #}
+{# Variáveis esperadas no contexto: filtros, status_list, predio_list,              #}
+{# tipo_ambiente_list, clear_url (nome da url para o botão Limpar)                  #}
+{% load i18n %}
+
+{% with f=filtros %}
+{% with ativos=f.busca|default:""  %}
+<div class="lista-panel mb-0" id="card-filtros">
+  <div class="lista-panel-header"
+       style="cursor:pointer;"
+       data-bs-toggle="collapse" data-bs-target="#filtros-body">
+    <h3 class="section-title mb-0">
+      <i class="bi bi-funnel me-1"></i>Filtros
+      {% if f.busca or f.status or f.predio or f.tipo_ambiente or f.unidade_origem or f.interessado or f.az %}
+        <span class="badge ms-1" style="background:#fde8cc;color:#8a4a00;font-size:.68rem;">ativos</span>
+      {% endif %}
+    </h3>
+    <i class="bi bi-chevron-down filtros-chevron"></i>
+  </div>
+
+  <div class="collapse{% if f.busca or f.status or f.predio or f.tipo_ambiente or f.unidade_origem or f.interessado or f.az %} show{% endif %}"
+       id="filtros-body">
+    <div style="padding:.65rem .9rem;">
+      <form method="get" class="row g-2 align-items-end">
+
+        {# ── Linha 1 ── #}
+        <div class="col-12 col-md-4">
+          <label class="form-label form-label-sm mb-1">Busca</label>
+          <input type="text" name="busca" value="{{ f.busca|default:'' }}"
+                 class="form-control form-control-sm"
+                 placeholder="Nº processo ou assunto">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label form-label-sm mb-1">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for s in status_list %}
+              <option value="{{ s.id }}" {% if f.status == s.id|stringformat:"s" %}selected{% endif %}>
+                {{ s.codigo }} — {{ s.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label form-label-sm mb-1">Prédio</label>
+          <select name="predio" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for p in predio_list %}
+              <option value="{{ p.id }}" {% if f.predio == p.id|stringformat:"s" %}selected{% endif %}>
+                {{ p.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# Botões no fim da linha 1 #}
+        <div class="col-12 col-md-2 d-flex gap-1">
+          <button type="submit" class="btn btn-sm btn-primary flex-fill" style="background:#7A2632;border-color:#7A2632;" title="Filtrar">
+            <i class="bi bi-search"></i>
+          </button>
+          <a href="{% url clear_url %}" class="btn btn-sm btn-outline-secondary flex-fill" title="Limpar filtros">
+            <i class="bi bi-x-lg"></i>
+          </a>
+        </div>
+
+        {# ── Linha 2 ── #}
+        <div class="col-6 col-md-2">
+          <label class="form-label form-label-sm mb-1">Tipo de ambiente</label>
+          <select name="tipo_ambiente" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for ta in tipo_ambiente_list %}
+              <option value="{{ ta.id }}" {% if f.tipo_ambiente == ta.id|stringformat:"s" %}selected{% endif %}>
+                {{ ta.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label form-label-sm mb-1">Unidade de origem</label>
+          <input type="text" name="unidade_origem" value="{{ f.unidade_origem|default:'' }}"
+                 class="form-control form-control-sm"
+                 placeholder="Nome da unidade">
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label form-label-sm mb-1">Interessado(s)</label>
+          <input type="text" name="interessado" value="{{ f.interessado|default:'' }}"
+                 class="form-control form-control-sm"
+                 placeholder="Nome do interessado">
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label form-label-sm mb-1">A-Z</label>
+          <select name="az" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            <option value="A" {% if f.az == "A" %}selected{% endif %}>A</option>
+            <option value="B" {% if f.az == "B" %}selected{% endif %}>B</option>
+            <option value="C" {% if f.az == "C" %}selected{% endif %}>C</option>
+            <option value="D" {% if f.az == "D" %}selected{% endif %}>D</option>
+            <option value="E" {% if f.az == "E" %}selected{% endif %}>E</option>
+            <option value="_vazio" {% if f.az == "_vazio" %}selected{% endif %}>— sem classificação</option>
+          </select>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endwith %}

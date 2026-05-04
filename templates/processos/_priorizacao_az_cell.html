@@ -1,0 +1,17 @@
+<td class="text-center" id="az-cell-{{ proc.pk }}" data-sort="{{ proc.classificacao_az|default:'~' }}">
+  <select
+    class="form-select form-select-sm az-select mx-auto"
+    name="classificacao_az"
+    hx-post="{% url 'processos:priorizacao-az-update' proc.pk %}"
+    hx-trigger="change"
+    hx-target="#az-cell-{{ proc.pk }}"
+    hx-swap="outerHTML"
+    aria-label="Classificacao A-Z do processo {{ proc.numero_processo }}">
+    <option value="" {% if not proc.classificacao_az %}selected{% endif %}></option>
+    <option value="A" {% if proc.classificacao_az == "A" %}selected{% endif %}>A</option>
+    <option value="B" {% if proc.classificacao_az == "B" %}selected{% endif %}>B</option>
+    <option value="C" {% if proc.classificacao_az == "C" %}selected{% endif %}>C</option>
+    <option value="D" {% if proc.classificacao_az == "D" %}selected{% endif %}>D</option>
+    <option value="E" {% if proc.classificacao_az == "E" %}selected{% endif %}>E</option>
+  </select>
+</td>
