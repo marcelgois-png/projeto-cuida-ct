@@ -10,11 +10,16 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   web:
     build:
       context: .
-    command: sh -c "python manage.py collectstatic --noinput && gunicorn ct_sinfra.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn ct_sinfra.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     environment:
       SECRET_KEY: ${SECRET_KEY:-change-me}
       DEBUG: ${DEBUG:-False}
@@ -34,10 +39,9 @@ services:
       MYSQL_PORT: 3306
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   mysql_data:
