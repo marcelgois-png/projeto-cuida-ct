@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from django import forms
 from django.forms import inlineformset_factory
 
@@ -425,12 +427,45 @@ class RequisicaoForm(forms.ModelForm):
         return instance
 
 
+_EXTENSOES_PERMITIDAS = {".xlsx", ".xlsm", ".csv"}
+_TAMANHO_MAXIMO_BYTES = 20 * 1024 * 1024  # 20 MB
+_MAGIC_ZIP = b"PK\x03\x04"  # assinatura de XLSX/XLSM (formato ZIP interno)
+
+
 class ImportacaoForm(forms.Form):
     arquivo = forms.FileField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["arquivo"].widget.attrs.setdefault("class", "form-control")
+
+    def clean_arquivo(self):
+        arquivo = self.cleaned_data["arquivo"]
+
+        extensao = Path(arquivo.name).suffix.lower()
+        if extensao not in _EXTENSOES_PERMITIDAS:
+            raise forms.ValidationError(
+                f"Formato inválido. Envie um arquivo XLSX, XLSM ou CSV. "
+                f"Recebido: '{extensao or 'sem extensão'}'"
+            )
+
+        if arquivo.size > _TAMANHO_MAXIMO_BYTES:
+            limite_mb = _TAMANHO_MAXIMO_BYTES // (1024 * 1024)
+            raise forms.ValidationError(
+                f"Arquivo muito grande. Limite: {limite_mb} MB. "
+                f"Recebido: {arquivo.size // (1024 * 1024)} MB."
+            )
+
+        if extensao in {".xlsx", ".xlsm"}:
+            header = arquivo.read(4)
+            arquivo.seek(0)
+            if header != _MAGIC_ZIP:
+                raise forms.ValidationError(
+                    "O arquivo não é um XLSX/XLSM válido. "
+                    "Verifique se o arquivo não está corrompido."
+                )
+
+        return arquivo
 
 
 class AcompanhamentoRequisicaoForm(forms.ModelForm):
