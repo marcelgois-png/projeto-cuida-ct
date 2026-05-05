@@ -18,6 +18,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_http_methods
+
+from apps.core.ratelimit import rate_limit
 from django.views.generic import CreateView, DetailView, TemplateView, UpdateView
 
 from .forms import AcompanhamentoRequisicaoFormSet, ImportacaoForm, RequisicaoForm
@@ -1952,12 +1954,14 @@ def requisicao_to_form_data(instance: Requisicao) -> dict[str, Any]:
     return data
 
 
+@rate_limit(requests=60, window=60)
 @require_http_methods(["GET"])
 def api_public_indicadores(request: HttpRequest) -> JsonResponse:
     queryset = filtered_queryset(request, public=True)
     return JsonResponse(metrics_for_queryset(queryset))
 
 
+@rate_limit(requests=60, window=60)
 @require_http_methods(["GET"])
 def api_public_requisicoes(request: HttpRequest) -> JsonResponse:
     context = table_context(request, public=True)
@@ -1972,6 +1976,7 @@ def api_public_requisicoes(request: HttpRequest) -> JsonResponse:
     )
 
 
+@rate_limit(requests=60, window=60)
 @require_http_methods(["GET"])
 def api_public_requisicao_detail(request: HttpRequest, pk: int) -> JsonResponse:
     requisicao = get_object_or_404(Requisicao.objects.select_related("predio", "solicitante"), pk=pk, visivel_publicamente=True)
