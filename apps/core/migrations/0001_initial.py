@@ -2,6 +2,20 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def _rename_table(old, new):
+    """Renomeia tabela compatível com MySQL e SQLite."""
+    def _sql(schema_editor, src, dst):
+        if schema_editor.connection.vendor == "mysql":
+            schema_editor.execute(f"RENAME TABLE {src} TO {dst}")
+        else:
+            schema_editor.execute(f"ALTER TABLE {src} RENAME TO {dst}")
+
+    return migrations.RunPython(
+        lambda apps, se: _sql(se, old, new),
+        lambda apps, se: _sql(se, new, old),
+    )
+
+
 PRIORITY_CHOICES = [
     ('1 - Urgente', '1 - Urgente'),
     ('2 - Alta', '2 - Alta'),
@@ -58,10 +72,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_predio TO core_predio',
-                    reverse_sql='RENAME TABLE core_predio TO tracker_predio',
-                ),
+                _rename_table('tracker_predio', 'core_predio'),
             ],
         ),
 
@@ -93,10 +104,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_requisitante TO core_solicitante',
-                    reverse_sql='RENAME TABLE core_solicitante TO tracker_requisitante',
-                ),
+                _rename_table('tracker_requisitante', 'core_solicitante'),
             ],
         ),
 
@@ -121,10 +129,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_taxonomiaservico TO core_taxonomiaservico',
-                    reverse_sql='RENAME TABLE core_taxonomiaservico TO tracker_taxonomiaservico',
-                ),
+                _rename_table('tracker_taxonomiaservico', 'core_taxonomiaservico'),
             ],
         ),
 
@@ -148,10 +153,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_statussipacopcao TO core_statussipacopcao',
-                    reverse_sql='RENAME TABLE core_statussipacopcao TO tracker_statussipacopcao',
-                ),
+                _rename_table('tracker_statussipacopcao', 'core_statussipacopcao'),
             ],
         ),
 
@@ -181,10 +183,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_gutparametro TO core_gutparametro',
-                    reverse_sql='RENAME TABLE core_gutparametro TO tracker_gutparametro',
-                ),
+                _rename_table('tracker_gutparametro', 'core_gutparametro'),
             ],
         ),
 
@@ -207,10 +206,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_regraprioridade TO core_regraprioridade',
-                    reverse_sql='RENAME TABLE core_regraprioridade TO tracker_regraprioridade',
-                ),
+                _rename_table('tracker_regraprioridade', 'core_regraprioridade'),
             ],
         ),
 
@@ -235,10 +231,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_empresa TO core_empresa',
-                    reverse_sql='RENAME TABLE core_empresa TO tracker_empresa',
-                ),
+                _rename_table('tracker_empresa', 'core_empresa'),
             ],
         ),
 
@@ -266,10 +259,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_notaempenho TO core_empenho',
-                    reverse_sql='RENAME TABLE core_empenho TO tracker_notaempenho',
-                ),
+                _rename_table('tracker_notaempenho', 'core_empenho'),
             ],
         ),
 
@@ -301,10 +291,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE tracker_reforcoempenho TO core_movimentacaoempenho',
-                    reverse_sql='RENAME TABLE core_movimentacaoempenho TO tracker_reforcoempenho',
-                ),
+                _rename_table('tracker_reforcoempenho', 'core_movimentacaoempenho'),
             ],
         ),
 
