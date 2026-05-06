@@ -4,6 +4,19 @@ import unicodedata
 from django.db import migrations, models
 
 
+def _rename_table(old, new):
+    def _sql(schema_editor, src, dst):
+        if schema_editor.connection.vendor == "mysql":
+            schema_editor.execute(f"RENAME TABLE {src} TO {dst}")
+        else:
+            schema_editor.execute(f"ALTER TABLE {src} RENAME TO {dst}")
+
+    return migrations.RunPython(
+        lambda apps, se: _sql(se, old, new),
+        lambda apps, se: _sql(se, new, old),
+    )
+
+
 _ACTIVE_CODES_NORMALIZED = {
     '01CADASTRADA',
     '02ENVIADA',
@@ -60,10 +73,7 @@ class Migration(migrations.Migration):
                 migrations.AlterModelTable(name='statusrequisicao', table='core_statusrequisicao'),
             ],
             database_operations=[
-                migrations.RunSQL(
-                    sql='RENAME TABLE core_statussipacopcao TO core_statusrequisicao',
-                    reverse_sql='RENAME TABLE core_statusrequisicao TO core_statussipacopcao',
-                ),
+                _rename_table('core_statussipacopcao', 'core_statusrequisicao'),
             ],
         ),
 

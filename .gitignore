@@ -11,6 +11,7 @@ media/
 .mypy_cache/
 htmlcov/
 coverage.xml
+.coverage
 dist/
 build/
 
@@ -22,3 +23,6 @@ build/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Claude Code (configurações locais pessoais)
+.claude/settings.local.json
