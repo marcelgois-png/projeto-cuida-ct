@@ -1,0 +1,843 @@
+{% extends "base.html" %}
+{% load tracker_tags static %}
+
+{% block title %}Painel de Processos | Cuida CT{% endblock %}
+
+{% block topbar_meta %}
+  <span class="topbar-badge">Atualizado em {% if ultima_atualizacao %}{{ ultima_atualizacao|date:"d/m/Y H:i" }}{% else %}{{ today|date:"d/m/Y" }}{% endif %}</span>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .process-panel-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .process-panel-filters .public-panel-header {
+    align-items: flex-end;
+  }
+
+  .process-panel-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) max-content;
+    align-items: end;
+    gap: 12px;
+  }
+
+  .process-panel-filter-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: flex-end;
+    height: 100%;
+    padding-bottom: 1px;
+    gap: .4rem;
+  }
+
+  .process-panel-filter-actions .btn {
+    min-width: 86px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 1199.98px) {
+    .process-panel-filter-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .process-panel-filter-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  .process-panel-kpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .process-kpi-total {
+    background: linear-gradient(135deg, #2f465c, #587088);
+  }
+
+  .process-kpi-active {
+    background: linear-gradient(135deg, #3f5d61, #66898a);
+  }
+
+  .process-kpi-waiting {
+    background: linear-gradient(135deg, #7A2632, #b04d5a);
+  }
+
+  .process-kpi-budgeted {
+    background: linear-gradient(135deg, #6f5b32, #a3864a);
+  }
+
+  .process-kpi-executed {
+    background: linear-gradient(135deg, #2f5c49, #5f9278);
+  }
+
+  .process-kpi-money {
+    background: linear-gradient(135deg, #34455a, #6f7f93);
+  }
+
+  .process-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .process-panel-card,
+  .process-panel-card--short {
+    height: 460px;
+  }
+
+  /* O chart-wrap cresce para preencher todo o espaço disponível no card */
+  .process-panel-card .control-panel-chart-wrap,
+  .process-panel-card--short .control-panel-chart-wrap {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  /* Reduz padding do card-body para dar mais área ao gráfico */
+  .process-panel-card .card-body,
+  .process-panel-card--short .card-body {
+    padding: 0.6rem 0.85rem;
+  }
+
+  /* ── Card Processos por Status: linhas distribuídas + gradiente de fundo ── */
+  .process-status-card > .card-body {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .process-status-card .control-panel-table-wrap {
+    max-height: none;
+    overflow: hidden;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Tabela preenche toda a altura disponível → linhas distribuem-se igualmente */
+  .process-status-card .control-panel-table {
+    height: 100%;
+    table-layout: fixed;
+  }
+
+  .process-status-card .control-panel-table tbody {
+    height: 100%;
+  }
+
+  .process-status-card .control-panel-table thead th {
+    font-size: .65rem;
+    padding: .3rem .65rem;
+    white-space: nowrap;
+  }
+
+  .process-status-card .control-panel-table tbody td {
+    font-size: .74rem;
+    padding: .3rem .65rem;
+    vertical-align: middle;
+  }
+
+  /* Linha com gradiente proporcional ao percentual (passado via style inline) */
+  .process-status-row {
+    border-bottom: 1px solid #eef1f5;
+    transition: background .15s;
+  }
+
+  .process-status-label {
+    display: block;
+    color: #2c3e50;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+
+
+
+  .process-annual-card > .card-body {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0.6rem 0.85rem;
+  }
+
+  .process-annual-card .control-panel-chart-wrap {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .process-panel-number {
+    color: #41536a;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="process-panel-shell">
+  <section class="public-panel process-panel-filters">
+    <div class="public-panel-header">
+      <div>
+        <span class="public-panel-kicker">Painel anal&iacute;tico</span>
+        <h1 class="public-panel-title">Painel de Processos</h1>
+        <p class="section-subtitle mb-0">Filtre os indicadores e gr&aacute;ficos por recorte operacional.</p>
+      </div>
+      {% if filtros.busca or filtros.status or filtros.predio or filtros.az or filtros.situacao or filtros.empenho %}
+        <span class="control-panel-filter-badge">Filtros ativos</span>
+      {% endif %}
+    </div>
+    <form method="get" class="control-panel-filters uniform-filter-form process-panel-filter-grid" action="{% url 'processos:painel-controle' %}">
+      <div>
+        <label class="form-label small text-muted mb-1" for="process-panel-search">Busca</label>
+        <input id="process-panel-search" class="form-control" type="search" name="busca" value="{{ filtros.busca }}" placeholder="Processo ou assunto">
+      </div>
+      <div>
+        <label class="form-label small text-muted mb-1" for="process-panel-status">Status</label>
+        <select id="process-panel-status" class="form-select" name="status">
+          <option value="">Todos</option>
+          {% for status in status_list %}
+            <option value="{{ status.id }}" {% if filtros.status == status.id|stringformat:"s" %}selected{% endif %}>{{ status.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small text-muted mb-1" for="process-panel-predio">Bloco</label>
+        <select id="process-panel-predio" class="form-select" name="predio">
+          <option value="">Todos</option>
+          {% for predio in predio_list %}
+            <option value="{{ predio.id }}" {% if filtros.predio == predio.id|stringformat:"s" %}selected{% endif %}>{{ predio.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small text-muted mb-1" for="process-panel-az">A-Z</label>
+        <select id="process-panel-az" class="form-select" name="az">
+          <option value="">Todos</option>
+          {% for letter in "ABCDE" %}
+            <option value="{{ letter }}" {% if filtros.az == letter %}selected{% endif %}>{{ letter }}</option>
+          {% endfor %}
+          <option value="_vazio" {% if filtros.az == "_vazio" %}selected{% endif %}>Sem A-Z</option>
+        </select>
+      </div>
+      <div class="process-panel-filter-actions">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{% url 'processos:painel-controle' %}" class="btn btn-outline-secondary">Limpar</a>
+      </div>
+    </form>
+  </section>
+
+  {% if total_processos %}
+    <section class="control-panel-section">
+      <div class="control-panel-section-head">
+        <div>
+          <span class="public-panel-kicker">S&Iacute;NTESE DA SITUA&Ccedil;&Atilde;O</span>
+          <h2 class="public-panel-title">Indicadores Chave de Processos</h2>
+          <div class="section-subtitle">
+            {{ total_processos|intdot }} processos no recorte atual, com {{ ativos|intdot }} ativos e {{ executados|intdot }} executados.
+          </div>
+        </div>
+      </div>
+
+      <div class="control-panel-kpi-grid process-panel-kpi-grid">
+        <article class="metric-card control-panel-kpi-card process-kpi-total">
+          <div class="metric-label">Total de processos</div>
+          <div class="metric-value">{{ total_processos|intdot }}</div>
+        </article>
+        <article class="metric-card control-panel-kpi-card process-kpi-active">
+          <div class="metric-label">Ativos</div>
+          <div class="metric-value">{{ ativos|intdot }}</div>
+        </article>
+        <article class="metric-card control-panel-kpi-card process-kpi-waiting">
+          <div class="metric-label">Sem or&ccedil;amento</div>
+          <div class="metric-value">{{ sem_orcamento|intdot }}</div>
+        </article>
+        <article class="metric-card control-panel-kpi-card process-kpi-budgeted">
+          <div class="metric-label">Or&ccedil;amentados</div>
+          <div class="metric-value">{{ orcamentados|intdot }}</div>
+        </article>
+        <article class="metric-card control-panel-kpi-card process-kpi-executed">
+          <div class="metric-label">Executados</div>
+          <div class="metric-value">{{ executados|intdot }}</div>
+        </article>
+        <article class="metric-card control-panel-kpi-card control-panel-kpi-card-currency process-kpi-money">
+          <div class="metric-label">Or&ccedil;amento Executado</div>
+          <div class="metric-value">
+            <span class="control-panel-kpi-prefix">R$</span>
+            <span class="control-panel-kpi-currency">{{ total_orcado|brl_k }}</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="control-panel-section">
+      <div class="control-panel-section-head">
+        <div>
+          <span class="public-panel-kicker">Transpar&ecirc;ncia e gerenciamento</span>
+          <h2 class="public-panel-title">Distribui&ccedil;&atilde;o, or&ccedil;amento e fila</h2>
+          <div class="section-subtitle">
+            Leitura por status, A-Z, empenho, local de interven&ccedil;&atilde;o, hist&oacute;rico anual e processos mais antigos.
+          </div>
+        </div>
+      </div>
+
+      <div class="control-panel-grid control-panel-grid-2 process-panel-grid">
+        <article class="card control-panel-card process-panel-card process-status-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-diagram-3"></i>Processos por status</h3>
+          </div>
+          <div class="card-body">
+            <div class="control-panel-table-wrap">
+              <table class="table table-sm align-middle mb-0 control-panel-table">
+                <colgroup>
+                  <col>
+                  <col style="width:44px">
+                  <col style="width:112px">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th class="text-center">Qtde</th>
+                    <th class="text-end">Or&ccedil;amento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in status_rows %}
+                    <tr class="process-status-row"
+                        style="background:linear-gradient(to right,rgba(107,140,170,.11) {{ row.percent }}%,transparent {{ row.percent }}%)">
+                      <td>
+                        <span class="process-status-label" title="{{ row.label }}">{{ row.label }}</span>
+                      </td>
+                      <td class="text-center process-panel-number">{{ row.total|intdot }}</td>
+                      <td class="text-end process-panel-number" style="white-space:nowrap">R$&nbsp;{{ row.orcamento|brl }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-4">Sem status no recorte atual.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card process-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-sort-alpha-down"></i>Prioriza&ccedil;&atilde;o A-Z</h3>
+          </div>
+          <div class="card-body">
+            <p class="section-subtitle mb-2">Apenas processos ativos, excluindo Situa&ccedil;&atilde;o SIPAC arquivada.</p>
+            <div class="chart-wrap control-panel-chart-wrap">
+              <canvas id="proc-az-chart"></canvas>
+            </div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card process-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-cash-stack"></i>Empenhos</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive control-panel-table-wrap">
+              <table class="table table-sm align-middle mb-0 control-panel-table">
+                <thead>
+                  <tr>
+                    <th>Empenho</th>
+                    <th class="text-end">Valor da nota</th>
+                    <th class="text-end">Or&ccedil;amentos</th>
+                    <th class="text-end">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in empenho_rows %}
+                    <tr>
+                      <td>
+                        <strong>{{ row.nota }}</strong>
+                        {% if row.empresa %}<small class="d-block text-muted">{{ row.empresa }}</small>{% endif %}
+                      </td>
+                      <td class="text-end process-panel-number">R$ {{ row.valor_nota|brl }}</td>
+                      <td class="text-end process-panel-number">R$ {{ row.orcamentos|brl }}</td>
+                      <td class="text-end process-panel-number">R$ {{ row.saldo|brl }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Nenhum empenho vinculado ao recorte atual.</td></tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="control-panel-total-row">
+                    <td>Total</td>
+                    <td></td>
+                    <td class="text-end process-panel-number">R$ {{ total_empenhado|brl }}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card process-panel-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-buildings"></i>Qtde de processos por blocos</h3>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap control-panel-chart-wrap"><canvas id="proc-predio-chart"></canvas></div>
+          </div>
+        </article>
+
+        <article class="card control-panel-card process-panel-card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="section-title mb-0">
+              <i class="bi bi-bar-chart-steps me-1"></i>Montante por tipo de servi&ccedil;o
+            </h3>
+            <span class="text-muted small">valores base dos itens de or&ccedil;amento · top 20</span>
+          </div>
+          <div class="card-body">
+            {% if chart_data.servicos.labels %}
+            <div class="chart-wrap control-panel-chart-wrap">
+              <canvas id="proc-servicos-chart"></canvas>
+            </div>
+            {% else %}
+            <p class="text-muted small text-center py-3 mb-0">
+              Nenhum item de or&ccedil;amento com valor registrado no recorte atual.
+            </p>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="card control-panel-card process-panel-card--short process-annual-card">
+          <div class="card-header">
+            <h3 class="section-title"><i class="bi bi-calendar3"></i>Hist&oacute;rico anual</h3>
+            <span class="text-muted small">abertura, libera&ccedil;&atilde;o de OS e conclus&atilde;o</span>
+          </div>
+          <div class="card-body">
+            {% if chart_data.annual_flow.labels %}
+            <div class="chart-wrap control-panel-chart-wrap">
+              <canvas id="proc-annual-flow-chart"></canvas>
+            </div>
+            {% else %}
+            <p class="text-muted small text-center py-3 mb-0">Sem datas registradas no recorte atual.</p>
+            {% endif %}
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+
+    <div class="process-panel-footnote">
+      Or&ccedil;amento total soma os or&ccedil;amentos cadastrados no m&oacute;dulo de processos; valores de empenho usam os v&iacute;nculos de or&ccedil;amento-empenho.
+    </div>
+  {% else %}
+    <section class="public-panel control-panel-empty-state">
+      <div class="control-panel-empty-icon"><i class="bi bi-funnel"></i></div>
+      <h2 class="public-panel-title mb-2">Nenhum processo encontrado</h2>
+      <p class="section-subtitle mb-0">Ajuste os filtros do painel para visualizar novamente os indicadores, gr&aacute;ficos e tabelas.</p>
+    </section>
+  {% endif %}
+</div>
+
+{{ chart_data.az|json_script:"proc-az-data" }}
+{{ chart_data.predios|json_script:"proc-predio-data" }}
+{{ chart_data.status|json_script:"proc-status-data" }}
+{{ chart_data.servicos|json_script:"proc-servicos-data" }}
+{{ chart_data.annual_flow|json_script:"proc-annual-flow-data" }}
+{% endblock %}
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+  (function () {
+    function readData(id) {
+      var el = document.getElementById(id);
+      if (!el) return null;
+      try { return JSON.parse(el.textContent); } catch (err) { return null; }
+    }
+
+    var processPanelChartColors = {
+      regular: '#C6543C',
+      total: '#7A2632',
+      label: '#7A2632',
+      axis: '#4b5563',
+      grid: 'rgba(207, 219, 232, .55)'
+    };
+
+    var processPanelAxisFont = {
+      size: 11,
+      weight: '600',
+      family: '"Open Sans", Arial, sans-serif'
+    };
+
+    function processPanelBarColors(labels) {
+      return (labels || []).map(function (label) {
+        return label === 'Total' ? processPanelChartColors.total : processPanelChartColors.regular;
+      });
+    }
+
+    function processPanelTicks(extra) {
+      var ticks = {
+        color: processPanelChartColors.axis,
+        font: processPanelAxisFont
+      };
+      return Object.assign(ticks, extra || {});
+    }
+
+    var valueLabelPlugin = {
+      id: 'processPanelValueLabels',
+      afterDatasetsDraw: function (chart, args, pluginOptions) {
+        if (!pluginOptions || pluginOptions.display === false) return;
+        var ctx = chart.ctx;
+        var dataset = chart.data.datasets[0] || {};
+        var meta = chart.getDatasetMeta(0);
+        var horizontal = chart.options.indexAxis === 'y';
+        ctx.save();
+        ctx.fillStyle = pluginOptions.color || processPanelChartColors.label;
+        ctx.font = '700 11px "Open Sans", Arial, sans-serif';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach(function (bar, index) {
+          var value = dataset.data[index];
+          if (value === null || value === undefined) return;
+          var label = Number(value).toLocaleString('pt-BR');
+          if (horizontal) {
+            var x = Math.max(bar.x, bar.base || chart.chartArea.left) + 8;
+            var y = bar.y;
+            ctx.textAlign = 'left';
+            if (x > chart.chartArea.right - 8) {
+              x = bar.x - 8;
+              ctx.textAlign = 'right';
+            }
+            ctx.fillText(label, x, y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.fillText(label, bar.x, bar.y - 8);
+          }
+        });
+        ctx.restore();
+      }
+    };
+
+    if (window.Chart && !window.processPanelValueLabelsRegistered) {
+      Chart.register(valueLabelPlugin);
+      window.processPanelValueLabelsRegistered = true;
+    }
+
+    function makeBarChart(canvasId, payload, options) {
+      var canvas = document.getElementById(canvasId);
+      if (!canvas || !payload || !payload.labels || !payload.labels.length || !window.Chart) return;
+      options = options || {};
+      var horizontal = options.horizontal !== false;
+      var values = payload.quantidades || payload.processos || [];
+      var maxValue = Math.max.apply(null, values.concat([1]));
+      var suggestedMax = Math.ceil(maxValue * 1.18);
+      var bg = options.backgroundColor || processPanelBarColors(payload.labels);
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: payload.labels,
+          datasets: [{
+            data: values,
+            backgroundColor: bg,
+            borderColor: bg,
+            borderWidth: 0,
+            borderRadius: 0,
+            maxBarThickness: options.maxBarThickness || (horizontal ? 18 : 48)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: horizontal ? 'y' : 'x',
+          plugins: {
+            legend: { display: false },
+            tooltip: { displayColors: false },
+            processPanelValueLabels: {
+              display: options.showLabels !== false,
+              color: options.labelColor || '#34455a'
+            }
+          },
+          layout: { padding: { right: horizontal ? 42 : 0, top: horizontal ? 0 : 16 } },
+          scales: {
+            x: {
+              beginAtZero: true,
+              suggestedMax: horizontal ? suggestedMax : undefined,
+              grid: { color: processPanelChartColors.grid },
+              ticks: processPanelTicks({ precision: 0 })
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: horizontal ? undefined : suggestedMax,
+              grid: { display: !horizontal, color: processPanelChartColors.grid },
+              ticks: processPanelTicks({ precision: 0 })
+            }
+          }
+        }
+      });
+    }
+
+
+    function makeAnnualFlowChart() {
+      var canvas = document.getElementById('proc-annual-flow-chart');
+      var payload = readData('proc-annual-flow-data');
+      if (!canvas || !payload || !payload.labels || !payload.labels.length || !window.Chart) return;
+
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: payload.labels,
+          datasets: [
+            {
+              label: 'Abertura de processos',
+              data: payload.aberturas || [],
+              borderColor: '#C6543C',
+              backgroundColor: 'rgba(198, 84, 60, .12)',
+              pointBackgroundColor: '#C6543C',
+              pointBorderColor: '#fff',
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              borderWidth: 3,
+              tension: .25
+            },
+            {
+              label: 'Liberação de OS',
+              data: payload.os || [],
+              borderColor: '#7A2632',
+              backgroundColor: 'rgba(122, 38, 50, .12)',
+              pointBackgroundColor: '#7A2632',
+              pointBorderColor: '#fff',
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              borderWidth: 3,
+              tension: .25
+            },
+            {
+              label: 'Conclusão',
+              data: payload.conclusoes || [],
+              borderColor: '#41536a',
+              backgroundColor: 'rgba(65, 83, 106, .12)',
+              pointBackgroundColor: '#41536a',
+              pointBorderColor: '#fff',
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              borderWidth: 3,
+              tension: .25
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                boxHeight: 10,
+                color: processPanelChartColors.axis,
+                font: processPanelAxisFont
+              }
+            },
+            tooltip: { displayColors: true },
+            processPanelValueLabels: { display: false }
+          },
+          scales: {
+            x: {
+              grid: { color: processPanelChartColors.grid },
+              ticks: processPanelTicks()
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: processPanelChartColors.grid },
+              ticks: processPanelTicks({ precision: 0 })
+            }
+          }
+        }
+      });
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // ── Gráfico A-Z customizado com barra "Total" destacada ─────────────────
+      (function () {
+        var canvas = document.getElementById('proc-az-chart');
+        var payload = readData('proc-az-data');
+        if (!canvas || !payload || !payload.labels || !payload.labels.length || !window.Chart) return;
+
+        var labels     = payload.labels;
+        var quantidades = payload.quantidades || [];
+        var maxVal     = Math.max.apply(null, quantidades.concat([1]));
+
+        var bgColors = processPanelBarColors(labels);
+
+        var azValuePlugin = {
+          id: 'azValuePlugin',
+          afterDatasetsDraw: function (chart) {
+            var ctx = chart.ctx;
+            var meta = chart.getDatasetMeta(0);
+            ctx.save();
+            ctx.textBaseline = 'middle';
+            meta.data.forEach(function (bar, i) {
+              var val = quantidades[i];
+              if (val == null) return;
+              ctx.fillStyle = processPanelChartColors.label;
+              ctx.font = '700 11px "Open Sans", Arial, sans-serif';
+              var x = bar.x + 8;
+              ctx.textAlign = 'left';
+              if (x > chart.chartArea.right - 8) { x = bar.x - 8; ctx.textAlign = 'right'; }
+              ctx.fillText(val.toLocaleString('pt-BR'), x, bar.y);
+            });
+            ctx.restore();
+          }
+        };
+
+        new Chart(canvas, {
+          type: 'bar',
+          plugins: [azValuePlugin],
+          data: {
+            labels: labels,
+            datasets: [{
+              data: quantidades,
+              backgroundColor: bgColors,
+              borderColor: bgColors,
+              borderWidth: 0,
+              borderRadius: 0,
+              maxBarThickness: 22
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: { displayColors: false },
+              processPanelValueLabels: { display: false }
+            },
+            layout: { padding: { right: 40 } },
+            scales: {
+              x: {
+                beginAtZero: true,
+                suggestedMax: Math.ceil(maxVal * 1.2),
+                grid: { color: processPanelChartColors.grid },
+                ticks: processPanelTicks({ precision: 0 })
+              },
+              y: {
+                grid: { display: false },
+                ticks: processPanelTicks()
+              }
+            }
+          }
+        });
+      }());
+      makeBarChart('proc-predio-chart', readData('proc-predio-data'), {
+        horizontal: true,
+        maxBarThickness: 18,
+        labelColor: processPanelChartColors.label
+      });
+      makeAnnualFlowChart();
+
+      // ── Gráfico: montante por tipo de servi&ccedil;o ──────────────────────────────
+      (function () {
+        var canvas = document.getElementById('proc-servicos-chart');
+        var payload = readData('proc-servicos-data');
+        if (!canvas || !payload || !payload.labels || !payload.labels.length || !window.Chart) return;
+
+        var labels  = payload.labels;
+        var valores = payload.valores;
+        var qtdes   = payload.qtdes || [];
+        var maxVal  = Math.max.apply(null, valores.concat([1]));
+
+        // Plugin de rótulos monetários nas barras
+        var moneyLabelPlugin = {
+          id: 'moneyLabelPlugin',
+          afterDatasetsDraw: function (chart) {
+            var ctx = chart.ctx;
+            var meta = chart.getDatasetMeta(0);
+            ctx.save();
+            ctx.fillStyle = processPanelChartColors.label;
+            ctx.font = '700 11px "Open Sans", Arial, sans-serif';
+            ctx.textBaseline = 'middle';
+            meta.data.forEach(function (bar, i) {
+              var val = valores[i];
+              if (val == null) return;
+              var label = 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              var x = bar.x + 8;
+              ctx.textAlign = 'left';
+              if (x > chart.chartArea.right - 8) { x = bar.x - 8; ctx.textAlign = 'right'; }
+              ctx.fillText(label, x, bar.y);
+            });
+            ctx.restore();
+          }
+        };
+
+        new Chart(canvas, {
+          type: 'bar',
+          plugins: [moneyLabelPlugin],
+          data: {
+            labels: labels,
+            datasets: [{
+              data: valores,
+              backgroundColor: processPanelBarColors(labels),
+              borderColor: processPanelBarColors(labels),
+              borderWidth: 0,
+              borderRadius: 0,
+              maxBarThickness: 20
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                displayColors: false,
+                callbacks: {
+                  label: function (ctx) {
+                    var val = ctx.raw;
+                    var q = qtdes[ctx.dataIndex] || 0;
+                    return [
+                      'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                      q + ' or&ccedil;amento' + (q !== 1 ? 's' : '') + ' com este item'
+                    ];
+                  }
+                }
+              },
+              processPanelValueLabels: { display: false }
+            },
+            layout: { padding: { right: 130 } },
+            scales: {
+              x: {
+                beginAtZero: true,
+                suggestedMax: maxVal * 1.05,
+                grid: { color: processPanelChartColors.grid },
+                ticks: processPanelTicks({
+                  callback: function (v) {
+                    if (v >= 1000000) return 'R$ ' + (v / 1000000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'M';
+                    if (v >= 1000) return 'R$ ' + (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'k';
+                    return 'R$ ' + v.toLocaleString('pt-BR');
+                  }
+                })
+              },
+              y: {
+                grid: { display: false },
+                ticks: processPanelTicks()
+              }
+            }
+          }
+        });
+      }());
+    });
+  }());
+</script>
+{% endblock %}
+

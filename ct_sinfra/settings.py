@@ -24,6 +24,8 @@ def env_list(name: str, default: str = "") -> list[str]:
 
 DEBUG = env_bool("DEBUG", default=True)
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+
 secret_key = os.getenv("SECRET_KEY", "").strip()
 if secret_key:
     SECRET_KEY = secret_key
@@ -86,7 +88,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "ct_sinfra.wsgi.application"
 ASGI_APPLICATION = "ct_sinfra.asgi.application"
 
-if os.getenv("MYSQL_DB"):
+if os.getenv("MYSQL_DB") and not env_bool("DJANGO_USE_SQLITE", default=False):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.mysql",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import re
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,7 @@ from apps.core.models import (
     TipoAmbiente,
 )
 
-from .models import Processo
+from .models import InteressadoProcesso, Orcamento, Processo
 
 
 # ── Cabeçalhos e metadados das colunas ────────────────────────────────────────
@@ -45,9 +46,12 @@ COLUNAS = [
     ("link_sipac",        "link_sipac",       False, "URL do processo no SIPAC (https://...)."),
     ("observacao",        "observacao",       False, "Observação interna (não aparece publicamente)."),
     ("acompanhamento_ct", "acompanhamento_ct",False, "Histórico de acompanhamento interno do CT."),
+    ("unidade_origem",    "unidade_origem",   False, "Unidade de origem informada no SIPAC público."),
 ]
 
 HEADER_NAMES = [c[0] for c in COLUNAS]
+INTERESSADOS_SHEET_NAME = "INTERESSADOS_PROCESSO"
+INTERESSADOS_HEADER_NAMES = ["numero_processo", "tipo", "identificador", "nome"]
 
 # Mapeamento de variações de cabeçalho → campo canônico
 # Chaves já normalizadas (minúsculas, sem acentos, underscores)
@@ -134,12 +138,38 @@ COLUMN_ALIASES: dict[str, str] = {
     "localizacao": "predio",
     "nome_predio": "predio",
     "nome_edificio": "predio",
+    "local_predio": "predio",
+    "local_predio_": "predio",
+    "predio_local": "predio",
 
     # tipo_ambiente
     "tipo_ambiente": "tipo_ambiente",
     "ambiente": "tipo_ambiente",
     "tipo_de_ambiente": "tipo_ambiente",
     "tipo_local": "tipo_ambiente",
+    "local_servico": "tipo_ambiente",
+    "local_do_servico": "tipo_ambiente",
+    "ambiente_servico": "tipo_ambiente",
+
+    # gerencia  (divisão da SINFRA = gerência responsável)
+    "gerencia": "gerencia",
+    "gerencia_sinfra": "gerencia",
+    "gerencia_responsavel": "gerencia",
+    "divisao": "gerencia",
+    "setor_sinfra": "gerencia",
+    "servico_divisao": "gerencia",
+    "servico_divisao_": "gerencia",
+    "divisao_sinfra": "gerencia",
+    "divisao_da_sinfra": "gerencia",
+
+    # servico  (tipo de serviço)
+    "servico": "servico",
+    "servico_processo": "servico",
+    "tipo_servico": "servico",
+    "tipo_de_servico": "servico",
+    "servico_contratado": "servico",
+    "natureza_servico": "servico",
+    "natureza_do_servico": "servico",
 
     # empresa
     "empresa": "empresa",
@@ -157,6 +187,7 @@ COLUMN_ALIASES: dict[str, str] = {
     "prioridade": "classificacao_az",
     "classe": "classificacao_az",
     "categoria": "classificacao_az",
+    "classificacao_a_z": "classificacao_az",
 
     # link_sipac
     "link_sipac": "link_sipac",
@@ -180,6 +211,55 @@ COLUMN_ALIASES: dict[str, str] = {
     "historico": "acompanhamento_ct",
     "historico_ct": "acompanhamento_ct",
     "andamento": "acompanhamento_ct",
+
+    # unidade_origem
+    "unidade_origem": "unidade_origem",
+    "unidade_de_origem": "unidade_origem",
+    "origem_unidade": "unidade_origem",
+    "unidade_sipac": "unidade_origem",
+
+    # campos especiais (tratados em _fill_processo)
+    "orcamento_r": "_orcamento_valor",
+    "orcamento_r_": "_orcamento_valor",
+    "orcamento": "_orcamento_valor",
+    "valor_orcamento": "_orcamento_valor",
+    "valor": "_orcamento_valor",
+    "nota_de_empenho": "_nota_empenho",
+    "nota_em_empenho": "_nota_empenho",
+    "nota_empenho": "_nota_empenho",
+    "empenho": "_nota_empenho",
+    "numero_empenho": "_nota_empenho",
+    "n_empenho": "_nota_empenho",
+    "n_requisicoes_origem": "_requisicoes_origem",
+    "requisicoes_origem": "_requisicoes_origem",
+    "n_requisicoes": "_requisicoes_origem",
+    "requisicoes": "_requisicoes_origem",
+    "req_origem": "_requisicoes_origem",
+    "origem": "_requisicoes_origem",
+
+    # predio — variações adicionais
+    "local_da_intenvencao": "predio",   # grafia com typo da planilha
+    "local_da_intervencao": "predio",
+    "local_intervencao": "predio",
+    "local_intenvencao": "predio",
+    "localizacao_do_processo": "predio",
+    "localizacao_processo": "predio",
+
+    # link_sipac — variações adicionais
+    "link_para_o_processo": "link_sipac",
+    "link_processo": "link_sipac",
+    "link_do_processo": "link_sipac",
+
+    # colunas calculadas / auxiliares — reconhecidas mas ignoradas na importação
+    "latitude":          "_ignorado",
+    "longitude":         "_ignorado",
+    "tempo_de_reacao":   "_ignorado",
+    "tempo_de_execucao": "_ignorado",
+    "tempo_de_analise":  "_ignorado",
+    "tempo_de_solucao":  "_ignorado",
+    "procv":             "_ignorado",
+    "formula":           "_ignorado",
+    "auxiliar":          "_ignorado",
 }
 
 # Cor do cabeçalho: vinho do módulo
@@ -216,7 +296,7 @@ def gerar_modelo_xlsx() -> bytes:
         "status": 20, "situacao_sipac": 18, "gerencia": 38, "servico": 32,
         "predio": 28, "tipo_ambiente": 22, "empresa": 28,
         "classificacao_az": 14, "link_sipac": 40,
-        "observacao": 40, "acompanhamento_ct": 40,
+        "observacao": 40, "acompanhamento_ct": 40, "unidade_origem": 42,
     }
     for col_idx, nome in enumerate(HEADER_NAMES, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = larguras.get(nome, 20)
@@ -231,6 +311,23 @@ def gerar_modelo_xlsx() -> bytes:
     ws.cell(row=2, column=14, value="B")
     for col_idx in range(1, len(COLUNAS) + 1):
         ws.cell(row=2, column=col_idx).font = Font(italic=True, color="888888")
+
+    # â”€â”€ aba INTERESSADOS_PROCESSO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    wi = wb.create_sheet(INTERESSADOS_SHEET_NAME)
+    for col_idx, nome in enumerate(INTERESSADOS_HEADER_NAMES, start=1):
+        cell = wi.cell(row=1, column=col_idx, value=nome)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+    wi.cell(row=2, column=1, value="23074.001234/2024-01")
+    wi.cell(row=2, column=2, value="Unidade")
+    wi.cell(row=2, column=3, value="110055")
+    wi.cell(row=2, column=4, value="CENTRO DE TECNOLOGIA (CT)")
+    for col_idx in range(1, len(INTERESSADOS_HEADER_NAMES) + 1):
+        wi.cell(row=2, column=col_idx).font = Font(italic=True, color="888888")
+    for col_idx, width in enumerate([28, 22, 18, 55], start=1):
+        wi.column_dimensions[get_column_letter(col_idx)].width = width
+    wi.row_dimensions[1].height = 28
 
     # ── aba LEGENDAS ──────────────────────────────────────────────────────────
     wl = wb.create_sheet("LEGENDAS")
@@ -351,9 +448,18 @@ class ProcessoImporter:
             sheet = wb.active
 
         rows, col_info = self._sheet_to_dicts(sheet)
+
+        interessados_rows: list[dict] = []
+        for name in wb.sheetnames:
+            if name.strip().upper() == INTERESSADOS_SHEET_NAME:
+                interessados_rows = self._interessados_sheet_to_dicts(wb[name])
+                break
+
         with transaction.atomic():
             resultado = self._upsert_processos(rows)
+            interessados_result = self._upsert_interessados(interessados_rows)
         resultado["colunas"] = col_info
+        resultado.update(interessados_result)
         return resultado
 
     # ── Conversão de planilha ─────────────────────────────────────────────────
@@ -372,12 +478,14 @@ class ProcessoImporter:
             original = str(h).strip() if h is not None else ""
             norm = self._norm(original) if original else ""
             canonical = COLUMN_ALIASES.get(norm, norm)
-            mapeado = canonical in HEADER_NAMES
+            ignorado = canonical == "_ignorado"
+            mapeado = canonical in HEADER_NAMES or canonical.startswith("_")
             col_info.append({
                 "original": original,
                 "normalizado": norm,
                 "canonico": canonical,
-                "mapeado": mapeado,
+                "mapeado": mapeado,    # True p/ campos mapeados E ignorados
+                "ignorado": ignorado,  # True apenas p/ colunas calculadas/auxiliares
             })
             headers_canonical.append(canonical)
 
@@ -392,6 +500,28 @@ class ProcessoImporter:
             result.append(d)
 
         return result, col_info
+
+    def _interessados_sheet_to_dicts(self, sheet) -> list[dict]:
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows:
+            return []
+
+        headers = []
+        for h in rows[0]:
+            original = str(h).strip() if h is not None else ""
+            norm = self._norm(original) if original else ""
+            headers.append(COLUMN_ALIASES.get(norm, norm))
+
+        result = []
+        for row in rows[1:]:
+            if all(v is None or str(v).strip() == "" for v in row):
+                continue
+            d = {}
+            for i, value in enumerate(row):
+                if i < len(headers):
+                    d[headers[i]] = str(value).strip() if value is not None else ""
+            result.append(d)
+        return result
 
     @staticmethod
     def _norm(text: str) -> str:
@@ -435,6 +565,61 @@ class ProcessoImporter:
             "total_linhas": len(rows),
         }
 
+    def _upsert_interessados(self, rows: list[dict]) -> dict[str, Any]:
+        if not rows:
+            return {
+                "interessados_importados": 0,
+                "interessados_ignorados": 0,
+                "interessados_erros": [],
+            }
+
+        imported = skipped = 0
+        erros: list[str] = []
+        por_processo: dict[str, list[dict]] = {}
+
+        for i, row in enumerate(rows, start=2):
+            numero = self._get(row, "numero_processo", "processo")
+            nome = self._get(row, "nome")
+            if not numero or not nome:
+                skipped += 1
+                continue
+            por_processo.setdefault(numero.strip(), []).append({
+                "linha": i,
+                "tipo": self._get(row, "tipo") or "",
+                "identificador": self._get(row, "identificador") or "",
+                "nome": nome,
+            })
+
+        for numero, interessados in por_processo.items():
+            processo = Processo.objects.filter(numero_processo=numero).first()
+            if not processo:
+                skipped += len(interessados)
+                erros.append(f"Aba {INTERESSADOS_SHEET_NAME} ({numero}): processo não encontrado")
+                continue
+
+            processo.interessados.all().delete()
+            seen: set[tuple[str, str, str]] = set()
+            novos = []
+            for item in interessados:
+                key = (item["tipo"], item["identificador"], item["nome"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                novos.append(InteressadoProcesso(
+                    processo=processo,
+                    tipo=item["tipo"],
+                    identificador=item["identificador"],
+                    nome=item["nome"],
+                ))
+            InteressadoProcesso.objects.bulk_create(novos)
+            imported += len(novos)
+
+        return {
+            "interessados_importados": imported,
+            "interessados_ignorados": skipped,
+            "interessados_erros": erros,
+        }
+
     def _fill_processo(self, processo: Processo, row: dict) -> list[str]:
         """Preenche campos do processo a partir da linha da planilha.
         Retorna lista de avisos (valores não encontrados etc.)."""
@@ -462,6 +647,7 @@ class ProcessoImporter:
         set_if("link_sipac",        "link_sipac", "link", "sipac")
         set_if("observacao",        "observacao", "obs")
         set_if("acompanhamento_ct", "acompanhamento_ct", "acompanhamento")
+        set_if("unidade_origem",    "unidade_origem", "unidade_sipac")
 
         # Classificação A-Z
         az = self._get(row, "classificacao_az", "az", "prioridade_az", "classificacao")
@@ -494,6 +680,52 @@ class ProcessoImporter:
         set_fk("tipo_ambiente",  self._resolve_ambiente, "tipo_ambiente", "ambiente")
         set_fk("empresa",        self._resolve_empresa,  "empresa",       "empresa_executora")
 
+        # ── Campos especiais ──────────────────────────────────────────────────
+
+        # Orçamento (valor R$)
+        valor_orc_raw = self._get(row, "_orcamento_valor")
+        if valor_orc_raw:
+            valor_dec = self._parse_decimal(valor_orc_raw)
+            if valor_dec is not None:
+                # Atualiza orçamento marcado como "importado" ou cria novo
+                orc = processo.orcamentos.filter(descricao="importado").first()
+                if orc:
+                    orc.valor = valor_dec
+                    orc.save(update_fields=["valor"])
+                else:
+                    next_seq = (processo.orcamentos.count() or 0) + 1
+                    Orcamento.objects.create(
+                        processo=processo,
+                        numero_sequencial=next_seq,
+                        descricao="importado",
+                        valor=valor_dec,
+                    )
+            else:
+                avisos.append(f"orcamento='{valor_orc_raw}' não reconhecido como valor numérico")
+
+        # Nota de empenho → preserva no campo observacao se ainda não registrado
+        nota_emp_raw = self._get(row, "_nota_empenho")
+        if nota_emp_raw:
+            tag = f"[Empenho: {nota_emp_raw}]"
+            if tag not in (processo.observacao or ""):
+                processo.observacao = (
+                    (processo.observacao + "\n" + tag).strip()
+                    if processo.observacao
+                    else tag
+                )
+
+        # Requisições de origem → vínculo M2M (processo.pk já existe: get_or_create)
+        req_str = self._get(row, "_requisicoes_origem")
+        if req_str:
+            from apps.tracker.models import Requisicao
+            codigos = [c.strip() for c in re.split(r"[;,\s]+", req_str) if c.strip()]
+            for cod in codigos:
+                req = Requisicao.objects.filter(codigo__iexact=cod).first()
+                if req:
+                    processo.requisicoes.add(req)
+                else:
+                    avisos.append(f"requisição origem '{cod}' não encontrada")
+
         return avisos
 
     # ── Resolvers de FK ───────────────────────────────────────────────────────
@@ -503,10 +735,13 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._status_cache:
-            # Tenta código exato, depois início do código, depois nome
+            # Código numérico pode vir sem zero à esquerda (ex: "7" → "07")
+            padded = key.zfill(2) if key.isdigit() else None
             obj = (
                 StatusProcesso.objects.filter(codigo__iexact=key).first()
+                or (StatusProcesso.objects.filter(codigo__iexact=padded).first() if padded else None)
                 or StatusProcesso.objects.filter(codigo__istartswith=key).first()
+                or StatusProcesso.objects.filter(nome__iexact=key).first()
                 or StatusProcesso.objects.filter(nome__icontains=key).first()
             )
             self._status_cache[key] = obj
@@ -517,9 +752,11 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._gerencia_cache:
+            chave = self._chave(key)
             self._gerencia_cache[key] = (
                 GerenciaSINFRA.objects.filter(nome__iexact=key).first()
                 or GerenciaSINFRA.objects.filter(nome__icontains=key).first()
+                or GerenciaSINFRA.objects.filter(nome__icontains=chave).first()
             )
         return self._gerencia_cache[key]
 
@@ -528,9 +765,11 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._servico_cache:
+            chave = self._chave(key)
             self._servico_cache[key] = (
                 ServicoProcesso.objects.filter(nome__iexact=key).first()
                 or ServicoProcesso.objects.filter(nome__icontains=key).first()
+                or ServicoProcesso.objects.filter(nome__icontains=chave).first()
             )
         return self._servico_cache[key]
 
@@ -550,9 +789,14 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._predio_cache:
+            # Tenta nome exato, depois chave_normalizada (sem acentos/espaços),
+            # depois nome parcial
+            chave = self._chave(key)
             self._predio_cache[key] = (
                 Predio.objects.filter(nome__iexact=key).first()
+                or Predio.objects.filter(chave_normalizada__iexact=chave).first()
                 or Predio.objects.filter(nome__icontains=key).first()
+                or Predio.objects.filter(chave_normalizada__icontains=chave).first()
             )
         return self._predio_cache[key]
 
@@ -561,9 +805,11 @@ class ProcessoImporter:
             return None
         key = val.strip()
         if key not in self._ambiente_cache:
+            chave = self._chave(key)
             self._ambiente_cache[key] = (
                 TipoAmbiente.objects.filter(nome__iexact=key).first()
                 or TipoAmbiente.objects.filter(nome__icontains=key).first()
+                or TipoAmbiente.objects.filter(nome__icontains=chave).first()
             )
         return self._ambiente_cache[key]
 
@@ -615,3 +861,30 @@ class ProcessoImporter:
             except ValueError:
                 continue
         return None
+
+    @staticmethod
+    def _chave(text: str) -> str:
+        """Reproduz normalize_key() do domain.py: NFKD, sem acentos, sem espaços."""
+        import unicodedata as _ud
+        t = _ud.normalize("NFKD", text)
+        t = "".join(ch for ch in t if not _ud.combining(ch))
+        return re.sub(r"\s+", "", t)
+
+    @staticmethod
+    def _parse_decimal(val: str) -> Decimal | None:
+        """Converte string monetária em Decimal. Aceita formatos BR e US."""
+        s = str(val).strip()
+        # Remove símbolos de moeda, espaços e aspas
+        s = re.sub(r"[R$\s\"']", "", s)
+        if not s or s.lower() in ("none", "nan", "-"):
+            return None
+        # Formato BR com pontos de milhar: "1.234,56" → "1234.56"
+        if re.match(r"^\d{1,3}(\.\d{3})+(,\d+)?$", s):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            # Remove separador de milhar (vírgula no formato US: "1,234.56")
+            s = s.replace(",", "")
+        try:
+            return Decimal(s)
+        except InvalidOperation:
+            return None

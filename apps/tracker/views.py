@@ -430,12 +430,19 @@ def _pagination_pages(page_obj) -> list[dict[str, Any]]:
     return pages
 
 
-def table_context(request: HttpRequest, *, public: bool = False) -> dict[str, Any]:
+def table_context(
+    request: HttpRequest,
+    *,
+    public: bool = False,
+    table_target: str | None = None,
+    table_url_name: str | None = None,
+    page_size: int = TABLE_PAGE_SIZE,
+) -> dict[str, Any]:
     queryset = filtered_queryset(request, public=public)
     filtered_count = queryset.count()
     total_count = base_queryset(public=public).count()
     filters_active = has_active_filters(request)
-    paginator = Paginator(queryset, TABLE_PAGE_SIZE)
+    paginator = Paginator(queryset, page_size)
     page_obj = paginator.get_page(request.GET.get("page", 1))
     page_items = list(page_obj.object_list)
     lookup = status_sipac_lookup([item.status_sipac.codigo if item.status_sipac else "" for item in page_items])
@@ -472,8 +479,8 @@ def table_context(request: HttpRequest, *, public: bool = False) -> dict[str, An
         "public_mode": public,
         "querystring": params.urlencode(),
         "sort_links": sort_links,
-        "table_target": "#public-results" if public else "#internal-results",
-        "table_url": reverse("public-requisicoes-table" if public else "internal-requisicoes-table"),
+        "table_target": table_target or ("#public-results" if public else "#internal-results"),
+        "table_url": reverse(table_url_name or ("public-requisicoes-table" if public else "internal-requisicoes-table")),
         "filtered_count": filtered_count,
         "total_count": total_count,
         "has_active_filters": filters_active,
@@ -1111,6 +1118,19 @@ def _public_dashboard_context(request: HttpRequest) -> dict[str, Any]:
         "processos_metrics": _processos_metrics(),
         "modulo_processos_disponivel": True,
         "today": date.today(),
+    }
+
+
+def _home_consulta_req_context(request: HttpRequest) -> dict[str, Any]:
+    return {
+        "filters": filter_options(public=True, queryset=base_queryset(public=True)),
+        **table_context(
+            request,
+            public=True,
+            table_target="#home-consulta-area",
+            table_url_name="home-consulta-req",
+            page_size=100,
+        ),
     }
 
 
@@ -1775,7 +1795,7 @@ def public_dashboard_panel(request: HttpRequest) -> HttpResponse:
 
 @require_http_methods(["GET"])
 def home_consulta_req(request: HttpRequest) -> HttpResponse:
-    return render(request, "tracker/_public_home_consulta_req.html", _public_dashboard_context(request))
+    return render(request, "tracker/_public_home_consulta_req.html", _home_consulta_req_context(request))
 
 
 @login_required
@@ -2826,6 +2846,19 @@ def tipo_ambiente_delete(request: HttpRequest, pk: int) -> HttpResponse:
         raise Http404
     get_object_or_404(TipoAmbiente, pk=pk).delete()
     return _gestao_listas_redirect()
+
+
+@login_required
+@require_http_methods(["POST"])
+def tipo_ambiente_toggle(request: HttpRequest, pk: int) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    obj = get_object_or_404(TipoAmbiente, pk=pk)
+    obj.ativo = not obj.ativo
+    obj.save(update_fields=["ativo"])
+    return render(request, "tracker/_tipo_ambiente_list_rows.html", {
+        "tipos_ambiente": TipoAmbiente.objects.all().order_by("nome"),
+    })
 
 
 @login_required

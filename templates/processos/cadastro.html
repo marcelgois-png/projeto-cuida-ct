@@ -28,6 +28,19 @@
 
 <form method="post" class="row g-4">
   {% csrf_token %}
+  {% if encaminhamento_origem %}
+    <input type="hidden" name="encaminhamento_diretor" value="{{ encaminhamento_origem.pk }}">
+    <div class="col-12">
+      <div class="alert alert-info mb-0">
+        <div class="fw-semibold">Processo originado do Encaminhamento #{{ encaminhamento_origem.numero|stringformat:"03d" }}</div>
+        <div class="small">
+          {{ encaminhamento_origem.requisicoes.count }}
+          {% if encaminhamento_origem.requisicoes.count == 1 %}requisi&ccedil;&atilde;o ser&aacute; vinculada{% else %}requisi&ccedil;&otilde;es ser&atilde;o vinculadas{% endif %}
+          automaticamente ao salvar.
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
   {# ── Identificação ────────────────────────────────────────────────────── #}
   <div class="col-12">
@@ -37,22 +50,21 @@
       </div>
       <div class="card-body">
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <label class="form-label">{{ form.numero_processo.label }} <span class="text-danger">*</span></label>
             {{ form.numero_processo }}
             {% if form.numero_processo.errors %}
               <div class="invalid-feedback d-block">{{ form.numero_processo.errors|join:", " }}</div>
             {% endif %}
           </div>
-          <div class="col-md-4">
-            <label class="form-label">{{ form.classificacao_az.label }}</label>
+          <div class="col-md-2">
+            <label class="form-label">{{ form.classificacao_az.label }} <sup class="text-muted" style="font-size:.65em;">†</sup></label>
             {{ form.classificacao_az }}
             {% if form.classificacao_az.errors %}
               <div class="invalid-feedback d-block">{{ form.classificacao_az.errors|join:", " }}</div>
             {% endif %}
-            <div class="form-text">{{ form.classificacao_az.help_text }}</div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-7">
             <label class="form-label">{{ form.link_sipac.label }}</label>
             {{ form.link_sipac }}
             {% if form.link_sipac.errors %}
@@ -65,6 +77,12 @@
             {% if form.assunto.errors %}
               <div class="invalid-feedback d-block">{{ form.assunto.errors|join:", " }}</div>
             {% endif %}
+          </div>
+          <div class="col-12">
+            <p class="form-text mb-0">
+              <sup class="text-muted" style="font-size:.65em;">†</sup>
+              {{ form.classificacao_az.help_text }}
+            </p>
           </div>
         </div>
       </div>
@@ -100,27 +118,19 @@
     </div>
   </div>
 
-  {# ── Classificação ────────────────────────────────────────────────────── #}
+  {# ── Status do Processo ───────────────────────────────────────────────── #}
   <div class="col-12 col-lg-6">
     <div class="card h-100">
       <div class="card-header">
-        <h3 class="section-title mb-0"><i class="bi bi-tags me-1"></i>Classificação</h3>
+        <h3 class="section-title mb-0"><i class="bi bi-flag me-1"></i>Status do Processo</h3>
       </div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label">{{ form.servico.label }}</label>
-            {{ form.servico }}
-          </div>
-          <div class="col-12">
-            <label class="form-label">{{ form.gerencia.label }}</label>
-            {{ form.gerencia }}
-          </div>
-          <div class="col-6">
             <label class="form-label">{{ form.status.label }}</label>
             {{ form.status }}
           </div>
-          <div class="col-6">
+          <div class="col-12">
             <label class="form-label">{{ form.situacao_sipac.label }}</label>
             {{ form.situacao_sipac }}
           </div>
@@ -145,10 +155,6 @@
             <label class="form-label">{{ form.tipo_ambiente.label }}</label>
             {{ form.tipo_ambiente }}
           </div>
-          <div class="col-12">
-            <label class="form-label">{{ form.empresa.label }}</label>
-            {{ form.empresa }}
-          </div>
         </div>
       </div>
     </div>
@@ -160,9 +166,84 @@
         <h3 class="section-title mb-0"><i class="bi bi-people me-1"></i>Solicitantes</h3>
       </div>
       <div class="card-body">
-        <label class="form-label">{{ form.solicitantes.label }}</label>
-        {{ form.solicitantes }}
-        <div class="form-text">Segure Ctrl (ou Cmd) para selecionar múltiplos.</div>
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">{{ form.unidade_origem.label }}</label>
+            {{ form.unidade_origem }}
+            {% if form.unidade_origem.errors %}
+              <div class="invalid-feedback d-block">{{ form.unidade_origem.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label mb-0">Interessado(s)</label>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="add-interessado-row">
+                <i class="bi bi-plus-lg me-1"></i>Adicionar interessado
+              </button>
+            </div>
+            {{ interessado_formset.management_form }}
+            {% if interessado_formset.non_form_errors %}
+              {% for error in interessado_formset.non_form_errors %}
+                <div class="alert alert-danger py-2 mb-2">{{ error }}</div>
+              {% endfor %}
+            {% endif %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0" id="interessado-table">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width:24%;">Tipo</th>
+                    <th style="width:22%;">Identificador</th>
+                    <th>Nome</th>
+                    <th style="width:54px;" class="text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="interessado-rows">
+                  {% for interessado_form in interessado_formset %}
+                    <tr class="interessado-row">
+                      <td>
+                        {% for hidden in interessado_form.hidden_fields %}{{ hidden }}{% endfor %}
+                        <span class="d-none">{{ interessado_form.DELETE }}</span>
+                        {{ interessado_form.tipo }}
+                        {% for error in interessado_form.tipo.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ interessado_form.identificador }}
+                        {% for error in interessado_form.identificador.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ interessado_form.nome }}
+                        {% for error in interessado_form.nome.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-remove-interessado="true" title="Remover interessado">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="form-text">Na importação, essas linhas vêm da aba INTERESSADOS_PROCESSO: Tipo, Identificador e Nome.</div>
+
+            <template id="interessado-empty-form-template">
+              <tr class="interessado-row">
+                <td>
+                  {% for hidden in interessado_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                  <span class="d-none">{{ interessado_formset.empty_form.DELETE }}</span>
+                  {{ interessado_formset.empty_form.tipo }}
+                </td>
+                <td>{{ interessado_formset.empty_form.identificador }}</td>
+                <td>{{ interessado_formset.empty_form.nome }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-remove-interessado="true" title="Remover interessado">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -171,23 +252,158 @@
   <div class="col-12">
     <div class="card">
       <div class="card-header">
-        <h3 class="section-title mb-0"><i class="bi bi-chat-left-text me-1"></i>Observações e Acompanhamento</h3>
+        <h3 class="section-title mb-0"><i class="bi bi-chat-left-text me-1"></i>Observações</h3>
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <label class="form-label">{{ form.observacao.label }}</label>
-            {{ form.observacao }}
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label">{{ form.acompanhamento_ct.label }}</label>
-            {{ form.acompanhamento_ct }}
-            <div class="form-text">{{ form.acompanhamento_ct.help_text }}</div>
-          </div>
-        </div>
+        <label class="form-label">{{ form.observacao.label }}</label>
+        {{ form.observacao }}
       </div>
     </div>
   </div>
+
+  {# ── Acompanhamento ───────────────────────────────────────────────────── #}
+  {% if object %}
+  <div class="col-12">
+    <section class="form-section form-section-highlight" id="acompanhamento-section">
+      <div class="form-section-header form-section-header-split">
+        <div>
+          <h4>ACOMPANHAMENTO DO PROCESSO</h4>
+          <div class="form-section-caption">Mantenha o histórico atualizado com a situação mais recente do processo.</div>
+        </div>
+        <button class="btn btn-light btn-sm" type="button" id="add-acompanhamento-row">
+          <i class="bi bi-chat-left-text me-1"></i>Cadastrar situação
+        </button>
+      </div>
+
+      {{ acompanhamento_formset.management_form }}
+
+      {% if acompanhamento_formset.non_form_errors %}
+        <div class="mb-3">
+          {% for error in acompanhamento_formset.non_form_errors %}<div class="alert alert-danger py-2 mb-2">{{ error }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="table-responsive acompanhamento-table-wrap">
+        <table class="table acompanhamento-table acompanhamento-edit-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width:160px;">Data</th>
+              <th>Atualização da Situação</th>
+              <th style="width:200px;" class="text-center">Usuário</th>
+              <th style="width:200px;" class="text-center">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="acompanhamento-rows">
+            {% for af in acompanhamento_formset %}
+              <tr class="acompanhamento-row {% if not af.instance.pk or af.errors %}is-editing{% endif %}"
+                  data-acompanhamento-row="true"
+                  data-form-index="{{ forloop.counter0 }}"
+                  {% if af.instance.pk %}
+                    data-original-date="{{ af.instance.data|date:'Y-m-d' }}"
+                    data-original-text="{{ af.instance.atualizacao|escapejs }}"
+                  {% endif %}>
+                <td>
+                  {% for hidden in af.hidden_fields %}{{ hidden }}{% endfor %}
+                  <div class="acompanhamento-cell-display" {% if not af.instance.pk or af.errors %}hidden{% endif %} data-display="true">
+                    <div class="acompanhamento-display-text">{{ af.instance.data|date:"d/m/Y"|default:"-" }}</div>
+                  </div>
+                  <div class="acompanhamento-cell-editor" {% if af.instance.pk and not af.errors %}hidden{% endif %} data-editor="true">
+                    {{ af.data }}
+                    {% for error in af.data.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <div class="acompanhamento-cell-display" {% if not af.instance.pk or af.errors %}hidden{% endif %} data-display="true">
+                    <div class="acompanhamento-display-text">{{ af.instance.atualizacao|default:"-" }}</div>
+                  </div>
+                  <div class="acompanhamento-cell-editor" {% if af.instance.pk and not af.errors %}hidden{% endif %} data-editor="true">
+                    {{ af.atualizacao }}
+                    {% for error in af.atualizacao.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                  </div>
+                </td>
+                <td class="text-center">
+                  <div class="acompanhamento-meta acompanhamento-meta-inline acompanhamento-user-cell">
+                    <i class="bi bi-person-circle"></i>
+                    <span>
+                      {% if af.instance.pk %}
+                        {{ af.instance.usuario_nome|default:"Sistema" }}
+                      {% else %}
+                        Será preenchido ao salvar
+                      {% endif %}
+                    </span>
+                  </div>
+                </td>
+                <td class="text-center">
+                  {% if af.instance.pk %}
+                    <div class="acompanhamento-row-status-wrap" data-actions-default="true" {% if af.errors %}hidden{% endif %}>
+                      <button class="btn btn-outline-secondary btn-sm" type="button" data-edit-row="true">
+                        <i class="bi bi-pencil-square me-1"></i>Editar
+                      </button>
+                    </div>
+                    <div class="acompanhamento-row-status-wrap" data-actions-edit="true" {% if not af.errors %}hidden{% endif %}>
+                      <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="{{ forloop.counter0 }}">
+                        <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+                      </button>
+                      <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-cancel-edit="true">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Cancelar
+                      </button>
+                    </div>
+                  {% else %}
+                    <div class="acompanhamento-row-status-wrap" data-actions-edit="true">
+                      <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="{{ forloop.counter0 }}">
+                        <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+                      </button>
+                      <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-remove-row="true">
+                        <i class="bi bi-x-lg me-1"></i>Remover
+                      </button>
+                    </div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            <tr {% if acompanhamento_formset.forms %}hidden{% endif %} data-empty-state="true">
+              <td colspan="4" class="text-center text-muted py-3">Nenhum acompanhamento cadastrado para este processo.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <template id="acompanhamento-empty-form-template">
+        <tr class="acompanhamento-row is-editing" data-acompanhamento-row="true" data-form-index="__prefix__">
+          <td>
+            {% for hidden in acompanhamento_formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="acompanhamento-cell-display" hidden data-display="true"></div>
+            <div class="acompanhamento-cell-editor" data-editor="true">
+              {{ acompanhamento_formset.empty_form.data }}
+            </div>
+          </td>
+          <td>
+            <div class="acompanhamento-cell-display" hidden data-display="true"></div>
+            <div class="acompanhamento-cell-editor" data-editor="true">
+              {{ acompanhamento_formset.empty_form.atualizacao }}
+            </div>
+          </td>
+          <td class="text-center">
+            <div class="acompanhamento-meta acompanhamento-meta-inline acompanhamento-user-cell">
+              <i class="bi bi-person-circle"></i>
+              <span>Será preenchido ao salvar</span>
+            </div>
+          </td>
+          <td class="text-center">
+            <div class="acompanhamento-row-status-wrap" data-actions-edit="true">
+              <button class="btn btn-primary btn-sm acompanhamento-inline-submit" type="submit" name="save_acompanhamento" value="__prefix__">
+                <i class="bi bi-check2-circle me-1"></i>Salvar comentário
+              </button>
+              <button class="btn btn-outline-secondary btn-sm mt-2" type="button" data-remove-row="true">
+                <i class="bi bi-x-lg me-1"></i>Remover
+              </button>
+            </div>
+          </td>
+        </tr>
+      </template>
+    </section>
+  </div>
+  {% endif %}
 
   {# ── Botões ───────────────────────────────────────────────────────────── #}
   <div class="col-12 d-flex gap-2 justify-content-end pb-4">
@@ -201,6 +417,14 @@
   </div>
 
 </form>
+
+{% if object %}
+<div class="row g-4">
+  <div class="col-12">
+    {% include "processos/_orcamentos_processo.html" with processo=object orcamento_editavel=True %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -208,20 +432,142 @@
 <script>
   /* Aplica classes Bootstrap a todos os inputs/selects do formulário */
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll(
-      'form input:not([type=hidden]):not([type=submit]):not([type=checkbox]),' +
-      'form select:not([multiple]),' +
-      'form textarea'
-    ).forEach(function (el) {
-      el.classList.add('form-control', 'form-control-sm');
-    });
-    document.querySelectorAll('form select[multiple]').forEach(function (el) {
-      el.classList.add('form-select', 'form-select-sm');
-    });
-    document.querySelectorAll('form select:not([multiple])').forEach(function (el) {
-      el.classList.remove('form-control', 'form-control-sm');
-      el.classList.add('form-select', 'form-select-sm');
-    });
+    function applyFormClasses(root) {
+      root.querySelectorAll(
+        'input:not([type=hidden]):not([type=submit]):not([type=checkbox]),' +
+        'select:not([multiple]),' +
+        'textarea'
+      ).forEach(function (el) {
+        el.classList.add('form-control', 'form-control-sm');
+      });
+      root.querySelectorAll('select[multiple]').forEach(function (el) {
+        el.classList.add('form-select', 'form-select-sm');
+      });
+      root.querySelectorAll('select:not([multiple])').forEach(function (el) {
+        el.classList.remove('form-control', 'form-control-sm');
+        el.classList.add('form-select', 'form-select-sm');
+      });
+    }
+    applyFormClasses(document);
+
+    var interessadoRows = document.getElementById('interessado-rows');
+    var interessadoTemplate = document.getElementById('interessado-empty-form-template');
+    var addInteressadoBtn = document.getElementById('add-interessado-row');
+    var totalInteressados = document.querySelector('#interessado-table')
+      ?.closest('.card-body')
+      ?.querySelector('input[name$="-TOTAL_FORMS"]');
+
+    if (interessadoRows && interessadoTemplate && addInteressadoBtn && totalInteressados) {
+      addInteressadoBtn.addEventListener('click', function () {
+        var index = parseInt(totalInteressados.value, 10);
+        var html = interessadoTemplate.innerHTML.replace(/__prefix__/g, index);
+        interessadoRows.insertAdjacentHTML('beforeend', html);
+        totalInteressados.value = index + 1;
+        applyFormClasses(interessadoRows.lastElementChild);
+      });
+
+      interessadoRows.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-remove-interessado]');
+        if (!button) return;
+        var row = button.closest('tr');
+        var deleteInput = row ? row.querySelector('input[type="checkbox"][name$="-DELETE"]') : null;
+        if (deleteInput) {
+          deleteInput.checked = true;
+          row.hidden = true;
+        } else if (row) {
+          row.remove();
+        }
+      });
+    }
   });
 </script>
+{% if object %}
+<script>
+  (function () {
+    var addRowBtn = document.getElementById('add-acompanhamento-row');
+    var rowsContainer = document.getElementById('acompanhamento-rows');
+    var totalFormsInput = document.getElementById('id_{{ acompanhamento_formset.prefix }}-TOTAL_FORMS');
+    var emptyTemplate = document.getElementById('acompanhamento-empty-form-template');
+
+    if (!addRowBtn || !rowsContainer || !totalFormsInput || !emptyTemplate) return;
+
+    function todayValue() {
+      var d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+    }
+
+    function syncEmptyState() {
+      var emptyRow = rowsContainer.querySelector('[data-empty-state]');
+      var hasRows = rowsContainer.querySelector('[data-acompanhamento-row]');
+      if (emptyRow) emptyRow.hidden = Boolean(hasRows);
+    }
+
+    function setEditing(row, editing) {
+      row.classList.toggle('is-editing', editing);
+      row.querySelectorAll('[data-display]').forEach(function(el){ el.hidden = editing; });
+      row.querySelectorAll('[data-editor]').forEach(function(el){ el.hidden = !editing; });
+      row.querySelectorAll('[data-actions-default]').forEach(function(el){ el.hidden = editing; });
+      row.querySelectorAll('[data-actions-edit]').forEach(function(el){ el.hidden = !editing; });
+    }
+
+    function bindRow(row) {
+      var editBtn = row.querySelector('[data-edit-row]');
+      var cancelBtn = row.querySelector('[data-cancel-edit]');
+      var removeBtn = row.querySelector('[data-remove-row]');
+      if (editBtn && !editBtn.dataset.bound) {
+        editBtn.dataset.bound = '1';
+        editBtn.addEventListener('click', function () {
+          setEditing(row, true);
+          var ta = row.querySelector('textarea'); if (ta) ta.focus();
+        });
+      }
+      if (cancelBtn && !cancelBtn.dataset.bound) {
+        cancelBtn.dataset.bound = '1';
+        cancelBtn.addEventListener('click', function () {
+          var di = row.querySelector('input[type="date"]');
+          var ta = row.querySelector('textarea');
+          if (di && row.dataset.originalDate) di.value = row.dataset.originalDate;
+          if (ta && row.dataset.originalText !== undefined) ta.value = row.dataset.originalText;
+          setEditing(row, false);
+        });
+      }
+      if (removeBtn && !removeBtn.dataset.bound) {
+        removeBtn.dataset.bound = '1';
+        removeBtn.addEventListener('click', function () { row.remove(); syncEmptyState(); });
+      }
+    }
+
+    rowsContainer.querySelectorAll('[data-acompanhamento-row]').forEach(bindRow);
+
+    addRowBtn.addEventListener('click', function () {
+      var index = parseInt(totalFormsInput.value, 10);
+      var html = emptyTemplate.innerHTML.replace(/__prefix__/g, String(index));
+      rowsContainer.insertAdjacentHTML('beforeend', html);
+      totalFormsInput.value = index + 1;
+      var newRow = rowsContainer.querySelector('[data-form-index="' + index + '"]');
+      if (!newRow) { syncEmptyState(); return; }
+      var di = newRow.querySelector('input[type="date"]');
+      if (di && !di.value) di.value = todayValue();
+      bindRow(newRow);
+      setEditing(newRow, true);
+      var ta = newRow.querySelector('textarea'); if (ta) ta.focus();
+      syncEmptyState();
+    });
+
+    syncEmptyState();
+  })();
+</script>
+<script>
+  function fecharOrcamentoIA() {
+    const el = document.getElementById('orcamento-ia-modal-container');
+    if (el) el.innerHTML = '';
+  }
+
+  function fecharOrcamentoModal() {
+    const el = document.getElementById('orcamento-modal-container');
+    if (el) el.innerHTML = '';
+    window.location.reload();
+  }
+</script>
+{% endif %}
 {% endblock %}

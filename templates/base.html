@@ -7,15 +7,12 @@
   <title>{% block title %}CT → SINFRA{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'img/favicon-ct.png' %}?v=2">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/font/bootstrap-icons.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{% static 'django_htmx/htmx.min.js' %}"></script>
+  <script src="{% static 'vendor/chartjs/chart.umd.js' %}"></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body{% if request.resolver_match.app_name == 'processos' %} class="modulo-processos"{% endif %}>
@@ -73,6 +70,16 @@
           {% if request.user.is_admin %}
           <li><hr class="dropdown-divider my-1"></li>
           <li>
+            <a class="dropdown-item py-2" href="{% url 'user-list' %}">
+              <i class="bi bi-people me-2"></i>Usu&aacute;rios
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item py-2" href="{% url 'internal-gestao-listas' %}">
+              <i class="bi bi-list-check me-2"></i>Gest&atilde;o de Listas
+            </a>
+          </li>
+          <li>
             <a class="dropdown-item py-2" href="/admin/" target="_blank" rel="noopener noreferrer">
               <i class="bi bi-shield-lock me-2"></i>Admin Django
               <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;opacity:.5;"></i>
@@ -114,18 +121,18 @@
 
       <div class="sb-section">Gestão de Processos</div>
 
+      <a href="{% url 'processos:cadastro' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'cadastro' or request.resolver_match.url_name == 'cadastro-novo' %}active{% endif %}"
+         data-sb-label="Cadastrar Processo">
+        <i class="bi bi-folder-plus"></i>
+        <span class="sb-txt">Cadastrar Processo</span>
+      </a>
+
       <a href="{% url 'processos:lista' %}"
          class="sb-link {% if request.resolver_match.url_name == 'lista' %}active{% endif %}"
          data-sb-label="Lista de Processos">
         <i class="bi bi-folder2-open"></i>
         <span class="sb-txt">Lista de Processos</span>
-      </a>
-
-      <a href="{% url 'processos:cadastro' %}"
-         class="sb-link {% if request.resolver_match.url_name == 'cadastro' %}active{% endif %}"
-         data-sb-label="Cadastrar Processo">
-        <i class="bi bi-folder-plus"></i>
-        <span class="sb-txt">Cadastrar Processo</span>
       </a>
 
       <a href="{% url 'processos:priorizacao-az' %}"
@@ -151,14 +158,12 @@
         <span class="sb-txt">Painel público</span>
       </a>
 
-      {% if request.user.is_admin %}
-        <div class="sb-section">Administração do Sistema</div>
-
-        <a href="{% url 'internal-gestao-listas' %}" class="sb-link" data-sb-label="Gestão de Listas">
-          <i class="bi bi-list-check"></i>
-          <span class="sb-txt">Gestão de Listas</span>
-        </a>
-      {% endif %}
+      <a href="{% url 'processos:painel-controle' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'painel-controle' %}active{% endif %}"
+         data-sb-label="Painel de Processos">
+        <i class="bi bi-bar-chart-line"></i>
+        <span class="sb-txt">Painel de Processos</span>
+      </a>
 
     {# ── Sidebar do Módulo de Requisições (padrão) ──────────────────── #}
     {% else %}
@@ -168,23 +173,23 @@
 
         <a href="{% url 'internal-cadastro' %}"
            class="sb-link {% if request.resolver_match.url_name == 'internal-cadastro' or request.resolver_match.url_name == 'importacao-upload' %}active{% endif %}"
-           data-sb-label="Cadastro">
+           data-sb-label="Cadastro de Requisições">
           <i class="bi bi-plus-square"></i>
-          <span class="sb-txt">Cadastro</span>
+          <span class="sb-txt">Cadastro de Requisições</span>
         </a>
 
         <a href="{% url 'internal-lista' %}"
            class="sb-link {% if request.resolver_match.url_name == 'internal-lista' or request.resolver_match.url_name == 'internal-requisicoes-table' or request.resolver_match.url_name == 'requisicao-create' or request.resolver_match.url_name == 'requisicao-update' %}active{% endif %}"
-           data-sb-label="Requisições">
+           data-sb-label="Lista de Requisições">
           <i class="bi bi-clipboard2-check"></i>
-          <span class="sb-txt">Requisições</span>
+          <span class="sb-txt">Lista de Requisições</span>
         </a>
 
         <a href="{% url 'internal-priorizacao' %}"
            class="sb-link {% if request.resolver_match.url_name == 'internal-priorizacao' %}active{% endif %}"
-           data-sb-label="Priorização">
+           data-sb-label="Priorização GUT">
           <i class="bi bi-sort-numeric-down"></i>
-          <span class="sb-txt">Priorização</span>
+          <span class="sb-txt">Priorização GUT</span>
         </a>
 
         <a href="{% url 'internal-visitas' %}"
@@ -210,7 +215,7 @@
            data-sb-label="Mesa da Direção">
           <i class="bi bi-briefcase"></i>
           <span class="sb-txt">Mesa da Direção</span>
-          {% if sidebar_decisoes_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_decisoes_count }}</span>{% endif %}
+          {% if sidebar_decisoes_count %}<span class="badge bg-danger rounded-pill">{{ sidebar_decisoes_count }}</span>{% endif %}
         </a>
 
         <a href="{% url 'internal-encaminhamentos' %}"
@@ -218,32 +223,25 @@
            data-sb-label="Mesa da Assessoria">
           <i class="bi bi-send-check"></i>
           <span class="sb-txt">Mesa da Assessoria</span>
-          {% if sidebar_assessoria_count %}<span class="badge bg-danger rounded-pill ms-auto">{{ sidebar_assessoria_count }}</span>{% endif %}
+          {% if sidebar_assessoria_count %}<span class="badge bg-danger rounded-pill">{{ sidebar_assessoria_count }}</span>{% endif %}
         </a>
       {% endif %}
 
       <div class="sb-section">Acompanhamento</div>
 
       <a href="{% url 'public-dashboard' %}"
-         class="sb-link {% if request.resolver_match.url_name == 'public-dashboard' or request.resolver_match.url_name == 'public-requisicoes-table' or request.resolver_match.url_name == 'public-control-panel' or request.resolver_match.url_name == 'public-control-panel-content' %}active{% endif %}"
-         data-sb-label="Painel público">
+         class="sb-link {% if request.resolver_match.url_name == 'public-dashboard' or request.resolver_match.url_name == 'public-requisicoes-table' %}active{% endif %}"
+         data-sb-label="Painel Público">
         <i class="bi bi-globe-americas"></i>
-        <span class="sb-txt">Painel público</span>
+        <span class="sb-txt">Painel Público</span>
       </a>
 
-      {% if request.user.is_admin %}
-        <div class="sb-section">Administração do Sistema</div>
-
-        <a href="{% url 'user-list' %}" class="sb-link {% if request.resolver_match.url_name == 'user-list' or request.resolver_match.url_name == 'user-create' or request.resolver_match.url_name == 'user-update' %}active{% endif %}" data-sb-label="Usuários">
-          <i class="bi bi-people"></i>
-          <span class="sb-txt">Usuários</span>
-        </a>
-
-        <a href="{% url 'internal-gestao-listas' %}" class="sb-link {% if request.resolver_match.url_name == 'internal-gestao-listas' %}active{% endif %}" data-sb-label="Gestão de Listas">
-          <i class="bi bi-list-check"></i>
-          <span class="sb-txt">Gestão de Listas</span>
-        </a>
-      {% endif %}
+      <a href="{% url 'public-control-panel' %}"
+         class="sb-link {% if request.resolver_match.url_name == 'public-control-panel' or request.resolver_match.url_name == 'public-control-panel-content' %}active{% endif %}"
+         data-sb-label="Painel de Requisições">
+        <i class="bi bi-kanban"></i>
+        <span class="sb-txt">Painel de Requisições</span>
+      </a>
 
     {% endif %}{# fim if app_name == 'processos' #}
 
@@ -276,7 +274,7 @@
 </div>
 
 <!-- ── SCRIPTS ─────────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 <script>
   /* HTMX CSRF */
   document.addEventListener('htmx:configRequest', function (evt) {

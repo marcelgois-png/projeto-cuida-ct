@@ -1,0 +1,112 @@
+{% load tracker_tags %}
+
+{% if orcamento_editavel %}
+  <div id="orcamento-ia-modal-container"></div>
+  <div id="orcamento-modal-container"></div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3 class="section-title mb-0">
+      <i class="bi bi-cash-stack me-1"></i>Or&ccedil;amentos
+      {% if processo.orcamentos.count %}
+        <span class="badge bg-secondary ms-1">{{ processo.orcamentos.count }}</span>
+      {% endif %}
+    </h3>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span class="fw-semibold text-muted small">
+        Total: R$ {{ processo.valor_total_orcado|floatformat:2 }}
+      </span>
+      {% if orcamento_editavel %}
+        <button class="btn btn-sm btn-outline-secondary"
+                type="button"
+                hx-get="{% url 'processos:orcamento-ia-extrair' processo.pk %}"
+                hx-target="#orcamento-ia-modal-container"
+                hx-swap="innerHTML"
+                title="Importar or&ccedil;amento a partir de um PDF com ajuda da IA">
+          <i class="bi bi-robot me-1"></i>Importar via IA
+        </button>
+        <button class="btn btn-sm btn-primary"
+                type="button"
+                hx-get="{% url 'processos:orcamento-add' processo.pk %}"
+                hx-target="#orcamento-modal-container"
+                hx-swap="innerHTML"
+                title="Adicionar novo or&ccedil;amento">
+          <i class="bi bi-plus-lg me-1"></i>Novo or&ccedil;amento
+        </button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if processo.orcamentos.all %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:50px;">#</th>
+              <th>Descri&ccedil;&atilde;o</th>
+              <th style="width:110px;">Valor</th>
+              <th style="width:90px;">Status</th>
+              <th style="width:90px;">Emiss&atilde;o</th>
+              {% if orcamento_editavel %}
+                <th style="width:72px;"></th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for orc in processo.orcamentos.all %}
+              <tr>
+                <td class="text-muted">{{ orc.numero_sequencial }}</td>
+                <td>
+                  <div class="small">{{ orc.descricao|default:"-"|truncatechars:80 }}</div>
+                  {% if orc.itens.count %}
+                    <span class="text-muted" style="font-size:.72rem">
+                      <i class="bi bi-list-ul me-1"></i>{{ orc.itens.count }} item{{ orc.itens.count|pluralize }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td id="orc-valor-{{ orc.pk }}">
+                  {% if orc.valor_final_calculado %}R$ {{ orc.valor_final_calculado|brl }}{% else %}-{% endif %}
+                </td>
+                <td>
+                  <span class="badge
+                    {% if orc.status == 'APROVADO' %}bg-success
+                    {% elif orc.status == 'REPROVADO' %}bg-danger
+                    {% elif orc.status == 'CANCELADO' %}bg-secondary
+                    {% else %}bg-warning text-dark{% endif %}">
+                    {{ orc.get_status_display }}
+                  </span>
+                </td>
+                <td><small>{{ orc.data_emissao|date:"d/m/Y"|default:"-" }}</small></td>
+                {% if orcamento_editavel %}
+                  <td>
+                    <div class="d-flex gap-1 justify-content-end">
+                      <button class="btn btn-xs btn-outline-primary py-0 px-1"
+                              type="button"
+                              hx-get="{% url 'processos:orcamento-edit' processo.pk orc.pk %}"
+                              hx-target="#orcamento-modal-container"
+                              hx-swap="innerHTML"
+                              title="Editar or&ccedil;amento">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <form method="post"
+                            action="{% url 'processos:orcamento-delete' processo.pk orc.pk %}"
+                            onsubmit="return confirm('Remover or&ccedil;amento {{ orc.numero_sequencial }}?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-xs btn-outline-danger py-0 px-1" title="Remover">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center text-muted py-3 small">Nenhum or&ccedil;amento cadastrado.</div>
+    {% endif %}
+  </div>
+</div>

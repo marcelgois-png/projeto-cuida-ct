@@ -98,19 +98,19 @@
     </div>
     <div class="home-metric-kpis">
       <div class="home-metric-kpi">
-        <span class="home-metric-val">{{ processos_metrics.enviados }}</span>
+        <span class="home-metric-val">{{ processos_metrics.enviados|intdot }}</span>
         <span class="home-metric-lbl">Enviados</span>
       </div>
       <div class="home-metric-kpi">
-        <span class="home-metric-val">{{ processos_metrics.ativos }}</span>
+        <span class="home-metric-val">{{ processos_metrics.ativos|intdot }}</span>
         <span class="home-metric-lbl">Ativos</span>
       </div>
       <div class="home-metric-kpi">
-        <span class="home-metric-val">{{ processos_metrics.executados }}</span>
+        <span class="home-metric-val">{{ processos_metrics.executados|intdot }}</span>
         <span class="home-metric-lbl">Executados</span>
       </div>
       <div class="home-metric-kpi">
-        <span class="home-metric-val home-metric-val-currency">R$&nbsp;{{ processos_metrics.investimento|floatformat:2 }}</span>
+        <span class="home-metric-val home-metric-val-currency">R$&nbsp;{{ processos_metrics.investimento|brl }}</span>
         <span class="home-metric-lbl">Investimento</span>
       </div>
     </div>
@@ -152,10 +152,10 @@
     <!-- Painel de Processos -->
     <button type="button"
             class="home-action-card home-action-card-proc"
-            onclick="window.open('{% url 'processos:lista' %}', '_blank')"
-            title="Abrir lista de processos">
+            onclick="window.open('{% url 'processos:painel-controle' %}', '_blank')"
+            title="Abrir painel de processos">
       <i class="bi bi-bar-chart-line"></i>
-      <span>Lista de Processos</span>
+      <span>Painel de Processos</span>
       <i class="bi bi-arrow-up-right-square home-action-external-icon"></i>
     </button>
 

@@ -4,13 +4,18 @@
 </div>
 {% else %}
 <div class="mb-3">
-  <div class="d-flex gap-3 mb-2" style="font-size:.82rem;">
+  <div class="d-flex gap-3 mb-2 flex-wrap" style="font-size:.82rem;">
     <span class="text-success fw-semibold">
-      <i class="bi bi-check-circle-fill me-1"></i>{{ mapeadas|length }} coluna(s) reconhecida(s)
+      <i class="bi bi-check-circle-fill me-1"></i>{{ mapeadas|length }} importada(s)
     </span>
+    {% if ignoradas %}
+    <span class="text-muted fw-semibold">
+      <i class="bi bi-skip-forward me-1"></i>{{ ignoradas|length }} ignorada(s)
+    </span>
+    {% endif %}
     {% if nao_mapeadas %}
     <span class="text-warning fw-semibold">
-      <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ nao_mapeadas|length }} coluna(s) não reconhecida(s)
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ nao_mapeadas|length }} não reconhecida(s)
     </span>
     {% endif %}
   </div>
@@ -28,18 +33,22 @@
       <tbody>
         {% for c in col_info %}
         {% if c.original %}
-        <tr>
+        <tr{% if c.ignorado %} class="text-muted"{% endif %}>
           <td class="text-muted">{{ forloop.counter }}</td>
-          <td><code>{{ c.original }}</code></td>
+          <td><code{% if c.ignorado %} style="opacity:.55"{% endif %}>{{ c.original }}</code></td>
           <td>
-            {% if c.mapeado %}
+            {% if c.ignorado %}
+              <span class="text-muted fst-italic small">calculado — ignorado</span>
+            {% elif c.mapeado %}
               <code class="text-success">{{ c.canonico }}</code>
             {% else %}
               <span class="text-muted fst-italic">não reconhecido</span>
             {% endif %}
           </td>
           <td class="text-center">
-            {% if c.mapeado %}
+            {% if c.ignorado %}
+              <i class="bi bi-skip-forward text-muted" title="Coluna calculada, ignorada na importação"></i>
+            {% elif c.mapeado %}
               <i class="bi bi-check-circle-fill text-success"></i>
             {% else %}
               <i class="bi bi-dash-circle text-warning"></i>

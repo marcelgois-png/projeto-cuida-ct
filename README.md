@@ -7,7 +7,7 @@ Sistema web institucional para acompanhamento das requisições de manutenção 
 - Django
 - HTMX
 - Chart.js
-- PostgreSQL 16 em container
+- MySQL 8 em container
 - Importação de histórico via XLSM/XLSX/CSV
 
 ## Funcionalidades do V1
@@ -53,6 +53,10 @@ python manage.py runserver
 docker compose up --build
 ```
 
+O `docker-compose.yml` executa `migrate`, `collectstatic` e inicia o Gunicorn. Para producao, revise as variaveis em `.env.example`, use `DEBUG=False`, uma `SECRET_KEY` forte e configure HTTPS no proxy reverso.
+
+Veja tambem: `docs/PRODUCAO.md`.
+
 ## Importação do legado
 
 Via tela interna:
@@ -82,6 +86,5 @@ python manage.py importar_requisicoes "CAMINHO_DO_ARQUIVO.xlsm"
 ## Testes
 
 ```bash
-python manage.py test apps.tracker
+python manage.py test apps.tracker apps.processos --settings=ct_sinfra.settings_test
 ```
-

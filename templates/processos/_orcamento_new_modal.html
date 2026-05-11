@@ -1,0 +1,56 @@
+<div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.45);" id="orcamento-new-modal">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-plus-circle me-2 text-primary"></i>Novo Orçamento
+        </h5>
+        <button type="button" class="btn-close" onclick="fecharOrcamentoModal()"></button>
+      </div>
+      <form hx-post="{% url 'processos:orcamento-add' processo.pk %}"
+            hx-target="#orcamento-modal-container"
+            hx-swap="innerHTML">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Descrição</label>
+              <textarea name="descricao" class="form-control form-control-sm" rows="2"
+                        placeholder="Ex: Planilha orçamentária — reforma elétrica Bloco A"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Status</label>
+              <select name="status" class="form-select form-select-sm">
+                {% for val, label in status_choices %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Data de emissão</label>
+              <input type="date" name="data_emissao" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small">Valor inicial (R$)</label>
+              <input type="text" name="valor" class="form-control form-control-sm" placeholder="0,00">
+              <div class="form-text">Opcional — calculado automaticamente pelos itens.</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fecharOrcamentoModal()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-arrow-right me-1"></i>Criar e adicionar itens
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  document.getElementById('orcamento-new-modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharOrcamentoModal();
+  });
+</script>

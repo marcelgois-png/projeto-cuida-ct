@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.forms import inlineformset_factory
 
 from apps.core.models import (
     GerenciaSINFRA,
@@ -9,11 +10,10 @@ from apps.core.models import (
     SituacaoSIPAC,
     StatusProcesso,
     TipoAmbiente,
-    Solicitante,
     Empresa,
 )
 
-from .models import Orcamento, Processo
+from .models import AcompanhamentoProcesso, InteressadoProcesso, Orcamento, Processo
 
 DATE_INPUT_FORMAT = "%Y-%m-%d"
 DATE_INPUT_FORMATS = [DATE_INPUT_FORMAT, "%d/%m/%Y"]
@@ -62,19 +62,19 @@ class ProcessoForm(forms.ModelForm):
             "situacao_sipac",
             "predio",
             "tipo_ambiente",
-            "solicitantes",
             "empresa",
             "classificacao_az",
             "link_sipac",
             "observacao",
             "acompanhamento_ct",
+            "unidade_origem",
         ]
         widgets = {
             "assunto": forms.Textarea(attrs={"rows": 3}),
             "observacao": forms.Textarea(attrs={"rows": 3}),
             "acompanhamento_ct": forms.Textarea(attrs={"rows": 4}),
-            "solicitantes": forms.SelectMultiple(attrs={"size": 5}),
-            "classificacao_az": forms.TextInput(attrs={"maxlength": 1, "style": "width:4rem;text-transform:uppercase"}),
+            "unidade_origem": forms.TextInput(attrs={"class": "form-control"}),
+            "classificacao_az": forms.TextInput(attrs={"maxlength": 1, "style": "text-transform:uppercase", "class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -86,7 +86,6 @@ class ProcessoForm(forms.ModelForm):
         self.fields["servico"].queryset = ServicoProcesso.objects.filter(ativo=True).order_by("ordem", "nome")
         self.fields["predio"].queryset = Predio.objects.order_by("nome")
         self.fields["tipo_ambiente"].queryset = TipoAmbiente.objects.order_by("nome")
-        self.fields["solicitantes"].queryset = Solicitante.objects.order_by("nome")
         self.fields["empresa"].queryset = Empresa.objects.filter(ativa=True).order_by("nome")
         # Todos os campos FK/M2M são opcionais
         for name, field in self.fields.items():
@@ -100,6 +99,58 @@ class ProcessoForm(forms.ModelForm):
             if len(val) > 1 or not val.isalpha():
                 raise forms.ValidationError("Informe uma única letra (A–Z).")
         return val
+
+
+class InteressadoProcessoForm(forms.ModelForm):
+    class Meta:
+        model = InteressadoProcesso
+        fields = ["tipo", "identificador", "nome"]
+        widgets = {
+            "tipo": forms.TextInput(attrs={"placeholder": "Servidor, Unidade, Aluno..."}),
+            "identificador": forms.TextInput(attrs={"placeholder": "Matrícula/código"}),
+            "nome": forms.TextInput(attrs={"placeholder": "Nome do interessado"}),
+        }
+
+
+InteressadoProcessoFormSet = inlineformset_factory(
+    Processo,
+    InteressadoProcesso,
+    form=InteressadoProcessoForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+# ── AcompanhamentoProcessoForm ────────────────────────────────────────────────
+
+class AcompanhamentoProcessoForm(forms.ModelForm):
+    data = forms.DateField(
+        required=True,
+        input_formats=DATE_INPUT_FORMATS,
+        widget=forms.DateInput(
+            format=DATE_INPUT_FORMAT,
+            attrs={"type": "date", "class": "form-control form-control-sm"},
+        ),
+        label="Data",
+    )
+
+    class Meta:
+        model = AcompanhamentoProcesso
+        fields = ["data", "atualizacao"]
+        widgets = {
+            "atualizacao": forms.Textarea(
+                attrs={"rows": 2, "class": "form-control form-control-sm"}
+            ),
+        }
+
+
+AcompanhamentoProcessoFormSet = inlineformset_factory(
+    Processo,
+    AcompanhamentoProcesso,
+    form=AcompanhamentoProcessoForm,
+    extra=0,
+    can_delete=False,
+)
 
 
 # ── OrcamentoForm ─────────────────────────────────────────────────────────────

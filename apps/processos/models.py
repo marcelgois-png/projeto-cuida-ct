@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -122,6 +123,11 @@ class Processo(TimeStampedModel):
         verbose_name='Acompanhamento CT',
         help_text='Histórico de acompanhamento interno do CT',
     )
+    unidade_origem = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Unidade de origem',
+    )
     requisicoes = models.ManyToManyField(
         'tracker.Requisicao',
         blank=True,
@@ -145,7 +151,7 @@ class Processo(TimeStampedModel):
     def __str__(self) -> str:
         return self.numero_processo
 
-    # ── propriedades calculadas ───────────────────────────────────────────────
+    # ── propriedades calculadas ──────────────────────────────────────────────
 
     @property
     def tempo_reacao(self) -> int | None:
@@ -182,6 +188,84 @@ class Processo(TimeStampedModel):
         from django.db.models import Sum
         result = self.orcamentos.aggregate(total=Sum('valor'))['total']
         return result or Decimal('0.00')
+
+
+# ── InteressadoProcesso ───────────────────────────────────────────────────────
+
+class InteressadoProcesso(TimeStampedModel):
+    """Interessado vinculado ao processo conforme dados públicos do SIPAC."""
+
+    processo = models.ForeignKey(
+        Processo,
+        on_delete=models.CASCADE,
+        related_name='interessados',
+        verbose_name='Processo',
+    )
+    tipo = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Tipo',
+    )
+    identificador = models.CharField(
+        max_length=80,
+        blank=True,
+        verbose_name='Identificador',
+    )
+    nome = models.CharField(
+        max_length=255,
+        verbose_name='Nome',
+    )
+
+    class Meta:
+        db_table = 'processos_interessadoprocesso'
+        ordering = ['processo', 'tipo', 'nome']
+        unique_together = [('processo', 'tipo', 'identificador', 'nome')]
+        verbose_name = 'Interessado do processo'
+        verbose_name_plural = 'Interessados do processo'
+
+    def __str__(self) -> str:
+        return f'{self.nome} ({self.processo.numero_processo})'
+
+
+# ── AcompanhamentoProcesso ────────────────────────────────────────────────────
+
+class AcompanhamentoProcesso(TimeStampedModel):
+    """Entrada de acompanhamento/histórico de um Processo."""
+
+    processo = models.ForeignKey(
+        Processo,
+        on_delete=models.CASCADE,
+        related_name='acompanhamentos',
+        verbose_name='Processo',
+    )
+    data = models.DateField(verbose_name='Data')
+    atualizacao = models.TextField(verbose_name='Atualização da situação')
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='acompanhamentos_processo',
+        verbose_name='Usuário',
+    )
+
+    class Meta:
+        db_table = 'processos_acompanhamentoprocesso'
+        ordering = ('data', 'criado_em', 'pk')
+        verbose_name = 'Acompanhamento do processo'
+        verbose_name_plural = 'Acompanhamentos do processo'
+
+    @property
+    def usuario_nome(self) -> str:
+        if not self.usuario:
+            return ''
+        nome = getattr(self.usuario, 'nome_completo', None)
+        if nome:
+            return nome
+        full = self.usuario.get_full_name()
+        return full or self.usuario.username
+
+    def __str__(self) -> str:
+        return f'{self.processo.numero_processo} – {self.data:%d/%m/%Y}'
 
 
 # ── Orçamento ─────────────────────────────────────────────────────────────────
@@ -253,6 +337,61 @@ class Orcamento(TimeStampedModel):
         verbose_name = 'Orçamento'
         verbose_name_plural = 'Orçamentos'
 
+    @property
+    def valor_final_calculado(self):
+        """Valor final com ajustes encadeados. Se não há itens, retorna self.valor."""
+        from decimal import Decimal, ROUND_HALF_UP
+        _2 = Decimal('0.01')
+        itens = list(self.itens.all())
+        if not itens:
+            return self.valor
+        ajustes = list(self.ajustes.order_by('ordem'))
+        total = Decimal('0')
+        for item in itens:
+            v = item.valor or Decimal('0')
+            for aj in ajustes:
+                v = (v * (1 + aj.percentual / 100)).quantize(_2, ROUND_HALF_UP)
+            total += v
+        return total.quantize(_2, ROUND_HALF_UP)
+
+    @property
+    def valor_itens(self):
+        """Soma dos valores base dos itens (sem ajustes)."""
+        from decimal import Decimal
+        from django.db.models import Sum
+        total = self.itens.aggregate(s=Sum('valor'))['s']
+        return total if total is not None else Decimal('0')
+
+    def get_itens_com_ajustes(self):
+        """Retorna itens com colunas calculadas por ajuste encadeado."""
+        from decimal import Decimal, ROUND_HALF_UP
+        _2 = Decimal('0.01')
+        ajustes = list(self.ajustes.order_by('ordem'))
+        itens   = list(self.itens.order_by('ordem', 'numero'))
+        num_cols = len(ajustes) + 1
+        totais   = [Decimal('0')] * num_cols
+
+        linhas = []
+        for item in itens:
+            base = (item.valor or Decimal('0'))
+            valores = [base]
+            for aj in ajustes:
+                prev = valores[-1]
+                valores.append(
+                    (prev * (1 + aj.percentual / 100)).quantize(_2, ROUND_HALF_UP)
+                )
+            linhas.append({'item': item, 'valores': valores})
+            for i, v in enumerate(valores):
+                totais[i] += v
+
+        totais = [t.quantize(_2, ROUND_HALF_UP) for t in totais]
+        return {
+            'linhas': linhas,
+            'ajustes': ajustes,
+            'totais': totais,
+            'valor_final': totais[-1] if totais else Decimal('0'),
+        }
+
     def __str__(self) -> str:
         return f'{self.processo} — Orçamento {self.numero_sequencial}'
 
@@ -297,3 +436,75 @@ class OrcamentoEmpenho(TimeStampedModel):
 
     def __str__(self) -> str:
         return f'{self.orcamento} ↔ {self.empenho}'
+
+
+# ── AjusteOrcamento ──────────────────────────────────────────────────────────
+
+class AjusteOrcamento(TimeStampedModel):
+    """Coluna de desconto ou acréscimo aplicada em cadeia sobre os itens do orçamento."""
+
+    orcamento = models.ForeignKey(
+        Orcamento,
+        on_delete=models.CASCADE,
+        related_name='ajustes',
+        verbose_name='Orçamento',
+    )
+    rotulo = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Rótulo',
+        help_text='Ex: Desconto, BDI, ISS',
+    )
+    percentual = models.DecimalField(
+        max_digits=8,
+        decimal_places=4,
+        verbose_name='Percentual (%)',
+        help_text='Negativo para desconto (ex: -18.5), positivo para acréscimo (ex: 25.0)',
+    )
+    ordem = models.PositiveSmallIntegerField(default=0, verbose_name='Ordem')
+
+    class Meta:
+        db_table = 'processos_ajuste_orcamento'
+        ordering = ['ordem']
+        verbose_name = 'Ajuste de Orçamento'
+        verbose_name_plural = 'Ajustes de Orçamento'
+
+    def __str__(self) -> str:
+        sinal = '+' if self.percentual >= 0 else ''
+        return f'{self.rotulo or "Ajuste"} ({sinal}{self.percentual}%)'
+
+
+# ── ItemOrcamento ─────────────────────────────────────────────────────────────
+
+class ItemOrcamento(TimeStampedModel):
+    """Item/grupo de serviço de um Orçamento (ex: 1.0 Serviços preliminares)."""
+
+    orcamento = models.ForeignKey(
+        Orcamento,
+        on_delete=models.CASCADE,
+        related_name='itens',
+        verbose_name='Orçamento',
+    )
+    numero = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Número',
+        help_text='Ex: 1.0, 2.0',
+    )
+    descricao = models.CharField(max_length=500, verbose_name='Descrição')
+    valor = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True, blank=True,
+        verbose_name='Valor (R$)',
+    )
+    ordem = models.PositiveSmallIntegerField(default=0, verbose_name='Ordem')
+
+    class Meta:
+        db_table = 'processos_item_orcamento'
+        ordering = ['ordem', 'numero']
+        verbose_name = 'Item de Orçamento'
+        verbose_name_plural = 'Itens de Orçamento'
+
+    def __str__(self) -> str:
+        return f'{self.numero} {self.descricao}'.strip()

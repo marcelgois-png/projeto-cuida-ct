@@ -48,67 +48,71 @@
   .hub-card {
     flex: 1 1 300px;
     max-width: 340px;
-    background: #fff;
-    border-radius: 14px;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 4px 18px rgba(0,0,0,.13);
     padding: 2.25rem 2rem 2rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
-    transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+    transition: box-shadow .18s ease, transform .18s ease;
     position: relative;
     text-decoration: none;
-    color: inherit;
+    color: #fff;
+    overflow: hidden;
   }
 
-  .hub-card--req  { border-color: #283E4C; }
-  .hub-card--proc { border-color: #7A2632; }
+  /* Detalhe decorativo no canto superior direito */
+  .hub-card::before {
+    content: '';
+    position: absolute;
+    top: -48px; right: -48px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    pointer-events: none;
+  }
+  .hub-card::after {
+    content: '';
+    position: absolute;
+    bottom: -32px; right: 24px;
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.06);
+    pointer-events: none;
+  }
+
+  .hub-card--req  { background: #283E4C; }
+  .hub-card--proc { background: #C6543C; }
 
   .hub-card--req:hover {
-    box-shadow: 0 6px 24px rgba(40,62,76,.18);
-    border-color: #1a2d38;
-    transform: translateY(-3px);
+    box-shadow: 0 10px 32px rgba(40,62,76,.35);
+    transform: translateY(-4px);
   }
 
   .hub-card--proc:hover {
-    box-shadow: 0 6px 24px rgba(122,38,50,.18);
-    border-color: #5c1d26;
-    transform: translateY(-3px);
-  }
-
-  .hub-card__badge {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    font-size: .7rem;
-    font-weight: 700;
-    letter-spacing: .04em;
-    padding: .25rem .55rem;
-    border-radius: 20px;
-    background: #7A2632;
-    color: #fff;
+    box-shadow: 0 10px 32px rgba(198,84,60,.35);
+    transform: translateY(-4px);
   }
 
   .hub-card__icon {
     font-size: 2.4rem;
     margin-bottom: 1rem;
+    opacity: .92;
+    color: #fff;
   }
-
-  .hub-card--req  .hub-card__icon { color: #283E4C; }
-  .hub-card--proc .hub-card__icon { color: #7A2632; }
 
   .hub-card__title {
     font-size: 1.25rem;
     font-weight: 700;
     margin-bottom: .5rem;
-    color: #010102;
+    color: #fff;
   }
 
   .hub-card__desc {
     font-size: .875rem;
-    color: #6c7f98;
+    color: rgba(255,255,255,.82);
     line-height: 1.55;
     margin-bottom: 1.5rem;
     flex: 1;
@@ -125,10 +129,14 @@
     border: none;
     cursor: pointer;
     text-decoration: none;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    transition: background .15s;
   }
 
-  .hub-card--req  .hub-card__btn { background: #283E4C; color: #fff; }
-  .hub-card--proc .hub-card__btn { background: #7A2632; color: #fff; }
+  .hub-card:hover .hub-card__btn {
+    background: rgba(255,255,255,.28);
+  }
 </style>
 {% endblock %}
 

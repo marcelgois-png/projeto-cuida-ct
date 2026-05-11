@@ -33,7 +33,7 @@
             <div class="metric-value">
               {% if card.format == "currency" %}
                 <span class="control-panel-kpi-prefix">R$</span>
-                <span class="control-panel-kpi-currency">{{ card.value|brl }}</span>
+                <span class="control-panel-kpi-currency">{{ card.value|brl_k }}</span>
               {% elif card.format == "days" %}
                 {% if card.value == None %}
                   -

@@ -361,6 +361,15 @@ class Empenho(TimeStampedModel):
         ).aggregate(total=Sum('orcamento_valor'))['total'] or 0
         return self.valor_total - gasto
 
+    @property
+    def saldo_processo(self):
+        """Saldo para empenhos do módulo de Processos: valor_total menos o alocado nos orçamentos."""
+        from django.db.models import Sum
+        gasto = self.orcamento_empenhos.filter(
+            valor_alocado__isnull=False,
+        ).aggregate(total=Sum('valor_alocado'))['total'] or 0
+        return self.valor_total - gasto
+
 
 
 

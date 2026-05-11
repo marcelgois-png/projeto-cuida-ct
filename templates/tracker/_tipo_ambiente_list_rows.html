@@ -1,0 +1,39 @@
+{% for obj in tipos_ambiente %}
+<tr>
+  <td>{{ obj.nome }}</td>
+  <td class="text-center" style="width:90px;">
+    <button class="btn btn-xs {% if obj.ativo %}btn-success{% else %}btn-outline-secondary{% endif %}"
+            hx-post="{% url 'tipo-ambiente-toggle' obj.pk %}"
+            hx-target="#tipo-ambiente-list-body"
+            hx-swap="innerHTML"
+            title="{% if obj.ativo %}Clique para desativar{% else %}Clique para ativar{% endif %}"
+            style="min-width:78px;">
+      {% if obj.ativo %}
+        <i class="bi bi-toggle-on me-1"></i>Ativo
+      {% else %}
+        <i class="bi bi-toggle-off me-1"></i>Inativo
+      {% endif %}
+    </button>
+  </td>
+  <td class="text-center" style="width:80px;">
+    <div class="d-flex gap-1 justify-content-center">
+      <button class="btn btn-xs btn-outline-primary"
+              hx-get="{% url 'tipo-ambiente-edit' obj.pk %}"
+              hx-target="#tipo-ambiente-form-container"
+              title="Editar">
+        <i class="bi bi-pencil"></i>
+      </button>
+      <button class="btn btn-xs btn-outline-danger"
+              hx-post="{% url 'tipo-ambiente-delete' obj.pk %}"
+              hx-confirm="Excluir '{{ obj.nome }}'? Esta ação não pode ser desfeita."
+              hx-target="#tipo-ambiente-list-body"
+              hx-swap="innerHTML"
+              title="Excluir">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="3" class="text-muted text-center py-3">Nenhum tipo cadastrado.</td></tr>
+{% endfor %}
