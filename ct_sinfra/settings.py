@@ -117,6 +117,9 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
+# Silencia aviso de depreciação do Django 6.0 sobre URLField sem scheme explícito.
+FORMS_URLFIELD_ASSUME_HTTPS = True
+
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"

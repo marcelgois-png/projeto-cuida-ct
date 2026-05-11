@@ -61,8 +61,8 @@ class RequisicaoForm(forms.ModelForm):
         label="Contato",
         widget=forms.TextInput(attrs={"placeholder": "(83) 99999-9999", "inputmode": "tel"}),
     )
-    link_atendimento = forms.URLField(required=False, label="Link do Atendimento")
-    link_sipac = forms.URLField(required=False, label="Link SIPAC")
+    link_atendimento = forms.URLField(required=False, label="Link do Atendimento", assume_scheme="https")
+    link_sipac = forms.URLField(required=False, label="Link SIPAC", assume_scheme="https")
     situacao_requisicao = forms.CharField(
         required=False,
         label="Situação da Requisição",
