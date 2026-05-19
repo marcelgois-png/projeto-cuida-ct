@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -339,6 +340,46 @@ class CadastroLoteImporterTests(TestCase):
         self.assertEqual(requisicao.data_execucao, date(2026, 5, 26))
         self.assertEqual(requisicao.link_sipac, "https://sipac.ufpb.br/req/123")
         self.assertTrue(requisicao.orcamento)
+
+    def test_orcamento_e_convertido_para_orcamento_valor_decimal(self):
+        # Painel financeiro lê Requisicao.orcamento_valor (Decimal), não o texto.
+        linha = self.linha_valida() + [
+            "R$ 1.500,00", "", "", "", "", "",
+        ]
+        uploaded = self.build_lote_file([linha])
+        WorkbookImporter().import_cadastro_lote(uploaded)
+        requisicao = Requisicao.objects.get(codigo="123/2026")
+        self.assertEqual(requisicao.orcamento, "R$ 1.500,00")
+        self.assertEqual(requisicao.orcamento_valor, Decimal("1500.00"))
+
+    def test_orcamento_vazio_nao_quebra(self):
+        uploaded = self.build_lote_file([self.linha_valida()])
+        WorkbookImporter().import_cadastro_lote(uploaded)
+        requisicao = Requisicao.objects.get(codigo="123/2026")
+        self.assertIsNone(requisicao.orcamento_valor)
+
+    def test_orcamento_aceita_formatos_variados(self):
+        casos = [
+            ("100/2026", "1500", Decimal("1500.00")),
+            ("101/2026", "1500.00", Decimal("1500.00")),
+            ("102/2026", "1500,00", Decimal("1500.00")),
+            ("103/2026", "1.500,00", Decimal("1500.00")),
+            ("104/2026", "R$ 2.345,67", Decimal("2345.67")),
+            ("105/2026", "texto invalido", None),
+        ]
+        linhas = []
+        for codigo, valor, _esperado in casos:
+            linha = self.linha_valida()
+            linha[0] = codigo
+            linha.extend([valor, "", "", "", "", ""])
+            linhas.append(linha)
+        uploaded = self.build_lote_file(linhas)
+        WorkbookImporter().import_cadastro_lote(uploaded)
+        for codigo, _valor, esperado in casos:
+            with self.subTest(codigo=codigo):
+                self.assertEqual(
+                    Requisicao.objects.get(codigo=codigo).orcamento_valor, esperado
+                )
 
     def test_modelo_sem_colunas_opcionais_continua_valido(self):
         uploaded = self.build_lote_file(
