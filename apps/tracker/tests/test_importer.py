@@ -5,7 +5,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from openpyxl import Workbook
 
-from apps.tracker.importers import WorkbookImporter
+from apps.tracker.importers import (
+    CADASTRO_LOTE_COLUNAS,
+    CADASTRO_LOTE_COLUNAS_OBRIGATORIAS,
+    ImportErrorPlanilha,
+    WorkbookImporter,
+)
 from apps.tracker.models import Predio, RegraPrioridade, Requisicao, Solicitante, StatusRequisicao, TaxonomiaServico
 
 
@@ -236,3 +241,133 @@ class WorkbookImporterTests(TestCase):
         self.assertTrue(StatusRequisicao.objects.filter(codigo="06 FINALIZADA").exists())
         self.assertEqual(StatusRequisicao.objects.get(codigo="04 OS EMITIDA").numero, "04")
         self.assertEqual(StatusRequisicao.objects.get(codigo="04 OS EMITIDA").nome, "OS emitida")
+
+
+class CadastroLoteImporterTests(TestCase):
+    def build_lote_file(self, linhas, *, columns=None, name="cadastro-lote.xlsx"):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Requisições"
+        sheet.append(columns if columns is not None else list(CADASTRO_LOTE_COLUNAS.values()))
+        for linha in linhas:
+            sheet.append(linha)
+        buffer = BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        return SimpleUploadedFile(
+            name,
+            buffer.read(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    def linha_valida(self):
+        return [
+            "123/2026",
+            "Troca de lâmpada queimada",
+            "19/05/2026",
+            "Elétrica",
+            "Iluminação",
+            "Troca de lâmpada",
+            "01 ABERTA",
+            "Bloco CT",
+            "João Silva",
+            "Coordenação de Exemplo",
+        ]
+
+    def test_modelo_xlsx_contem_cabecalho_esperado(self):
+        workbook = WorkbookImporter().build_modelo_cadastro_lote()
+        sheet = workbook["Requisições"]
+        header = [cell.value for cell in next(sheet.iter_rows(max_row=1))]
+        self.assertEqual(header, list(CADASTRO_LOTE_COLUNAS.values()))
+        self.assertIn("Instruções", workbook.sheetnames)
+
+    def test_importa_validas_e_relata_invalidas(self):
+        linha_sem_assunto = self.linha_valida()
+        linha_sem_assunto[0] = "200/2026"
+        linha_sem_assunto[1] = ""
+        linha_data_ruim = self.linha_valida()
+        linha_data_ruim[0] = "300/2026"
+        linha_data_ruim[2] = "32/13/2026"
+        linha_codigo_ruim = self.linha_valida()
+        linha_codigo_ruim[0] = "sem-numero"
+
+        uploaded = self.build_lote_file(
+            [self.linha_valida(), linha_sem_assunto, linha_data_ruim, linha_codigo_ruim]
+        )
+        importacao = WorkbookImporter().import_cadastro_lote(uploaded)
+        resumo = importacao.resumo_json
+
+        self.assertEqual(resumo["total_processado"], 1)
+        self.assertEqual(resumo["linhas_com_erro"], 3)
+        self.assertEqual(Requisicao.objects.count(), 1)
+        self.assertTrue(Requisicao.objects.filter(codigo="123/2026").exists())
+
+        linhas_erro = {item["linha"]: item["problemas"] for item in resumo["erros_linhas"]}
+        self.assertIn(3, linhas_erro)  # linha do assunto vazio (linha 1 = cabeçalho)
+        self.assertTrue(any("Assunto" in p for p in linhas_erro[3]))
+        self.assertTrue(any("Data de Cadastro" in p for p in linhas_erro[4]))
+        self.assertTrue(any("Nº Requisição" in p for p in linhas_erro[5]))
+
+    def test_modelo_inclui_colunas_opcionais(self):
+        workbook = WorkbookImporter().build_modelo_cadastro_lote()
+        header = [cell.value for cell in next(workbook["Requisições"].iter_rows(max_row=1))]
+        for opcional in ("Orçamento", "Data de Execução", "Local do Serviço", "Contato",
+                          "Link do Atendimento", "Link SIPAC"):
+            self.assertIn(opcional, header)
+
+    def test_colunas_opcionais_em_branco_nao_bloqueiam_importacao(self):
+        # linha_valida() só preenche as 10 obrigatórias; o cabeçalho tem 16 colunas.
+        uploaded = self.build_lote_file([self.linha_valida()])
+        importacao = WorkbookImporter().import_cadastro_lote(uploaded)
+        self.assertEqual(importacao.resumo_json["total_processado"], 1)
+        self.assertEqual(importacao.resumo_json["linhas_com_erro"], 0)
+
+    def test_colunas_opcionais_preenchidas_sao_importadas(self):
+        linha = self.linha_valida() + [
+            "2.300,00",
+            "26/05/2026",
+            "Sala 10",
+            "(83) 98888-7777",
+            "https://exemplo.org/atend/123",
+            "https://sipac.ufpb.br/req/123",
+        ]
+        uploaded = self.build_lote_file([linha])
+        WorkbookImporter().import_cadastro_lote(uploaded)
+
+        requisicao = Requisicao.objects.get(codigo="123/2026")
+        self.assertEqual(requisicao.local_servico, "Sala 10")
+        self.assertEqual(requisicao.data_execucao, date(2026, 5, 26))
+        self.assertEqual(requisicao.link_sipac, "https://sipac.ufpb.br/req/123")
+        self.assertTrue(requisicao.orcamento)
+
+    def test_modelo_sem_colunas_opcionais_continua_valido(self):
+        uploaded = self.build_lote_file(
+            [self.linha_valida()],
+            columns=list(CADASTRO_LOTE_COLUNAS_OBRIGATORIAS.values()),
+        )
+        importacao = WorkbookImporter().import_cadastro_lote(uploaded)
+        self.assertEqual(importacao.resumo_json["total_processado"], 1)
+
+    def test_arquivo_csv_e_rejeitado_com_mensagem_amigavel(self):
+        uploaded = SimpleUploadedFile(
+            "dados.csv", b"qualquer;coisa\n", content_type="text/csv"
+        )
+        with self.assertRaises(ImportErrorPlanilha) as ctx:
+            WorkbookImporter().import_cadastro_lote(uploaded)
+        self.assertIn("XLSX", str(ctx.exception))
+
+    def test_colunas_faltando_geram_erro_orientando_correcao(self):
+        uploaded = self.build_lote_file(
+            [["123/2026", "Assunto"]], columns=["Nº Requisição", "Assunto"]
+        )
+        with self.assertRaises(ImportErrorPlanilha) as ctx:
+            WorkbookImporter().import_cadastro_lote(uploaded)
+        mensagem = str(ctx.exception)
+        self.assertIn("faltando as colunas", mensagem)
+        self.assertIn("Divisão", mensagem)
+
+    def test_planilha_so_com_cabecalho_nao_quebra(self):
+        uploaded = self.build_lote_file([])
+        importacao = WorkbookImporter().import_cadastro_lote(uploaded)
+        self.assertEqual(importacao.resumo_json["total_processado"], 0)
+        self.assertEqual(importacao.resumo_json["linhas_com_erro"], 0)
