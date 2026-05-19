@@ -57,7 +57,6 @@ urlpatterns = [
     path("painel/requisicoes/nova/", views.RequisicaoCreateView.as_view(), name="requisicao-create"),
     path("painel/requisicoes/<int:pk>/editar/", views.RequisicaoUpdateView.as_view(), name="requisicao-update"),
     path("painel/requisicoes/<int:pk>/apagar/", views.requisicao_delete, name="requisicao-delete"),
-    path("painel/importacoes/", views.importacao_upload, name="importacao-upload"),
     path("painel/cadastro-lote/modelo.xlsx", views.modelo_cadastro_lote, name="modelo-cadastro-lote"),
     path("painel/cadastro-lote/", views.cadastro_lote_upload, name="cadastro-lote-upload"),
     path("api/public/indicadores/", views.api_public_indicadores, name="api-public-indicadores"),

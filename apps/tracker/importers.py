@@ -77,6 +77,16 @@ CADASTRO_LOTE_COLUNAS: dict[str, str] = {
 class WorkbookImporter:
     def __init__(self, user=None):
         self.user = user
+        # Caches por execução de importação: evitam refazer o mesmo
+        # get_or_create/lookup para valores repetidos linha após linha.
+        self._cache_predio: dict[str, Predio | None] = {}
+        self._cache_solicitante: dict[str, Solicitante | None] = {}
+        self._cache_servico_fks: dict[
+            tuple[str, str, str],
+            tuple[DivisaoSINFRA | None, TipoServico | None, Servico | None],
+        ] = {}
+        self._cache_status: dict[str, StatusRequisicao | None] = {}
+        self._cache_priority_rule: dict[str, str] = {}
 
     def import_file(self, uploaded_file) -> ImportacaoArquivo:
         suffix = Path(uploaded_file.name).suffix.lower()
@@ -100,14 +110,18 @@ class WorkbookImporter:
             importacao.resumo_json = summary
             importacao.processado_em = timezone.now()
             importacao.save(update_fields=["status", "resumo_json", "processado_em", "atualizado_em"])
-        except Exception as exc:
-            importacao.status = ImportacaoArquivo.Status.FALHA
-            importacao.mensagem_erro = str(exc)
-            importacao.processado_em = timezone.now()
-            importacao.save(
-                update_fields=["status", "mensagem_erro", "processado_em", "atualizado_em"]
-            )
+        except ImportErrorPlanilha as exc:
+            self._registrar_falha_importacao(importacao, str(exc))
             raise
+        except Exception as exc:  # noqa: BLE001 - registra a causa antes de propagar
+            detalhe = f"{type(exc).__name__}: {exc}".strip()
+            self._registrar_falha_importacao(
+                importacao, f"Erro inesperado na importação. {detalhe}"
+            )
+            raise ImportErrorPlanilha(
+                "Não foi possível processar o arquivo. "
+                f"Verifique se ele segue o formato esperado. Detalhe técnico: {detalhe}"
+            ) from exc
 
         return importacao
 
@@ -180,6 +194,7 @@ class WorkbookImporter:
             "prioridade_final": Counter(),
         }
 
+        history_to_create: list[HistoricoStatus] = []
         for row in rows:
             codigo = self._get_value(row, "n requisicao", "no requisicao", "codigo")
             if not codigo:
@@ -199,7 +214,7 @@ class WorkbookImporter:
             servico_str = clean_display_text(self._get_value(row, "servico") or "")
             status_str = clean_display_text(self._get_value(row, "status sipac") or "")
             divisao_fk, tipo_fk, servico_fk = self._resolve_service_fks(divisao_str, tipo_str, servico_str)
-            status_fk = StatusRequisicao.objects.filter(codigo=status_str).first() if status_str else None
+            status_fk = self._resolve_status_fk(status_str)
 
             defaults = {
                 "numero": numero,
@@ -235,7 +250,19 @@ class WorkbookImporter:
                 "importacao_origem": importacao,
             }
 
-            requisicao, was_created = Requisicao.objects.get_or_create(codigo=str(codigo), defaults=defaults)
+            priority_key = normalize_key(
+                divisao_fk.nome if divisao_fk else "",
+                tipo_fk.nome if tipo_fk else "",
+                servico_fk.nome if servico_fk else "",
+            )
+            priority_from_rule = self._cached_priority_from_rule(priority_key)
+            defaults["prioridade_final"] = (
+                reference.get("prioridade_final") or priority_from_rule or ""
+            )
+
+            requisicao, was_created = Requisicao.objects.get_or_create(
+                codigo=str(codigo), defaults=defaults
+            )
             previous_status = (
                 requisicao.status_sipac.codigo if (not was_created and requisicao.status_sipac) else ""
             )
@@ -244,22 +271,25 @@ class WorkbookImporter:
                 created += 1
             else:
                 updated += 1
+                prioridade_anterior = requisicao.prioridade_final
                 for field, value in defaults.items():
                     setattr(requisicao, field, value)
-
-            requisicao.prioridade_final = (
-                reference.get("prioridade_final")
-                or resolve_priority_label(requisicao.prioridade_lookup_key, requisicao.prioridade_final)
-            )
-            requisicao.save()
+                requisicao.prioridade_final = (
+                    reference.get("prioridade_final")
+                    or priority_from_rule
+                    or prioridade_anterior
+                )
+                requisicao.save()
             if was_created:
-                HistoricoStatus.objects.create(
-                    requisicao=requisicao,
-                    status_sipac=requisicao.status_sipac.codigo if requisicao.status_sipac else "",
-                    situacao_requisicao=requisicao.situacao_requisicao,
-                    observacao=requisicao.situacao_texto,
-                    origem=HistoricoStatus.Origem.IMPORTACAO,
-                    usuario=self.user,
+                history_to_create.append(
+                    HistoricoStatus(
+                        requisicao=requisicao,
+                        status_sipac=requisicao.status_sipac.codigo if requisicao.status_sipac else "",
+                        situacao_requisicao=requisicao.situacao_requisicao,
+                        observacao=requisicao.situacao_texto,
+                        origem=HistoricoStatus.Origem.IMPORTACAO,
+                        usuario=self.user,
+                    )
                 )
             else:
                 register_status_history(
@@ -276,6 +306,9 @@ class WorkbookImporter:
             counters["situacao_requisicao"][requisicao.situacao_requisicao] += 1
             counters["sinfra_responsavel"][requisicao.sinfra_responsavel] += 1
             counters["prioridade_final"][requisicao.prioridade_final] += 1
+
+        if history_to_create:
+            HistoricoStatus.objects.bulk_create(history_to_create, batch_size=500)
 
         return {
             "criados": created,
@@ -511,31 +544,62 @@ class WorkbookImporter:
         if not nome:
             return None
         normalized = normalize_key(nome)
+        if normalized in self._cache_predio:
+            return self._cache_predio[normalized]
         predio = Predio.objects.filter(chave_normalizada=normalized).first()
-        if predio:
-            return predio
-        return Predio.objects.create(nome=normalize_text(nome))
+        if not predio:
+            predio = Predio.objects.create(nome=normalize_text(nome))
+        self._cache_predio[normalized] = predio
+        return predio
 
     def _ensure_solicitante(self, nome: str | None, contato: str) -> Solicitante | None:
         if not nome:
             return None
         normalized = normalize_key(nome)
+        if normalized in self._cache_solicitante:
+            return self._cache_solicitante[normalized]
         solicitante = Solicitante.objects.filter(chave_normalizada=normalized).first()
         if solicitante:
             if contato and solicitante.contato_url != contato:
                 solicitante.contato_url = contato
                 solicitante.save()
-            return solicitante
-        return Solicitante.objects.create(
-            nome=normalize_text(nome),
-            contato_url=coerce_brazilian_phone(contato),
-        )
+        else:
+            solicitante = Solicitante.objects.create(
+                nome=normalize_text(nome),
+                contato_url=coerce_brazilian_phone(contato),
+            )
+        self._cache_solicitante[normalized] = solicitante
+        return solicitante
+
+    def _cached_priority_from_rule(self, priority_key: str) -> str:
+        if not priority_key:
+            return ""
+        if priority_key in self._cache_priority_rule:
+            return self._cache_priority_rule[priority_key]
+        rule = RegraPrioridade.objects.filter(
+            chave_normalizada=priority_key, ativa=True
+        ).first()
+        priority = rule.prioridade if rule else ""
+        self._cache_priority_rule[priority_key] = priority
+        return priority
+
+    def _resolve_status_fk(self, status_str: str) -> StatusRequisicao | None:
+        if not status_str:
+            return None
+        if status_str in self._cache_status:
+            return self._cache_status[status_str]
+        status_fk = StatusRequisicao.objects.filter(codigo=status_str).first()
+        self._cache_status[status_str] = status_fk
+        return status_fk
 
     def _resolve_service_fks(
         self, divisao: str, tipo_servico: str, servico: str
     ) -> tuple[DivisaoSINFRA | None, TipoServico | None, Servico | None]:
         if not divisao:
             return None, None, None
+        cache_key = (divisao, tipo_servico, servico)
+        if cache_key in self._cache_servico_fks:
+            return self._cache_servico_fks[cache_key]
         divisao_fk, _ = DivisaoSINFRA.objects.get_or_create(nome=divisao)
         tipo_fk = None
         servico_fk = None
@@ -543,7 +607,9 @@ class WorkbookImporter:
             tipo_fk, _ = TipoServico.objects.get_or_create(nome=tipo_servico, divisao=divisao_fk)
         if servico and tipo_fk:
             servico_fk, _ = Servico.objects.get_or_create(nome=servico, tipo_servico=tipo_fk)
-        return divisao_fk, tipo_fk, servico_fk
+        result = (divisao_fk, tipo_fk, servico_fk)
+        self._cache_servico_fks[cache_key] = result
+        return result
 
     def _ensure_taxonomia(self, divisao: str | None, tipo_servico: str | None, servico: str | None) -> TaxonomiaServico | None:
         if not divisao and not tipo_servico and not servico:
@@ -657,6 +723,16 @@ class WorkbookImporter:
         instrucoes.column_dimensions["A"].width = 90
         return workbook
 
+    def _registrar_falha_importacao(
+        self, importacao: ImportacaoArquivo, mensagem: str
+    ) -> None:
+        importacao.status = ImportacaoArquivo.Status.FALHA
+        importacao.mensagem_erro = mensagem[:2000]
+        importacao.processado_em = timezone.now()
+        importacao.save(
+            update_fields=["status", "mensagem_erro", "processado_em", "atualizado_em"]
+        )
+
     def import_cadastro_lote(self, uploaded_file) -> ImportacaoArquivo:
         suffix = Path(uploaded_file.name).suffix.lower()
         if suffix != ".xlsx":
@@ -687,13 +763,17 @@ class WorkbookImporter:
             summary["linhas_com_erro"] = len(row_errors)
             summary["erros_linhas"] = row_errors
         except ImportErrorPlanilha as exc:
-            importacao.status = ImportacaoArquivo.Status.FALHA
-            importacao.mensagem_erro = str(exc)
-            importacao.processado_em = timezone.now()
-            importacao.save(
-                update_fields=["status", "mensagem_erro", "processado_em", "atualizado_em"]
-            )
+            self._registrar_falha_importacao(importacao, str(exc))
             raise
+        except Exception as exc:  # noqa: BLE001 - registra a causa antes de propagar
+            detalhe = f"{type(exc).__name__}: {exc}".strip()
+            self._registrar_falha_importacao(
+                importacao, f"Erro inesperado no cadastro em lote. {detalhe}"
+            )
+            raise ImportErrorPlanilha(
+                "Não foi possível concluir o cadastro em lote. "
+                f"Verifique o arquivo e tente novamente. Detalhe técnico: {detalhe}"
+            ) from exc
 
         if not valid_rows and row_errors:
             importacao.status = ImportacaoArquivo.Status.FALHA

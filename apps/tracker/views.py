@@ -1818,36 +1818,6 @@ def internal_requisicoes_panel(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@require_http_methods(["POST"])
-def importacao_upload(request: HttpRequest) -> HttpResponse:
-    if not user_is_admin(request):
-        raise Http404
-    form = ImportacaoForm(request.POST, request.FILES)
-    if not form.is_valid():
-        messages.error(request, "Envie um arquivo válido para importação.")
-        return redirect("internal-cadastro")
-    importer = WorkbookImporter(user=request.user)
-    try:
-        importacao = importer.import_file(form.cleaned_data["arquivo"])
-    except ImportErrorPlanilha as exc:
-        messages.error(request, str(exc))
-        return redirect("internal-cadastro")
-    except Exception:
-        logger.exception("Falha inesperada na importação institucional")
-        messages.error(
-            request,
-            "Não foi possível processar o arquivo enviado. Verifique se ele está no "
-            "formato institucional esperado e tente novamente.",
-        )
-        return redirect("internal-cadastro")
-    messages.success(
-        request,
-        f"Importação concluída: {importacao.resumo_json.get('total_processado', 0)} registros processados.",
-    )
-    return redirect("internal-cadastro")
-
-
-@login_required
 @require_http_methods(["GET"])
 def modelo_cadastro_lote(request: HttpRequest) -> HttpResponse:
     if not user_is_admin(request):
