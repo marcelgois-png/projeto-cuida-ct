@@ -4,6 +4,7 @@ import csv
 import io
 import re
 from collections import Counter, defaultdict
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,27 @@ from .services import register_status_history, resolve_priority_label
 
 class ImportErrorPlanilha(Exception):
     pass
+
+
+def coerce_orcamento_valor(raw: Any) -> Decimal | None:
+    """Converte o texto livre de Orçamento em Decimal usado pelo painel financeiro.
+
+    Aceita os formatos comuns: '1500', '1500.00', '1500,00', '1.500,00', 'R$ 1.500,00'.
+    Retorna None quando o valor é vazio ou não pode ser interpretado como número positivo.
+    """
+    if raw is None:
+        return None
+    cleaned = str(raw).strip()
+    if not cleaned:
+        return None
+    cleaned = re.sub(r"[Rr$\s]", "", cleaned)
+    if "," in cleaned:
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    try:
+        valor = Decimal(cleaned).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        return None
+    return valor if valor > 0 else None
 
 
 # Modelo de cadastro em lote: chave normalizada -> rótulo exibido na planilha.
@@ -221,6 +243,9 @@ class WorkbookImporter:
                 "ano": ano,
                 "assunto": clean_display_text(self._get_value(row, "assunto") or ""),
                 "orcamento": self._get_value(row, "orcamento", "orçamento") or "",
+                "orcamento_valor": coerce_orcamento_valor(
+                    self._get_value(row, "orcamento", "orçamento")
+                ),
                 "data_cadastro": coerce_date(self._get_value(row, "data de cadastro")),
                 "tipo_requisicao": clean_display_text(self._get_value(row, "tipo de requisicao") or ""),
                 "divisao": divisao_fk,
