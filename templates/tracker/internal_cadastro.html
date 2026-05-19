@@ -88,32 +88,7 @@
     </div>
   </div>
   <div class="row g-3">
-    <div class="col-xl-7">
-      <div class="card h-100">
-        <div class="card-header">
-          <h3 class="section-title"><i class="bi bi-upload"></i>Importa&ccedil;&atilde;o de base (institucional)</h3>
-        </div>
-        <div class="card-body">
-          <p class="section-subtitle mb-3">
-            Use arquivos XLSM, XLSX ou CSV para migrar hist&oacute;rico ou reprocessar dados.
-            O importador l&ecirc; a base principal, os cadastros auxiliares e as regras de prioridade.
-          </p>
-          <form method="post" action="{% url 'importacao-upload' %}" enctype="multipart/form-data" class="row g-3">
-            {% csrf_token %}
-            <div class="col-md-8">
-              <label class="form-label">Arquivo de importa&ccedil;&atilde;o</label>
-              {{ import_form.arquivo }}
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-              <button class="btn btn-primary w-100" type="submit">
-                <i class="bi bi-cloud-upload me-1"></i>Importar arquivo
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-    <div class="col-xl-5">
+    <div class="col-12">
       <div class="card h-100">
         <div class="card-header">
           <h3 class="section-title"><i class="bi bi-clock-history"></i>&Uacute;ltimas importa&ccedil;&otilde;es</h3>
@@ -126,6 +101,9 @@
                 <div class="small text-muted">
                   {{ item.get_status_display }}{% if item.processado_em %} em {{ item.processado_em|date:"d/m/Y H:i" }}{% endif %}
                 </div>
+                {% if item.mensagem_erro %}
+                  <div class="small text-danger mt-1">{{ item.mensagem_erro }}</div>
+                {% endif %}
               </div>
             {% empty %}
               <div class="text-muted small">Nenhuma importa&ccedil;&atilde;o executada ainda.</div>
