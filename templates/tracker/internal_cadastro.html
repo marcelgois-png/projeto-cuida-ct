@@ -52,11 +52,46 @@
 </div>
 
 {% if request.user.is_admin %}
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="section-title"><i class="bi bi-file-earmark-spreadsheet"></i>Cadastro de requisi&ccedil;&otilde;es em lote</h3>
+        </div>
+        <div class="card-body">
+          <p class="section-subtitle mb-3">
+            Forma recomendada para cadastrar v&aacute;rias requisi&ccedil;&otilde;es de uma vez.
+            Baixe o modelo, preencha uma requisi&ccedil;&atilde;o por linha e envie o arquivo XLSX.
+            O modelo traz todas as colunas: as essenciais s&atilde;o obrigat&oacute;rias e as demais
+            podem ficar em branco (veja a aba &ldquo;Instru&ccedil;&otilde;es&rdquo; da planilha).
+            Linhas com problema s&atilde;o apontadas individualmente para corre&ccedil;&atilde;o &mdash;
+            as demais s&atilde;o importadas normalmente.
+          </p>
+          <div class="d-flex flex-wrap align-items-end gap-3">
+            <a class="btn btn-outline-primary" href="{% url 'modelo-cadastro-lote' %}">
+              <i class="bi bi-download me-1"></i>Baixar modelo XLSX
+            </a>
+            <form method="post" action="{% url 'cadastro-lote-upload' %}" enctype="multipart/form-data"
+                  class="d-flex flex-wrap align-items-end gap-3 flex-grow-1">
+              {% csrf_token %}
+              <div class="flex-grow-1" style="min-width: 240px;">
+                <label class="form-label">Arquivo preenchido (XLSX)</label>
+                <input type="file" name="arquivo" accept=".xlsx" class="form-control" required>
+              </div>
+              <button class="btn btn-primary" type="submit">
+                <i class="bi bi-cloud-upload me-1"></i>Enviar cadastro em lote
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="row g-3">
     <div class="col-xl-7">
       <div class="card h-100">
         <div class="card-header">
-          <h3 class="section-title"><i class="bi bi-upload"></i>Importa&ccedil;&atilde;o de base</h3>
+          <h3 class="section-title"><i class="bi bi-upload"></i>Importa&ccedil;&atilde;o de base (institucional)</h3>
         </div>
         <div class="card-body">
           <p class="section-subtitle mb-3">

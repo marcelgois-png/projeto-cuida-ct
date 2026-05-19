@@ -9,7 +9,7 @@ from typing import Any
 
 from django.db import transaction
 from django.utils import timezone
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from .domain import (
     clean_display_text,
@@ -41,6 +41,37 @@ from .services import register_status_history, resolve_priority_label
 
 class ImportErrorPlanilha(Exception):
     pass
+
+
+# Modelo de cadastro em lote: chave normalizada -> rótulo exibido na planilha.
+# Apenas as colunas obrigatórias são exigidas; as opcionais podem ficar em branco.
+CADASTRO_LOTE_COLUNAS_OBRIGATORIAS: dict[str, str] = {
+    "no requisicao": "Nº Requisição",
+    "assunto": "Assunto",
+    "data de cadastro": "Data de Cadastro",
+    "divisao": "Divisão",
+    "tipo de servico": "Tipo de Serviço",
+    "servico": "Serviço",
+    "status sipac": "Status SIPAC",
+    "predio envolvido": "Prédio Envolvido",
+    "requisitante": "Requisitante",
+    "unidade setor": "Unidade/Setor",
+}
+
+CADASTRO_LOTE_COLUNAS_OPCIONAIS: dict[str, str] = {
+    "orcamento": "Orçamento",
+    "data execucao": "Data de Execução",
+    "local do servico": "Local do Serviço",
+    "contato": "Contato",
+    "link do atendimento": "Link do Atendimento",
+    "link sipac": "Link SIPAC",
+}
+
+# Ordem das colunas geradas no modelo XLSX para download (obrigatórias + opcionais).
+CADASTRO_LOTE_COLUNAS: dict[str, str] = {
+    **CADASTRO_LOTE_COLUNAS_OBRIGATORIAS,
+    **CADASTRO_LOTE_COLUNAS_OPCIONAIS,
+}
 
 
 class WorkbookImporter:
@@ -198,7 +229,7 @@ class WorkbookImporter:
                 "sinfra_responsavel": clean_display_text(self._get_value(row, "sinfra") or reference.get("sinfra", "") or ""),
                 "link_atendimento": clean_display_text(self._get_value(row, "link do atendimento") or reference.get("link_atendimento", "") or ""),
                 "link_sipac": clean_display_text(self._get_value(row, "link sipac") or reference.get("link_sipac", "") or ""),
-                "data_execucao": coerce_date(self._get_value(row, "data execucao")),
+                "data_execucao": coerce_date(self._get_value(row, "data execucao", "data de execucao")),
                 "dias_para_execucao": coerce_int(self._get_value(row, "dias para execucao")),
                 "visivel_publicamente": True,
                 "importacao_origem": importacao,
@@ -567,3 +598,201 @@ class WorkbookImporter:
 
     def _clean_display_text(self, value: Any) -> str:
         return clean_display_text(value)
+
+    # ------------------------------------------------------------------
+    # Cadastro em lote (modelo XLSX enxuto)
+    # ------------------------------------------------------------------
+    def build_modelo_cadastro_lote(self) -> Workbook:
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Requisições"
+        sheet.append(list(CADASTRO_LOTE_COLUNAS.values()))
+        sheet.append(
+            [
+                "123/2026",
+                "Troca de lâmpada queimada na sala 10",
+                "19/05/2026",
+                "Elétrica",
+                "Iluminação",
+                "Troca de lâmpada",
+                "01 ABERTA",
+                "Bloco CT",
+                "João Silva",
+                "Coordenação de Exemplo",
+                "1.500,00",
+                "26/05/2026",
+                "Sala 10, 1º andar",
+                "(83) 99999-9999",
+                "https://exemplo.org/atendimento/123",
+                "https://sipac.ufpb.br/requisicao/123",
+            ]
+        )
+        for index in range(1, len(CADASTRO_LOTE_COLUNAS) + 1):
+            sheet.column_dimensions[sheet.cell(row=1, column=index).column_letter].width = 26
+
+        instrucoes = workbook.create_sheet("Instruções")
+        for linha in (
+            ["Como usar este modelo de cadastro em lote"],
+            [""],
+            ["1. Preencha uma requisição por linha, a partir da linha 2 da aba 'Requisições'."],
+            ["2. A linha 2 traz um exemplo: apague-a antes de enviar (ou substitua pelos seus dados)."],
+            ["3. Não altere, renomeie nem remova as colunas do cabeçalho."],
+            [
+                "4. Campos obrigatórios: "
+                + ", ".join(CADASTRO_LOTE_COLUNAS_OBRIGATORIAS.values())
+                + "."
+            ],
+            [
+                "5. Campos opcionais (podem ficar em branco): "
+                + ", ".join(CADASTRO_LOTE_COLUNAS_OPCIONAIS.values())
+                + "."
+            ],
+            ["6. Data de Cadastro e Data de Execução no formato dd/mm/aaaa (ex.: 19/05/2026)."],
+            ["7. Nº Requisição no formato número/ano (ex.: 123/2026)."],
+            ["8. Salve no formato XLSX (.xlsx) antes de enviar."],
+            [""],
+            ["Linhas com erro são informadas após o envio e podem ser corrigidas e reenviadas."],
+        ):
+            instrucoes.append(linha)
+        instrucoes.column_dimensions["A"].width = 90
+        return workbook
+
+    def import_cadastro_lote(self, uploaded_file) -> ImportacaoArquivo:
+        suffix = Path(uploaded_file.name).suffix.lower()
+        if suffix != ".xlsx":
+            raise ImportErrorPlanilha(
+                "Formato inválido para cadastro em lote. Baixe o modelo e envie o arquivo no formato XLSX (.xlsx)."
+            )
+
+        importacao = ImportacaoArquivo.objects.create(
+            nome_arquivo=uploaded_file.name,
+            tipo_arquivo="xlsx",
+            status=ImportacaoArquivo.Status.PROCESSANDO,
+            iniciado_por=self.user,
+        )
+
+        try:
+            valid_rows, row_errors = self._read_cadastro_lote_rows(uploaded_file)
+            summary: dict[str, Any] = {
+                "criados": 0,
+                "atualizados": 0,
+                "total_processado": 0,
+                "contagens": {},
+            }
+            if valid_rows:
+                with transaction.atomic():
+                    summary = self._upsert_requests(
+                        valid_rows, importacao, {}, {"gme": {}, "ar": {}}
+                    )
+            summary["linhas_com_erro"] = len(row_errors)
+            summary["erros_linhas"] = row_errors
+        except ImportErrorPlanilha as exc:
+            importacao.status = ImportacaoArquivo.Status.FALHA
+            importacao.mensagem_erro = str(exc)
+            importacao.processado_em = timezone.now()
+            importacao.save(
+                update_fields=["status", "mensagem_erro", "processado_em", "atualizado_em"]
+            )
+            raise
+
+        if not valid_rows and row_errors:
+            importacao.status = ImportacaoArquivo.Status.FALHA
+            importacao.mensagem_erro = (
+                f"Nenhuma linha pôde ser importada: {len(row_errors)} linha(s) com erro."
+            )
+        else:
+            importacao.status = ImportacaoArquivo.Status.CONCLUIDA
+        importacao.resumo_json = summary
+        importacao.processado_em = timezone.now()
+        importacao.save(
+            update_fields=[
+                "status",
+                "mensagem_erro",
+                "resumo_json",
+                "processado_em",
+                "atualizado_em",
+            ]
+        )
+        return importacao
+
+    def _read_cadastro_lote_rows(
+        self, uploaded_file
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        uploaded_file.seek(0)
+        try:
+            workbook = load_workbook(uploaded_file, read_only=True, data_only=True)
+        except Exception as exc:  # openpyxl levanta tipos variados p/ arquivo inválido
+            raise ImportErrorPlanilha(
+                "Não foi possível abrir o arquivo. Verifique se ele é um XLSX válido, "
+                "gerado a partir do modelo de cadastro em lote, e não está corrompido."
+            ) from exc
+
+        sheet = workbook.worksheets[0]
+        iterator = sheet.iter_rows(values_only=True)
+        try:
+            header = next(iterator)
+        except StopIteration as exc:
+            raise ImportErrorPlanilha(
+                "A planilha está vazia. Baixe o modelo, preencha as requisições e tente novamente."
+            ) from exc
+
+        header_map = [self._normalized_header(column) for column in header]
+        present = {column for column in header_map if column}
+        missing = [
+            label
+            for key, label in CADASTRO_LOTE_COLUNAS_OBRIGATORIAS.items()
+            if key not in present
+        ]
+        if missing:
+            raise ImportErrorPlanilha(
+                "O arquivo não está no modelo esperado. Estão faltando as colunas: "
+                + ", ".join(missing)
+                + ". Baixe o modelo de cadastro em lote e use exatamente esse cabeçalho, "
+                "sem renomear nem remover colunas."
+            )
+
+        valid_rows: list[dict[str, Any]] = []
+        row_errors: list[dict[str, Any]] = []
+        for line_no, raw_row in enumerate(iterator, start=2):
+            row: dict[str, Any] = {}
+            for index, column in enumerate(header_map):
+                if not column:
+                    continue
+                row[column] = raw_row[index] if index < len(raw_row) else None
+            if all(value is None or str(value).strip() == "" for value in row.values()):
+                continue
+            problems = self._validate_cadastro_lote_row(row)
+            if problems:
+                row_errors.append({"linha": line_no, "problemas": problems})
+            else:
+                valid_rows.append(row)
+        return valid_rows, row_errors
+
+    def _validate_cadastro_lote_row(self, row: dict[str, Any]) -> list[str]:
+        problems: list[str] = []
+        obrigatorios = {
+            key: label
+            for key, label in CADASTRO_LOTE_COLUNAS_OBRIGATORIAS.items()
+            if key != "data de cadastro"
+        }
+        for key, label in obrigatorios.items():
+            value = row.get(key)
+            if value is None or str(value).strip() == "":
+                problems.append(f"{label}: campo obrigatório não preenchido")
+
+        codigo = row.get("no requisicao")
+        if codigo and str(codigo).strip():
+            numero, ano = extract_request_parts(str(codigo).strip())
+            if numero is None or ano is None:
+                problems.append(
+                    "Nº Requisição: formato inválido (use número/ano, ex.: 123/2026)"
+                )
+
+        data = row.get("data de cadastro")
+        if data is None or str(data).strip() == "":
+            problems.append("Data de Cadastro: campo obrigatório não preenchido")
+        elif coerce_date(data) is None:
+            problems.append(
+                "Data de Cadastro: data inválida (use dd/mm/aaaa, ex.: 19/05/2026)"
+            )
+        return problems

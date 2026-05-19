@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 from datetime import date, timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from typing import Any
 
 from django.contrib import messages
@@ -23,7 +24,7 @@ from apps.core.ratelimit import rate_limit
 from django.views.generic import CreateView, DetailView, TemplateView, UpdateView
 
 from .forms import AcompanhamentoRequisicaoFormSet, ImportacaoForm, RequisicaoForm
-from .importers import WorkbookImporter
+from .importers import ImportErrorPlanilha, WorkbookImporter
 from .domain import clean_display_text, derive_situation, resolve_status_sipac_metadata
 from .models import (
     AcompanhamentoRequisicao,
@@ -57,6 +58,8 @@ from .services import (
     status_sipac_display,
     status_sipac_lookup,
 )
+
+logger = logging.getLogger(__name__)
 
 TABLE_PAGE_SIZE = 25
 PAGINATION_EDGE_PAGES = 2
@@ -1824,11 +1827,97 @@ def importacao_upload(request: HttpRequest) -> HttpResponse:
         messages.error(request, "Envie um arquivo válido para importação.")
         return redirect("internal-cadastro")
     importer = WorkbookImporter(user=request.user)
-    importacao = importer.import_file(form.cleaned_data["arquivo"])
+    try:
+        importacao = importer.import_file(form.cleaned_data["arquivo"])
+    except ImportErrorPlanilha as exc:
+        messages.error(request, str(exc))
+        return redirect("internal-cadastro")
+    except Exception:
+        logger.exception("Falha inesperada na importação institucional")
+        messages.error(
+            request,
+            "Não foi possível processar o arquivo enviado. Verifique se ele está no "
+            "formato institucional esperado e tente novamente.",
+        )
+        return redirect("internal-cadastro")
     messages.success(
         request,
         f"Importação concluída: {importacao.resumo_json.get('total_processado', 0)} registros processados.",
     )
+    return redirect("internal-cadastro")
+
+
+@login_required
+@require_http_methods(["GET"])
+def modelo_cadastro_lote(request: HttpRequest) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    workbook = WorkbookImporter().build_modelo_cadastro_lote()
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+    response = HttpResponse(
+        buffer.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="modelo-cadastro-lote.xlsx"'
+    return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def cadastro_lote_upload(request: HttpRequest) -> HttpResponse:
+    if not user_is_admin(request):
+        raise Http404
+    form = ImportacaoForm(request.POST, request.FILES)
+    if not form.is_valid():
+        for erro in form.errors.get("arquivo", ["Envie um arquivo XLSX válido."]):
+            messages.error(request, erro)
+        return redirect("internal-cadastro")
+    try:
+        importacao = WorkbookImporter(user=request.user).import_cadastro_lote(
+            form.cleaned_data["arquivo"]
+        )
+    except ImportErrorPlanilha as exc:
+        messages.error(request, str(exc))
+        return redirect("internal-cadastro")
+    except Exception:
+        logger.exception("Falha inesperada no cadastro em lote")
+        messages.error(
+            request,
+            "Não foi possível processar o arquivo. Verifique se ele segue o modelo "
+            "de cadastro em lote e tente novamente.",
+        )
+        return redirect("internal-cadastro")
+
+    resumo = importacao.resumo_json or {}
+    total = resumo.get("total_processado", 0)
+    erros = resumo.get("erros_linhas") or []
+    if total:
+        messages.success(
+            request,
+            f"Cadastro em lote concluído: {total} requisição(ões) processada(s) "
+            f"({resumo.get('criados', 0)} nova(s), {resumo.get('atualizados', 0)} atualizada(s)).",
+        )
+    if erros:
+        limite = 20
+        detalhes = "; ".join(
+            f"Linha {item['linha']}: {' | '.join(item['problemas'])}"
+            for item in erros[:limite]
+        )
+        if len(erros) > limite:
+            detalhes += f"; (e mais {len(erros) - limite} linha(s) com erro)"
+        messages.warning(
+            request,
+            f"{len(erros)} linha(s) não foram importadas. Corrija e reenvie apenas "
+            f"as linhas com problema. Detalhes — {detalhes}",
+        )
+    if not total and not erros:
+        messages.info(
+            request,
+            "Nenhuma requisição encontrada na planilha. Preencha o modelo de "
+            "cadastro em lote e tente novamente.",
+        )
     return redirect("internal-cadastro")
 
 
