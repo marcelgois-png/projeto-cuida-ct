@@ -212,6 +212,22 @@ class WorkbookImporterTests(TestCase):
         self.assertEqual(counts["prioridade_final"]["1 - Urgente"], 1)
         self.assertEqual(counts["prioridade_final"]["2 - Alta"], 1)
 
+    def test_import_csv_handles_windows1252_encoding_and_semicolon_delimiter(self):
+        # Reproduz o 500 de produção: CSV exportado pelo Excel/SIPAC em
+        # Windows-1252 (byte 0xC7 = "Ç") e delimitado por ponto-e-vírgula.
+        header = "Nº Requisição;Assunto;Divisão;Requisitante"
+        linha = "100/2026;MANUTENÇÃO de Construção;Construção Civil;MARIA TESTE"
+        conteudo = (header + "\n" + linha + "\n").encode("cp1252")
+        self.assertIn(b"\xc7", conteudo)
+
+        uploaded = SimpleUploadedFile("importacao.csv", conteudo, content_type="text/csv")
+        result = WorkbookImporter().import_file(uploaded)
+
+        self.assertEqual(result.resumo_json["total_processado"], 1)
+        requisicao = Requisicao.objects.get(codigo="100/2026")
+        self.assertEqual(requisicao.assunto, "MANUTENÇÃO de Construção")
+        self.assertEqual(requisicao.divisao.nome, "Construção Civil")
+
     def test_import_workbook_loads_status_options_from_legendas_1_column_w(self):
         uploaded = self.build_workbook_file()
         WorkbookImporter().import_file(uploaded)

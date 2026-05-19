@@ -106,12 +106,31 @@ class WorkbookImporter:
 
     def _import_csv(self, uploaded_file, importacao: ImportacaoArquivo) -> dict[str, Any]:
         uploaded_file.seek(0)
-        text = uploaded_file.read().decode("utf-8-sig")
-        reader = csv.DictReader(io.StringIO(text))
+        text = self._decode_csv_bytes(uploaded_file.read())
+        reader = csv.DictReader(io.StringIO(text), delimiter=self._sniff_delimiter(text))
         rows = []
         for row in reader:
             rows.append({self._normalized_header(key): value for key, value in row.items()})
         return self._upsert_requests(rows, importacao, {}, {"gme": {}, "ar": {}})
+
+    def _decode_csv_bytes(self, raw: bytes) -> str:
+        # CSVs do Excel/SIPAC em pt-BR costumam vir em Windows-1252, não UTF-8.
+        for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        raise ImportErrorPlanilha(
+            "Não foi possível ler o arquivo CSV: codificação de caracteres não reconhecida. "
+            "Salve o arquivo como UTF-8 ou Windows-1252 e tente novamente."
+        )
+
+    def _sniff_delimiter(self, text: str) -> str:
+        sample = text[:4096]
+        first_line = sample.splitlines()[0] if sample else ""
+        if first_line.count(";") > first_line.count(","):
+            return ";"
+        return ","
 
     def _upsert_requests(
         self,
