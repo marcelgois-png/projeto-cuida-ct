@@ -26,3 +26,7 @@ Thumbs.db
 
 # Claude Code (configurações locais pessoais)
 .claude/settings.local.json
+.claude/worktrees/
+
+# Saídas geradas por scripts
+outputs/
